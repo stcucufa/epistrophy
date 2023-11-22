@@ -60,13 +60,16 @@ test("delay()", t => {
 test("spawn()", t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
-    const childThread = Thread();
-    let effect;
+    const child1 = Thread();
+    const child2 = Thread();
+    const effects = [];
     thread.instant(K("ok"));
-    thread.spawn(childThread);
-    childThread.effect((value, t) => { effect = `${value}@${t}`; });
+    thread.spawn(child1);
+    thread.spawn(child2);
+    child1.effect((value, t) => { effects.push(`${value}@${t}`); });
+    child2.effect((value, t) => { effects.push(`@${t}=${value}`); });
     vm.clock.seek(18);
-    t.equal(vm.valueOf(childThread), "ok@17", "spawned thread value");
+    t.equal(effects, ["ok@17", "@17=ok"], "spawned threads effect");
 });
 
         </script>
