@@ -1,0 +1,59 @@
+div.transport-bar svg {
+    display: block;
+}
+
+div.transport-bar button {
+    width: 2rem;
+    height: 2rem;
+    padding: 0.25rem;
+    margin: 0.25rem;
+}
+
+div.transport-bar div.display {
+    display: inline-block;
+    position: relative;
+}
+
+div.transport-bar span.time {
+    font-size: 1.5rem;
+    line-height: 2.5rem;
+    margin-left: 0.5rem;
+    background-color: #ffe;
+    display: inline-block;
+    font-family: ui-monospace, monospace;
+}
+
+div.transport-bar span.rate {
+    font-size: 0.5rem;
+    position: absolute;
+    top: 0;
+    left: 0.5rem;
+    display: inline-block;
+    font-family: ui-monospace, monospace;
+}
+
+div.transport-bar span.rate::before {
+    content: "×";
+}
+
+div.transport-bar span.rate.hidden {
+    display: none;
+}
+
+div.transport-bar button[disabled] {
+    opacity: 0.2;
+}
+
+div.transport-bar button.pressed[disabled] {
+    opacity: 1;
+    outline: solid thin #ff4040;
+}
+
+div.transport-bar button svg circle {
+    fill: #ff4040;
+}
+
+div.transport-bar button svg path {
+    fill: #102040;
+    stroke: #102040;
+}

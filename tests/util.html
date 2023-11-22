@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Util</title>
+        <meta charset="utf8">
+        <link rel="stylesheet" href="test.css">
+        <script type="module">
+
+import { test } from "./test.js";
+import {
+    add, addBy, assign, assoc, assoco, clamp, clockTime, create, cycle, del,
+    escapeMarkup, everyof, extend, filterit, flip, foldit, fold1, get, html, I,
+    imagePromise, intersperse, isAsync, isEmpty, isIterable, isNumber, isObject,
+    K, mapdel, mapit, mod, nop, normalizeWhitespace, parseTime, partition, push,
+    range, remove, removeChildren, reverse, safe, shuffle, sign, single, snd,
+    someof, timecount, timeout, todo, typeOf, values, zip, zipo,
+    XHTML_NS, SVG_NS
+} from "../lib/util.js";
+
+test("add(collection, item/key, value?)", t => {
+    const set = new Set();
+    t.equal(add(set, "foo"), "foo", "returns the added item");
+    t.equal(set.has("foo"), true, "item was added");
+    const map = new Map();
+    t.equal(add(map, "foo", "bar"), "bar", "returns the added value")
+    t.equal(map.get("foo"), "bar", "the value was added with the right key");
+});
+
+test("addBy(xs, x, p)", t => {
+    const xs = [];
+    t.equal(addBy(xs, 3, y => y > 3), 3, "return the added item");
+    t.equal(xs, [3], "item added at the right place (pushed to empty array)");
+    addBy(xs, 1, y => y > 1);
+    t.equal(xs, [1, 3], "item added at the right place (spliced)");
+    addBy(xs, 5, y => y > 5);
+    t.equal(xs, [1, 3, 5], "item added at the right place (pushed)");
+    const three = { value: 3 };
+    addBy(xs, three, y => y > three.value);
+    t.equal(xs, [1, 3, three, 5], "item added at the right place (after an equal one)");
+});
+
+test("assign(object, ...properties)", t => {
+    const Foo = assign({ foo: 1, fum: 2 }, { f: K(true), get x() { return "y"; }  });
+    t.equal(Foo.foo, 1, "foo");
+    t.equal(Foo.fum, 2, "bar");
+    t.equal(Foo.f(), true, "f");
+    t.equal(Foo.x, "y", "x");
+});
+
+test("assoc(xs, f?)", t => {
+    t.empty(assoc([], nop), "empty list");
+
+    const simpleMap = new Map();
+    simpleMap.set("foo", 1);
+    simpleMap.set("bar", 2);
+    t.equal(assoc([["foo", 1], ["bar", 2]]), simpleMap, "I is the default for f");
+
+    const map = new Map();
+    map.set("one", 1);
+    map.set("two", 2);
+    map.set("three", 3);
+    t.equal(assoc(["one", "two", "three"], (x, i) => [x, i + 1]), map, "f");
+});
+
+test("assoco(xs, f?)", t => {
+    t.empty(assoco([], nop), "empty list");
+
+    const simpleObject = { foo: 1, bar: 2 };
+    t.equal(assoco([["foo", 1], ["bar", 2]]), simpleObject, "I is the default for f");
+
+    const o = { one: 1, two: 2, three: 3 };
+    t.equal(assoco(["one", "two", "three"], (x, i) => [x, i + 1]), o, "f");
+});
+
+test("clamp(x, min, max)", t => {
+    t.equal(clamp(0, 1, 10), 1, "min");
+    t.equal(clamp(5, 1, 10), 5, "middle");
+    t.equal(clamp(15, 1, 10), 10, "max");
+});
+
+test("clockTime(t)", t => {
+    t.equal(clockTime(Infinity), "Infinity", "∞");
+    t.equal(clockTime(parseTime("1w")), "168:00:00", "hh+:mm:ss");
+    t.equal(clockTime(9003000), "02:30:03", "hh:mm:ss");
+    t.equal(clockTime(180010250), "50:00:10.25", "hh:mm:ss.ms");
+    t.equal(clockTime(153000), "02:33", "mm:ss");
+    t.equal(clockTime(10500), "00:10.5", "mm:ss.ms");
+    t.equal(clockTime(10500.25), "00:10.5", "mm:ss.ms (integer ms)");
+    t.equal(clockTime(0), "00:00", "zero");
+});
+
+test("create()", t => {
+    const Foo = {
+        create: create(),
+        bar() {
+            return this.value;
+        }
+    };
+    t.equal(Foo.create({ value: 17 }).bar(), 17, "Object created with a value (no default)");
+
+    const Bar = {
+        create: create({ value: 23 }),
+        baz() {
+            return this.value;
+        }
+    };
+    t.equal(Bar.create().baz(), 23, "Object created with default value");
+    t.equal(Bar.create({ value: 17 }).baz(), 17, "Object created with a value (override default)");
+
+    const Baz = {
+        create: create(),
+        init() {
+            this.doubleValue = this.value * 2;
+        },
+        get fum() {
+            return this.doubleValue;
+        }
+    };
+    t.equal(Baz.create({ value: 17 }).fum, 34, "Object initialized");
+});
+
+test("cycle(xs)", t => {
+    const xs = cycle([1, 2, 3]);
+    t.equal(xs.next().value, 1, "1");
+    t.equal(xs.next().value, 2, "2");
+    t.equal(xs.next().value, 3, "3");
+    t.equal(xs.next().value, 1, "1");
+    t.equal(xs.next().value, 2, "2");
+    t.equal(xs.next().value, 3, "3");
+    t.equal(xs.next().value, 1, "1");
+})
+
+test("del(object, key)", t => {
+    const object = { foo: 1, bar: 2 };
+    t.equal(del(object, "bar"), 2, "get the value");
+    t.equal(object, { foo: 1 }, "and remove it");
+    t.undefined(del(object, "bar"), "for good");
+});
+
+test("escapeMarkup(string)", t => {
+    t.equal(escapeMarkup("foo"), "foo", "no markup");
+    t.equal(escapeMarkup("<a && b>"), "&lt;a &amp;&amp; b&gt;", "some markup");
+});
+
+test("everyof(it, p, that)", t => {
+    t.equal(everyof(new Set(), x => x % 2 === 0), true, "empty set");
+    t.equal(everyof(new Set([2, 4, 6, 8, 10]), x => x % 2 === 0), true, "all even numbers");
+    t.equal(everyof(new Set([2, 4, 7, 8, 10]), x => x % 2 === 0), false, "not all even numbers");
+    t.equal(everyof(new Set([1, 3, 5, 7, 9]), x => x % 2 === 0), false, "no even number");
+    const lookup = { one: 1, two: 2, three: 3, four: 4 };
+    t.equal(everyof(new Set(["two", "four"]), function(x) {
+        return this[x] % 2 === 0;
+    }, lookup), true, "this");
+});
+
+test("extend(object, ...properties)", t => {
+    const Foo = { foo: 1, fum: 2, f: K(true), get x() { return "y"; }  };
+    const Bar = extend(Foo, { bar: 3, fum: "quux" }, { baz: 4, get x() { return "z"; } });
+    t.equal(Bar.foo, 1, "foo");
+    t.equal(Bar.bar, 3, "bar");
+    t.equal(Bar.baz, 4, "baz");
+    t.equal(Bar.fum, "quux", "fum");
+    t.equal(Bar.f(), true, "f");
+    t.equal(Bar.x, "z", "x");
+});
+
+test("filterit(xs, p, this?)", t => {
+    t.equal(filterit(range(1, 10), x => x % 2 === 0), [2, 4, 6, 8, 10], "filter/collect iterator values");
+    t.equal(filterit(new Set().values(), x => x % 2 === 0), [], "empty set");
+    t.equal(filterit(new Set(["foo", "bar", "baz"]).values(), function(x) {
+        return this[x] % 2 === 0;
+    }, { foo: 1, bar: 2, baz: 3 }), ["bar"], "this");
+});
+
+test("flip(f)", t => {
+    const sub = (x, y) => x - y;
+    const bus = flip(sub);
+    t.equal(bus(17, 19), 2, "Flip the first two arguments");
+
+    const xyz = (x, y, z) => x + y + z;
+    const yx = flip(xyz);
+    t.equal(yx(1, 2), NaN, "Flip discards any extra argument");
+});
+
+test("foldit(xs, f, z, this?)", t => {
+    t.equal(foldit(range(1, 10), (z, x) => z + x, 0), 55, "fold over an iterator");
+    t.equal(foldit(new Set().values(), (z, x) => z + x, 0), 0, "empty set");
+    t.equal(foldit(new Set(["foo", "bar", "baz"]).values(), function(z, x) {
+        return z + this[x];
+    }, 0, { foo: 1, bar: 2, baz: 3 }), 6, "this");
+});
+
+test("fold1(xs, f, this?)", t => {
+    t.undefined(fold1([], () => { throw new Error("should not be called"); }), "empty array");
+    t.equal(fold1([17], () => { throw new Error("should not be called"); }), 17, "one element");
+    t.equal(fold1([17, 3], (z, x) => z - x), 14, "two elements");
+    t.equal(fold1([17, 3, 2, 1], (z, x) => z - x), 11, "several elements");
+    t.equal(fold1([17, "foo", "bar", "baz"], function (z, x) { return z - this[x]; }, {
+        foo: 3,
+        bar: 2,
+        baz: 1
+    }), 11, "this");
+});
+
+test("get(map, key, defaultValue)", t => {
+    const map = new Map();
+    map.set("foo", "bar");
+    t.equal(get(map, "foo", K("???")), "bar", "value is present");
+    t.equal(get(map, "baz", K("???")), "???", "value is absent");
+    t.equal(get(map, "baz", K("!!!")), "???", "value was inserted");
+});
+
+test("I(x)", t => {
+    t.same(I(1), 1, "identity");
+});
+
+test("imagePromise(url)", async t => {
+    const image = await imagePromise("portrait.jpg");
+    t.equal(image.naturalWidth, 400, "the image was properly loaded");
+    try {
+        await imagePromise("missing.png");
+        t.fail("missing image should have been caught");
+    } catch (e) {
+        t.instanceof(e, Error, "missing image was caught");
+    }
+});
+
+test("intersperse(xs, y)", t => {
+    t.equal(intersperse([], ","), [], "empty list");
+    t.equal(intersperse([1], ","), [1], "single element");
+    t.equal(intersperse([1, 2, 3], ","), [1, ",", 2, ",", 3], "several elements");
+});
+
+test("isAsync(f)", t => {
+    t.equal(isAsync(timeout), true, "timeout is async");
+    t.equal(isAsync(isAsync), false, "isAsync is not async");
+    t.equal(isAsync(), false, "handles incorrect input");
+});
+
+test("isEmpty(x)", t => {
+    t.equal(isEmpty(""), true, "Empty string");
+    t.equal(isEmpty("nope"), false, "Non-empty string");
+    t.equal(isEmpty([]), true, "Empty array");
+    t.equal(isEmpty([1, 2, 3]), false, "Non-empty array");
+    t.equal(isEmpty({}), true, "Empty object");
+    t.equal(isEmpty({ foo: 1, bar: 2 }), false, "Non-empty object");
+
+    const set = new Set();
+    t.equal(isEmpty(set), true, "Empty set");
+    set.add("foo");
+    t.equal(isEmpty(set), false, "Non-empty set");
+
+    const map = new Map();
+    t.equal(isEmpty(map), true, "Empty map");
+    map.set("foo", "bar");
+    t.equal(isEmpty(map), false, "Non-empty map");
+
+    t.equal(isEmpty(null), false, "null");
+    t.equal(isEmpty(), false, "undefined");
+    t.equal(isEmpty(false), false, "boolean");
+    t.equal(isEmpty(Symbol()), false, "symbol");
+    t.equal(isEmpty(Math.PI), false, "number");
+    t.equal(isEmpty(nop), false, "function");
+});
+
+test("isIterable(x)", t => {
+    t.equal(isIterable(), false, "undefined is not iterable");
+    t.equal(isIterable(null), false, "null is not iterable");
+    t.equal(isIterable(true), false, "boolean is not iterable");
+    t.equal(isIterable(Math.E), false, "number is not iterable");
+    t.equal(isIterable(BigInt(Number.MAX_SAFE_INTEGER) + 1n), false, "BigInt is not iterable");
+    t.equal(isIterable(Symbol()), false, "Symbol is not iterable");
+    t.equal(isIterable(nop), false, "function is not iterable");
+    t.equal(isIterable(new RegExp("bar")), false, "regex is not iterable");
+    t.equal(isIterable({ foo: 1, bar: 2 }), false, "object is not iterable");
+    t.equal(isIterable("foo"), true, "string is iterable");
+    t.equal(isIterable([1, 2, 3]), true, "array is iterable");
+    t.equal(isIterable(new Int8Array(8)), true, "TypedArray is iterable");
+    t.equal(isIterable(new Map()), true, "map is iterable");
+    t.equal(isIterable(new Set()), true, "set is iterable");
+    t.equal(isIterable({ *[Symbol.iterator]() { yield true; } }), true, "custom iterator");
+});
+
+test("isNumber(x)", t => {
+    t.equal(isNumber(0), true, "0 is a number");
+    t.equal(isNumber(Math.PI), true, "π is a number");
+    t.equal(isNumber(-12), true, "-12 is a number");
+    t.equal(isNumber(Infinity), true, "∞ is a number");
+    t.equal(isNumber(-Infinity), true, "-∞ is a number");
+    t.equal(isNumber(NaN), false, "NaN is not a number");
+    t.equal(isNumber("12"), false, "string is not a number");
+    t.equal(isNumber(Symbol()), false, "symbol is not a number");
+    t.equal(isNumber(true), false, "boolean is not a number");
+});
+
+test("isObject(x)", t => {
+    t.equal(isObject({}), true, "{} is an object");
+    t.equal(isObject(new Map()), true, "Map is an object");
+    t.equal(isObject(null), false, "false for null");
+});
+
+test("K(x)", t => {
+    t.typeof(K, "function", "K returns a constant function");
+    t.equal(K("foo")("bar"), "foo", "K x y = x");
+});
+
+test("mapdel(map, key)", t => {
+    const map = assoc([["foo", 1], ["bar", 2]]);
+    t.equal(mapdel(map, "bar"), 2, "get the value");
+    t.equal(map.has("bar"), false, "and remove it");
+    t.undefined(mapdel(map, "bar"), "for good");
+});
+
+test("mapit(xs, f, this?)", t => {
+    t.equal(mapit(range(1, 7), x => x ** 2), [1, 4, 9, 16, 25, 36, 49], "map/collect iterator values");
+    t.equal(mapit(new Set().values(), x => x ** 2), [], "empty set");
+    t.equal(mapit(new Set(["foo", "bar", "baz"]).values(), function(x) {
+        return this[x] ** 2;
+    }, { foo: 1, bar: 2, baz: 3 }), [1, 4, 9], "this");
+});
+
+test("mod(x, m)", t => {
+    t.equal(mod(3, 7), 3, "3 mod 7 = 3");
+    t.equal(mod(13, 7), 6, "13 mod 7 = 6");
+    t.equal(mod(-3, 7), 4, "-3 mod 7 = 4");
+    t.equal(mod(-7, 7), 0, "-7 mod 7 = 0");
+});
+
+test("nop()", t => {
+    t.undefined(nop());
+});
+
+test("normalizeWhitespace(string)", t => {
+    t.equal(normalizeWhitespace(" foo\t\n  bar\n \n\vbaz\n "), "foo bar baz",
+        "trim and collapse whitespace");
+});
+
+test("parseTime(string), infinity", t => {
+    t.equal(parseTime("Infinity"), Infinity, "Infinity");
+    t.equal(parseTime("indefinite"), Infinity, "indefinite");
+    t.equal(parseTime("   ∞    "), Infinity, "∞");
+    t.throws(() => { parseTime("Infinity 1s"); }, "only infinity");
+});
+
+test("parseTime(string), clock value", t => {
+    t.equal(parseTime("02:30:03"), 9003000, "02:30:03 = 2h 30mn 3s");
+    t.equal(parseTime("50:00:10.25"), 180010250, "50:00:10.25 = 50h 10s 250ms");
+    t.equal(parseTime("02:33"), 153000, "02:33 = 2mn 33s");
+    t.equal(parseTime("00:10.5"), 10500, "00:10.5 = 10s 500ms");
+    t.throws(() => { parseTime("03:10."); }, "trailing dot");
+    t.throws(() => { parseTime("63:10.5"); }, "too many minutes");
+    t.throws(() => { parseTime("03:70.5"); }, "too many seconds");
+    t.throws(() => { parseTime("3:10.5"); }, "too few digits (minutes)");
+    t.throws(() => { parseTime("03:0.5"); }, "too few digits (seconds)");
+});
+
+test("parseTime(string), timecount value", t => {
+    t.equal(parseTime("365 days 6hr"), 31557600000, "1 average year = 31,557,600,000 ms");
+    t.equal(parseTime("1w"), 604800000, "1w = 604,800,000 ms");
+    t.equal(parseTime("1 week"), 604800000, "1 week = 604,800,000 ms");
+    t.equal(parseTime("2 weeks"), 1209600000, "2 weeks = 1,209,600,000 ms");
+    t.equal(parseTime("1d"), 86400000, "1d = 86,400,000 ms");
+    t.equal(parseTime("1 day"), 86400000, "1 day = 86,400,000 ms");
+    t.equal(parseTime("2 days"), 172800000, "2 days = 172,800,000 ms");
+    t.equal(parseTime("1h"), 3600000, "1h = 3,600,000 ms");
+    t.equal(parseTime("1 hr"), 3600000, "1 hr = 3,600,000 ms");
+    t.equal(parseTime("1 hour"), 3600000, "1 hour = 3,600,000 ms");
+    t.equal(parseTime("2 hours"), 7200000, "2 hours = 7,200,000 ms");
+    t.equal(parseTime("1mn"), 60000, "1 mn = 60,000 ms");
+    t.equal(parseTime("1 min"), 60000, "1 min = 60,000 ms");
+    t.equal(parseTime("1 minute"), 60000, "1 minute = 60,000 ms");
+    t.equal(parseTime("2 minutes"), 120000, "2 minutes = 120,000 ms");
+    t.equal(parseTime("1s"), 1000, "1s = 1,000 ms");
+    t.equal(parseTime("1 second"), 1000, "1 second = 1,000 ms");
+    t.equal(parseTime("2 seconds"), 2000, "2 seconds = 2,000 ms");
+    t.equal(parseTime("1ms"), 1, "1 ms = 1 ms");
+    t.equal(parseTime(""), 0, "nothing = 0ms");
+    t.equal(parseTime("500"), 500, "ms is the default unit");
+    t.equal(parseTime(" 2 hr 30 mn 10 S  "), 9010000, "several units in the right order");
+    t.equal(parseTime("2hr30mn10s"), 9010000, "no spaces");
+    t.equal(parseTime("1111.111ms"), 1111.111, "fractional ms");
+    t.throws(() => { parseTime("2hr:30mn:10s"); }, "extra separators");
+    t.throws(() => { parseTime(" 10 min  2H "); }, "several units in the wrong order");
+    t.throws(() => { parseTime("one week"); }, "unexpected format");
+});
+
+test("partition(xs, p)", t => {
+    t.equal(
+        partition([...range(1, 9)], x => x % 2 === 0),
+        [[2, 4, 6, 8], [1, 3, 5, 7, 9]],
+        "partition into evens and odds"
+    );
+});
+
+test("push(xs, x)", t => {
+    const xs = [];
+    t.equal(push(xs, "foo"), "foo", "returns the added item");
+    t.equal(xs, ["foo"], "item was added");
+});
+
+test("range(from, to, step?)", t => {
+    t.equal([...range(1, 10)], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "default step (1)");
+    t.equal([...range(1, 10, 2)], [1, 3, 5, 7, 9], "integral step (2)");
+    t.equal([...range(1, 10, 2.5)], [1, 3.5, 6, 8.5], "non-integral step (2.5)");
+    t.equal([...range(1, 10, 0)], [], "zero step");
+    t.equal([...range(10, 1, -1)], [10, 9, 8, 7, 6, 5, 4, 3, 2, 1], "negative step (-1)");
+    t.equal([...range(10, 1, -2)], [10, 8, 6, 4, 2], "negative step (-2)");
+    t.equal([...range(10, 1, -2.5)], [10, 7.5, 5, 2.5], "negative step (-2)");
+    t.equal([...range(5, 5)], [5], "single element");
+    t.equal([...range(10, 1)], [], "no backward range without negative step");
+    const positive = range();
+    t.equal(positive.next().value, 0, "infinite range (0)");
+    t.equal(positive.next().value, 1, "infinite range (1)");
+    t.equal(positive.next().value, 2, "infinite range (2)");
+    t.equal(range(1).next().value, 1, "infinite range (starting at 1)");
+    const [zero, two, four] = range(0, -Infinity, -2);
+    t.equal([zero, two, four], [0, -2, -4], "infinite range (negative evens)");
+});
+
+test("remove(xs, x)", t => {
+    const xs = [1, 2, 3, 4];
+    t.equal(remove(xs, 3), 3, "return removed item");
+    t.equal(xs, [1, 2, 4], "item was removed");
+});
+
+test("removeChildren(node)", t => {
+    const p = html("p", "Some text");
+    t.equal(removeChildren(p).textContent, "", "Remove text content");
+    const div = html("div", html("p", "Some text"), html("p", "Some more text"));
+    t.equal(removeChildren(div).innerHTML, "", "Removed all children");
+});
+
+test("reverse(xs)", t => {
+    t.equal([...reverse([])], [], "empty array");
+    t.equal([...reverse([1, 2, 3])], [3, 2, 1], "non-empty array");
+});
+
+test("safe(f)", t => {
+    t.equal(safe(parseTime)("1mn30s"), 90000, "wraps a function that throws");
+    t.undefined(safe(parseTime)("30s1mn"), "and ignores exceptions");
+});
+
+test("shuffle(xs)", t => {
+    const original = [1, 2, 3, 4, 5, 6];
+    const xs = original.slice();
+    const shuffled = shuffle(xs);
+    t.same(xs, shuffled, "shuffles in place");
+    while (xs.every((x, i) => x === original[i])) {
+        shuffle(xs);
+    }
+    t.equal(xs.some((x, i) => x !== original[i]), true, `xs is shuffled: [${xs.join(", ")}]`);
+});
+
+test("sign(x)", t => {
+    t.equal(sign(-Math.PI), -1, "-1 for negative numbers");
+    t.equal(sign(Infinity), 1, "(even -∞)");
+    t.equal(sign(123), 1, "1 for positive numbers");
+    t.equal(sign(Infinity), 1, "(even ∞)");
+    t.equal(sign(0), 0, "0 otherwise");
+    t.equal(sign(NaN), 0, "(including NaN)");
+});
+
+test("single(x)", t => {
+    t.equal(single([17]), 17, "return the single value");
+    t.throws(() => single([]), "no value");
+    t.throws(() => single([17, 23, 31]), "too many values");
+    const object = { foo: "bar" };
+    t.equal(single(Object.keys(object)), "foo", "single key from object");
+    t.equal(single(Object.values(object)), "bar", "single value from object");
+});
+
+test("snd(x, y)", t => {
+    t.equal(snd("one", "two"), "two");
+});
+
+test("someof(it, p, that)", t => {
+    t.equal(someof(new Set(), x => x % 2 === 0), false, "empty set");
+    t.equal(someof(new Set([2, 4, 6, 8, 10]), x => x % 2 === 0), true, "all even numbers");
+    t.equal(someof(new Set([2, 4, 7, 8, 10]), x => x % 2 === 0), true, "not all even numbers");
+    t.equal(someof(new Set([1, 3, 5, 7, 9]), x => x % 2 === 0), false, "no even number");
+    const lookup = { one: 1, two: 2, three: 3, four: 4 };
+    t.equal(someof(new Set(["two", "four"]), function(x) {
+        return this[x] % 2 === 0;
+    }, lookup), true, "this");
+});
+
+test("timecount(t)", t => {
+    t.equal(timecount(Infinity), "Infinity", "Infinity");
+    t.equal(timecount(parseTime("365.25d")), "52w1d6h", "1 average year");
+    t.equal(timecount(604800000), "1w", "604,800,000 ms = 1w");
+    t.equal(timecount(86400000), "1d", "86,400,000 ms = 1d");
+    t.equal(timecount(3600000), "1h", "3,600,000 ms = 1h");
+    t.equal(timecount(60000), "1mn", "60,000 ms = 1mn");
+    t.equal(timecount(1000), "1s", "1,000 ms = 1s");
+    t.equal(timecount(1), "1ms", "1 ms = 1ms");
+    t.equal(timecount(0), "0", "0 ms = 0");
+    t.equal(timecount(1111.111), "1s111ms", "1111.111 ms = 1s111ms (trimmed)");
+});
+
+test("timeout(t)", async t => {
+    const begin = performance.now();
+    await timeout(100);
+    const checkpoint = performance.now();
+    t.atLeast(checkpoint - begin, 95, `timed out after ${checkpoint - begin}ms`);
+    await timeout();
+    const now = performance.now();
+    t.atLeast(now, checkpoint, `no parameter; timed out after ${now - checkpoint}ms`);
+});
+
+test("todo()", t => {
+    t.throws(todo, "throw a TODO exception");
+});
+
+test("typeOf(x)", t => {
+    t.equal(typeOf(undefined), "undefined");
+    t.equal(typeOf(null), "null");
+    t.equal(typeOf(true), "boolean");
+    t.equal(typeOf(false), "boolean");
+    t.equal(typeOf(Math.PI), "number");
+    t.equal(typeOf(NaN), "number");
+    t.equal(typeOf(-Infinity), "number");
+    t.equal(typeOf(BigInt(Number.MAX_SAFE_INTEGER) + 1n), "bigint");
+    t.equal(typeOf(new String("string object")), "string", "string literal");
+    t.equal(typeOf("string"), "string", "string literal");
+    t.equal(typeOf(Symbol()), "symbol");
+    t.equal(typeOf(nop), "function");
+    t.equal(typeOf([1, 2, 3]), "array");
+    t.equal(typeOf(new RegExp("bar")), "regex");
+    t.equal(typeOf(/foo/), "regex", "regex literal");
+    t.equal(typeOf(new Map()), "map");
+    t.equal(typeOf(new Set()), "set");
+    t.equal(typeof({ foo: 1, bar: 2 }), "object");
+    t.equal(typeOf(Object.create(x => x + 1)), "object/function", "function object");
+});
+
+test("values(object)", t => {
+    t.equal(values({}), [], "no values");
+    t.equal(values({ foo: 1, bar: 2 }).toSorted(), [1, 2], "simple object");
+    t.equal(values(Object.assign(Object.create({ foo: 1, bar: 2 }), { bar: "fum", baz: 3 })).toSorted(),
+        [1, 3, "fum"], "complex object");
+});
+
+test("zip(xs, ys)", t => {
+    t.equal(zip(["one", "two", "three"], [1, 2, 3]), [["one", 1], ["two", 2], ["three", 3]],
+        "arrays with the same length");
+    t.equal(zip(["one", "two", "three", "four"], [1, 2, 3]), [["one", 1], ["two", 2], ["three", 3]],
+        "arrays of different length");
+    t.equal(zip(["one", "two", "three", "four"], []), [], "arrays of different length (one empty)");
+});
+
+test("zipo(keys, values)", t => {
+    t.equal(zipo(["one", "two", "three"], [1, 2, 3]), { one: 1, two: 2, three: 3 },
+        "arrays with the same length");
+    t.equal(zipo(["one", "two", "three", "four"], [1, 2, 3]), { one: 1, two: 2, three: 3 },
+        "arrays of different length");
+    t.equal(zipo(["one", "two", "three", "four"], []), {}, "arrays of different length (one empty)");
+});
+
+test("Namespaces", t => {
+    t.typeof(XHTML_NS, "string", "XHTML namespace");
+    t.typeof(SVG_NS, "string", "SVG namespace");
+});
+
+        </script>
+    </head>
+    <body>
+        <p><a href="index.html">Back</a></p>
+    </body>
+</html>

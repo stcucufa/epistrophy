@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>VM</title>
+        <meta charset="utf8">
+        <link rel="stylesheet" href="test.css">
+        <script type="module">
+
+import { test } from "./test.js";
+import { notification } from "../lib/events.js";
+import { K } from "../lib/util.js";
+import { VM } from "../lib/vm.js";
+
+test("VM()", t => {
+    const vm = VM();
+    t.equal(vm.clock.now, 0, "clock starts at 0");
+});
+
+test("Start the clock", async t => {
+    const vm = VM().start();
+    await notification(vm.clock, "update");
+    t.above(vm.clock.now, 0, `clock started (${vm.clock.now})`);
+});
+
+test("spawn(t = now)", t => {
+    const vm = VM();
+    const thread = vm.spawn();
+    thread.instant(K("ok"));
+    vm.clock.seek(1);
+    t.equal(vm.valueOf(thread), "ok", "thread value");
+});
+
+test("spawnAt(t)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    thread.instant(K("ok"));
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), "ok", "thread value");
+});
+
+        </script>
+    </head>
+    <body>
+        <p><a href="index.html">Back</a></p>
+    </body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Transport bar</title>
+        <meta charset="utf8">
+        <link rel="stylesheet" href="test.css">
+        <script type="module">
+
+import { test } from "./test.js";
+import { K } from "../lib/util.js";
+import { notification } from "../lib/events.js";
+import { TransportBar } from "../lib/transport-bar.js";
+import { VM } from "../lib/vm.js";
+
+test("TransportBar(vm)", t => {
+    const vm = VM();
+    const transportBar = TransportBar(vm);
+    t.equal(transportBar.vm, vm, "vm");
+    t.instanceof(transportBar.element, Element, "element");
+});
+
+test("Time display", t => {
+    const vm = VM();
+    vm.clock.seek(90000);
+    const transportBar = TransportBar(vm);
+    t.equal(transportBar.element.querySelector("span.time").textContent, "01:30", "same value as clock");
+    vm.clock.seek(91234);
+    t.equal(transportBar.element.querySelector("span.time").textContent, "01:31", "updated");
+});
+
+test("Rate display", t => {
+    const vm = VM();
+    const transportBar = TransportBar(vm);
+    const span = transportBar.element.querySelector("span.rate");
+    t.equal(span.textContent, "1", "clock rate");
+    t.equal(span.classList.contains("hidden"), true, "default rate is not displayed");
+    vm.clock.rate = 2;
+    t.equal(span.textContent, "2", "updated");
+    t.equal(span.classList.contains("hidden"), false, "new rate is displayed");
+});
+
+test("The transport bar follows the clock", t => {
+    const vm = VM().start();
+    const transportBar = TransportBar(vm);
+    t.equal(transportBar.state, "recording", "clock is running");
+    vm.clock.pause();
+    t.equal(transportBar.state, "paused", "clock is paused");
+    vm.clock.stop();
+    t.equal(transportBar.state, "stopped", "clock has stopped");
+});
+
+test("The clock follows the transport bar", t => {
+    const vm = VM();
+    const transportBar = TransportBar(vm);
+    transportBar.record();
+    t.equal(vm.clock.running, true, "clock is running");
+    transportBar.pause();
+    t.equal(vm.clock.paused, true, "clock is paused");
+    transportBar.stop();
+    t.equal(vm.clock.running, false, "clock is stopped");
+});
+
+test("Pushing buttons", t => {
+    const vm = VM();
+    const transportBar = TransportBar(vm);
+    t.equal(vm.clock.running, false, "clock is stopped");
+    const recordButton = transportBar.element.querySelector(`button[name="Record"]`);
+    const stopButton = transportBar.element.querySelector(`button[name="Stop"]`);
+    const pauseButton = transportBar.element.querySelector(`button[name="Pause"]`);
+    const ffwdButton = transportBar.element.querySelector(`button[name="Ffwd"]`);
+    const rewindButton = transportBar.element.querySelector(`button[name="Rewind"]`);
+
+    recordButton.click();
+    t.equal(recordButton.classList.contains("pressed"), true, "record button is pressed");
+    t.equal(recordButton.disabled, true, "record button is disabled");
+    t.equal(vm.clock.running, true, "clock is running");
+    t.equal(vm.clock.paused, false, "clock is not paused");
+
+    ffwdButton.click();
+    t.equal(vm.clock.rate, 2, "clock is running faster");
+    ffwdButton.click();
+    t.equal(vm.clock.rate, 4, "and faster");
+    vm.clock.rate = -2;
+    ffwdButton.click();
+    t.equal(vm.clock.rate, 1, "and back to normal speed");
+
+    rewindButton.click();
+    t.equal(vm.clock.rate, -1, "clock is going backward");
+    rewindButton.click();
+    t.equal(vm.clock.rate, -2, "clock is going backward faster");
+    ffwdButton.click();
+    t.equal(vm.clock.rate, 1, "and back to normal speed again");
+
+    pauseButton.click();
+    t.equal(pauseButton.classList.contains("pressed"), true, "pause button is pressed");
+    t.equal(vm.clock.running, false, "clock is not running");
+    t.equal(vm.clock.paused, true, "clock is paused");
+    t.equal(pauseButton.disabled, true, "record button is disabled");
+
+    stopButton.click();
+    t.equal(vm.clock.running, false, "clock is stopped");
+    t.equal(vm.clock.paused, false, "clock is not paused");
+    t.equal(recordButton.disabled, false, "record button is enabled");
+    t.equal(stopButton.disabled, true, "stop button is disabled");
+});
+
+        </script>
+    </head>
+    <body>
+        <p><a href="index.html">Back</a></p>
+    </body>
+</html>
