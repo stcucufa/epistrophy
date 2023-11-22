@@ -25,6 +25,16 @@ test("instant(f)", t => {
     t.equal(vm.valueOf(thread), "ok", "instant value");
 });
 
+test("effect(f)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    let effect;
+    thread.effect((value, t) => { effect = `${value}@${t}`; });
+    vm.clock.seek(18);
+    t.equal(effect, "undefined@17", "effect parameters");
+    t.undefined(vm.valueOf(thread), "no value");
+});
+
 test("delay(dur)", t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
@@ -45,7 +55,18 @@ test("delay()", t => {
     vm.clock.seek(41);
     t.equal(vm.scheduler.hasFuture, false, "ended");
     t.equal(vm.valueOf(thread), 23, "thread value");
+});
 
+test("spawn()", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const childThread = Thread();
+    let effect;
+    thread.instant(K("ok"));
+    thread.spawn(childThread);
+    childThread.effect((value, t) => { effect = `${value}@${t}`; });
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(childThread), "ok@17", "spawned thread value");
 });
 
         </script>
