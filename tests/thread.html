@@ -7,18 +7,45 @@
         <script type="module">
 
 import { test } from "./test.js";
-import { notification } from "../lib/events.js";
+import { Thread } from "../lib/thread.js";
 import { K } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
 
-test("Variable delay", t => {
+test("Thread", t => {
+    const thread = Thread();
+    t.atLeast(thread.id, 0, "id");
+    t.equal(thread.ops, [], "empty ops");
+});
+
+test("instant(f)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    thread.instant(K("ok"));
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), "ok", "instant value");
+});
+
+test("delay(dur)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    thread.delay(23);
+    vm.clock.seek(31);
+    t.equal(vm.scheduler.hasFuture, true, "delay...");
+    vm.clock.seek(41);
+    t.equal(vm.scheduler.hasFuture, false, "ended");
+});
+
+test("delay()", t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
     thread.instant(K(23));
     thread.delay();
-    thread.instant(K("ok"));
+    vm.clock.seek(31);
+    t.equal(vm.scheduler.hasFuture, true, "delay...");
     vm.clock.seek(41);
-    t.equal(vm.valueOf(thread), "ok", "thread value");
+    t.equal(vm.scheduler.hasFuture, false, "ended");
+    t.equal(vm.valueOf(thread), 23, "thread value");
+
 });
 
         </script>
