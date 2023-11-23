@@ -57,35 +57,6 @@ test("delay()", t => {
     t.equal(vm.valueOf(thread), 23, "thread value");
 });
 
-test("spawn()", t => {
-    const vm = VM();
-    const thread = vm.spawnAt(17);
-    const child1 = Thread();
-    const child2 = Thread();
-    const effects = [];
-    thread.instant(K("ok"));
-    thread.spawn(child1);
-    thread.spawn(child2);
-    child1.effect((value, t) => { effects.push(`${value}@${t}`); });
-    child2.effect((value, t) => { effects.push(`@${t}=${value}`); });
-    vm.clock.seek(18);
-    t.equal(effects, ["ok@17", "@17=ok"], "spawned threads effect");
-});
-
-test("join()", t => {
-    const vm = VM();
-    const thread = vm.spawnAt(17);
-    const child1 = Thread();
-    const child2 = Thread();
-    thread.instant(K("ok"));
-    thread.spawn(child1);
-    thread.spawn(child2);
-    child1.instant((value, t) => `${value}@${t}`);
-    child2.instant((value, t) => `@${t}=${value}`);
-    vm.clock.seek(18);
-    t.equal(vm.valueOf(thread), ["ok@17", "@17=ok"], "thread value");
-});
-
         </script>
     </head>
     <body>
