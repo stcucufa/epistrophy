@@ -38,6 +38,44 @@ test("spawnAt(t)", t => {
     t.equal(vm.valueOf(thread), "ok", "thread value");
 });
 
+test("Run forward", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const succ = x => `succ(${x})`;
+    thread.instant(K("zero"));
+    thread.delay(23);
+    thread.instant(succ);
+    thread.delay(31);
+    thread.instant(succ);
+    vm.clock.seek(17);
+    t.undefined(vm.valueOf(thread), "no value before t0");
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), "zero", "value in [t0, t1[");
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), "succ(zero)", "value in [t1, t2[");
+    vm.clock.seek(72);
+    t.equal(vm.valueOf(thread), "succ(succ(zero))", "value after t2");
+});
+
+test("Run backward", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const succ = x => `succ(${x})`;
+    thread.instant(K("zero"));
+    thread.delay(23);
+    thread.instant(succ);
+    thread.delay(31);
+    thread.instant(succ);
+    vm.clock.seek(72);
+    t.equal(vm.valueOf(thread), "succ(succ(zero))", "value after t2");
+    vm.clock.seek(71);
+    t.equal(vm.valueOf(thread), "succ(zero)", "value in [t1, t2[");
+    vm.clock.seek(40);
+    t.equal(vm.valueOf(thread), "zero", "value in [t0, t1[");
+    vm.clock.seek(17);
+    t.undefined(vm.valueOf(thread), "no value before t0");
+});
+
         </script>
     </head>
     <body>
