@@ -111,6 +111,14 @@ test("Do, undo, redo (effect)", t => {
     t.equal(effects, ["17: Do #1", "40: Do #2"], "effects (do)");
     vm.clock.seek(18);
     t.equal(effects, ["17: Do #1", "40: Do #2", "40: Undo #2"], "effects (undo)");
+    vm.clock.seek(41);
+    t.equal(effects, ["17: Do #1", "40: Do #2", "40: Undo #2", "40: Redo #2"], "effects (redo)");
+    vm.clock.seek(0);
+    t.equal(
+        effects,
+        ["17: Do #1", "40: Do #2", "40: Undo #2", "40: Redo #2", "40: Undo #2", "17: Undo #1"],
+        "effects (back to 0)"
+    );
 });
 
         </script>
