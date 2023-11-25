@@ -94,6 +94,19 @@ test("Queue.remove(), randomized", t => {
     t.atMost(ops, 3 * N * Math.log2(N), "O(log n) ops");
 });
 
+test("Queue.values()", t => {
+    const queue = Queue((a, b) => a - b);
+    queue.insert(17);
+    queue.insert(23);
+    queue.insert(19);
+    queue.insert(7);
+    queue.insert(31);
+    queue.insert(13);
+    t.equal(queue, [7, 17, 13, 23, 31, 19], "queue before getting values");
+    t.equal([...queue.values()], [7, 13, 17, 19, 23, 31], "queue values");
+    t.equal(queue, [7, 17, 13, 23, 31, 19], "queue after getting values");
+});
+
         </script>
     </head>
     <body>
