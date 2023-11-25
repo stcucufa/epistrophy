@@ -76,6 +76,21 @@ test("Run backward", t => {
     t.undefined(vm.valueOf(thread), "no value before t0");
 });
 
+test("Do, undo, redo (value)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const succ = x => `succ(${x})`;
+    thread.instant(K("zero"));
+    thread.delay(23);
+    thread.instant(succ);
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), "succ(zero)", "do (twice)");
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), "zero", "undo");
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), "succ(zero)", "redo");
+});
+
         </script>
     </head>
     <body>
