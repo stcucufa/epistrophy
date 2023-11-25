@@ -24,6 +24,9 @@ test("Counter", t => {
     thread.delay(1000);
     thread.instant(K(3));
     thread.set(counter, "value");
+    thread.delay(1000);
+    thread.instant(K(4));
+    thread.set(counter, "value");
 
     vm.clock.seek(1);
     t.equal(counter.value, 1, "one");
@@ -31,15 +34,15 @@ test("Counter", t => {
     t.equal(counter.value, 2, "two");
     vm.clock.seek(2001);
     t.equal(counter.value, 3, "three");
-    t.equal(vm.valueOf(thread), 3, "thread value");
-    vm.clock.seek(12000);
-    t.equal(counter.value, 3, "still three");
-    vm.clock.seek(2000);
-    t.equal(counter.value, 2, "two");
     vm.clock.seek(1000);
-    t.equal(counter.value, 1, "one");
+    t.equal(counter.value, 1, "one (undo)");
+    vm.clock.seek(3001);
+    t.equal(counter.value, 4, "four (redo + do)");
+
+    t.equal(vm.valueOf(thread), 4, "thread value");
+
     vm.clock.seek(0);
-    t.equal(counter.value, 0, "zero");
+    t.equal(counter.value, 0, "zero (undo all)");
 });
 
         </script>

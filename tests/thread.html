@@ -57,15 +57,34 @@ test("delay()", t => {
     t.equal(vm.valueOf(thread), 23, "thread value");
 });
 
-test("set(object, property)", t => {
+test("set/unset(object, property)", t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
     const object = { foo: "bar" };
     thread.instant(K("fum"));
     thread.set(object, "foo");
+    thread.delay(23);
+    thread.unset(object, "foo");
     vm.clock.seek(18);
     t.equal(object.foo, "fum", "property was set");
-    t.equal(vm.valueOf(thread), ["fum", "bar"], "thread value (with save previous value)");
+    vm.clock.seek(41);
+    t.equal(object.foo, "bar", "property was unset");
+    t.equal(vm.valueOf(thread), "fum", "thread value (set is an effect)");
+});
+
+test("setAttribute/unsetAttribute(element, attribute)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const element = svg("path", { d: "M0,0" });
+    thread.instant(K("M100,50"));
+    thread.setAttribute(element, "d");
+    thread.delay(23);
+    thread.unsetAttribute(element, "d");
+    vm.clock.seek(18);
+    t.equal(element.getAttribute("d"), "M100,50", "attribute was set");
+    vm.clock.seek(41);
+    t.equal(element.getAttribute("d"), "M0,0", "attribute was unset");
+    t.equal(vm.valueOf(thread), "M100,50", "thread value (set is an effect)");
 });
 
         </script>
