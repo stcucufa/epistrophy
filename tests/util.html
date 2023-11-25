@@ -9,11 +9,12 @@
 import { test } from "./test.js";
 import {
     add, addBy, assign, assoc, assoco, clamp, clockTime, create, cycle, del,
-    escapeMarkup, everyof, extend, filterit, flip, foldit, fold1, get, html, I,
-    imagePromise, intersperse, isAsync, isEmpty, isIterable, isNumber, isObject,
-    K, mapdel, mapit, mod, nop, normalizeWhitespace, parseTime, partition, push,
-    range, remove, removeChildren, reverse, safe, shuffle, sign, single, snd,
-    someof, timecount, timeout, todo, typeOf, values, zip, zipo,
+    escapeMarkup, everyof, extend, filterit, flip, foldit, fold1, get, geto,
+    html, I, imagePromise, intersperse, isAsync, isEmpty, isIterable, isNumber,
+    isObject, K, mapdel, mapit, mod, nop, normalizeWhitespace, parseTime,
+    partition, push, range, remove, removeChildren, reverse, safe, shuffle,
+    sign, single, snd, someof, timecount, timeout, todo, typeOf, values, zip,
+    zipo,
     XHTML_NS, SVG_NS
 } from "../lib/util.js";
 
@@ -208,6 +209,13 @@ test("get(map, key, defaultValue)", t => {
     t.equal(get(map, "foo", K("???")), "bar", "value is present");
     t.equal(get(map, "baz", K("???")), "???", "value is absent");
     t.equal(get(map, "baz", K("!!!")), "???", "value was inserted");
+});
+
+test("geto(object, key, defaultValue)", t => {
+    const object = { foo: "bar" };
+    t.equal(geto(object, "foo", K("???")), "bar", "value is present");
+    t.equal(geto(object, "baz", K("???")), "???", "value is absent");
+    t.equal(geto(object, "baz", K("!!!")), "???", "value was inserted");
 });
 
 test("I(x)", t => {
