@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Counter</title>
+        <meta charset="utf8">
+        <link rel="stylesheet" href="examples.css"/>
+        <link rel="stylesheet" href="../lib/style.css"/>
+        <script type="module">
+
+import { TransportBar } from "../lib/transport-bar.js";
+import { VM } from "../lib/vm.js";
+import { K } from "../lib/util.js";
+import { show } from "../lib/show.js";
+
+// ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
+
+const span = document.querySelector("span");
+const vm = VM();
+const thread = vm.spawn();
+
+for (let i = 1; i <= 10; ++i) {
+    thread.delay(1000);
+    thread.instant(K(i));
+    thread.set(span, "textContent");
+}
+
+// ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
+
+const transportBar = TransportBar(vm);
+document.body.appendChild(transportBar.element);
+
+        </script>
+    </head>
+    <body>
+        <p><a href="index.html">Back</a></p>
+        <h1>Counter</h1>
+        <p>The count is now: <span>0</span></p>
+        <script src="source.js" type="module"></script>
+    </body>
+</html>
