@@ -91,6 +91,28 @@ test("Do, undo, redo (value)", t => {
     t.equal(vm.valueOf(thread), "succ(zero)", "redo");
 });
 
+test("Do, undo, redo (effect)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const effects = [];
+    thread.effect(
+        (_, t) => { effects.push(`${t}: Do #1`); },
+        (_, t) => { effects.push(`${t}: Undo #1`); },
+        (_, t) => { effects.push(`${t}: Redo #1`); }
+    );
+    thread.delay(23);
+    thread.effect(
+        (_, t) => { effects.push(`${t}: Do #2`); },
+        (_, t) => { effects.push(`${t}: Undo #2`); },
+        (_, t) => { effects.push(`${t}: Redo #2`); }
+    );
+
+    vm.clock.seek(41);
+    t.equal(effects, ["17: Do #1", "40: Do #2"], "effects (do)");
+    vm.clock.seek(18);
+    t.equal(effects, ["17: Do #1", "40: Do #2", "40: Undo #2"], "effects (undo)");
+});
+
         </script>
     </head>
     <body>
