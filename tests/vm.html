@@ -76,6 +76,51 @@ test("Run backward", t => {
     t.undefined(vm.valueOf(thread), "no value before t0");
 });
 
+test("Do, undo, redo (value)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const succ = x => `succ(${x})`;
+    thread.instant(K("zero"));
+    thread.delay(23);
+    thread.instant(succ);
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), "succ(zero)", "do (twice)");
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), "zero", "undo");
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), "succ(zero)", "redo");
+});
+
+test("Do, undo, redo (effect)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const effects = [];
+    thread.effect(
+        (_, t) => { effects.push(`${t}: Do #1`); },
+        (_, t) => { effects.push(`${t}: Undo #1`); },
+        (_, t) => { effects.push(`${t}: Redo #1`); }
+    );
+    thread.delay(23);
+    thread.effect(
+        (_, t) => { effects.push(`${t}: Do #2`); },
+        (_, t) => { effects.push(`${t}: Undo #2`); },
+        (_, t) => { effects.push(`${t}: Redo #2`); }
+    );
+
+    vm.clock.seek(41);
+    t.equal(effects, ["17: Do #1", "40: Do #2"], "effects (do)");
+    vm.clock.seek(18);
+    t.equal(effects, ["17: Do #1", "40: Do #2", "40: Undo #2"], "effects (undo)");
+    vm.clock.seek(41);
+    t.equal(effects, ["17: Do #1", "40: Do #2", "40: Undo #2", "40: Redo #2"], "effects (redo)");
+    vm.clock.seek(0);
+    t.equal(
+        effects,
+        ["17: Do #1", "40: Do #2", "40: Undo #2", "40: Redo #2", "40: Undo #2", "17: Undo #1"],
+        "effects (back to 0)"
+    );
+});
+
         </script>
     </head>
     <body>
