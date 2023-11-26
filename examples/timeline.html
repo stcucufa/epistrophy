@@ -7,12 +7,21 @@
         <link rel="stylesheet" href="../lib/style.css"/>
         <script type="module">
 
+import { K } from "../lib/util.js";
+import { VM } from "../lib/vm.js";
+import { TransportBar } from "../lib/transport-bar.js";
 import { Timeline } from "../lib/timeline.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-const timeline = Timeline();
-document.body.appendChild(timeline.element);
+const vm = VM();
+document.body.appendChild(TransportBar(vm).element);
+document.body.appendChild(Timeline(vm).element);
+
+const thread = vm.spawn();
+thread.instant(K("ok?"));
+thread.delay(1000);
+thread.instant(v => v.replace(/\?/, "!"));
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
