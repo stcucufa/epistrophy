@@ -14,13 +14,13 @@ import { Timeline } from "../lib/timeline.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-const vm = VM().start();
+const vm = VM();
 document.body.appendChild(TransportBar(vm).element);
 document.body.appendChild(Timeline(vm).element);
 
 const thread = vm.spawn();
 thread.instant(K("ok?"));
-thread.delay("7s");
+thread.delay("3.3s");
 thread.instant(v => v.replace(/\?/, "!"));
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
