@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Timeline</title>
+        <meta charset="utf8">
+        <link rel="stylesheet" href="test.css">
+        <script type="module">
+
+import { test } from "./test.js";
+import { Timeline } from "../lib/timeline.js";
+import { VM } from "../lib/vm.js";
+
+test("Timeline(vm)", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+    t.equal(timeline.vm, vm, "vm");
+    t.instanceof(timeline.element, Element, "element");
+});
+
+        </script>
+    </head>
+    <body>
+        <p><a href="index.html">Back</a></p>
+    </body>
+</html>
