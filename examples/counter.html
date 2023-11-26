@@ -8,6 +8,7 @@
         <script type="module">
 
 import { TransportBar } from "../lib/transport-bar.js";
+import { Timeline } from "../lib/timeline.js";
 import { VM } from "../lib/vm.js";
 import { K } from "../lib/util.js";
 import { show } from "../lib/show.js";
@@ -26,8 +27,8 @@ for (let i = 1; i <= 10; ++i) {
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-const transportBar = TransportBar(vm);
-document.body.appendChild(transportBar.element);
+document.body.appendChild(TransportBar(vm).element);
+document.body.appendChild(Timeline(vm).element);
 
         </script>
     </head>
