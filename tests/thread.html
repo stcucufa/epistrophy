@@ -8,7 +8,7 @@
 
 import { test } from "./test.js";
 import { Thread } from "../lib/thread.js";
-import { K } from "../lib/util.js";
+import { K, svg } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
 
 test("Thread", t => {
@@ -55,6 +55,36 @@ test("delay()", t => {
     vm.clock.seek(41);
     t.equal(vm.scheduler.hasFuture, false, "ended");
     t.equal(vm.valueOf(thread), 23, "thread value");
+});
+
+test("set/unset(object, property)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const object = { foo: "bar" };
+    thread.instant(K("fum"));
+    thread.set(object, "foo");
+    thread.delay(23);
+    thread.unset(object, "foo");
+    vm.clock.seek(18);
+    t.equal(object.foo, "fum", "property was set");
+    vm.clock.seek(41);
+    t.equal(object.foo, "bar", "property was unset");
+    t.equal(vm.valueOf(thread), "fum", "thread value (set is an effect)");
+});
+
+test("setAttribute/unsetAttribute(element, attribute)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    const element = svg("path", { d: "M0,0" });
+    thread.instant(K("M100,50"));
+    thread.setAttribute(element, "d");
+    thread.delay(23);
+    thread.unsetAttribute(element, "d");
+    vm.clock.seek(18);
+    t.equal(element.getAttribute("d"), "M100,50", "attribute was set");
+    vm.clock.seek(41);
+    t.equal(element.getAttribute("d"), "M0,0", "attribute was unset");
+    t.equal(vm.valueOf(thread), "M100,50", "thread value (set is an effect)");
 });
 
         </script>
