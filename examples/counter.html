@@ -16,11 +16,12 @@ import { show } from "../lib/show.js";
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
 const span = document.querySelector("span");
-const vm = VM();
+const button = document.querySelector("button");
+const vm = VM().start();
 const thread = vm.spawn();
 
 for (let i = 1; i <= 10; ++i) {
-    thread.delay(1000);
+    thread.event(button, "click");
     thread.instant(K(i));
     thread.set(span, "textContent");
 }
@@ -28,14 +29,14 @@ for (let i = 1; i <= 10; ++i) {
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
 document.body.appendChild(TransportBar(vm).element);
-document.body.appendChild(Timeline(vm).element);
+//document.body.appendChild(Timeline(vm).element);
 
         </script>
     </head>
     <body>
         <p><a href="index.html">Back</a></p>
         <h1>Counter</h1>
-        <p>The count is now: <span>0</span></p>
+        <p>The count is now: <span>0</span> <button type="Button">+1</button></p>
         <script src="source.js" type="module"></script>
     </body>
 </html>
