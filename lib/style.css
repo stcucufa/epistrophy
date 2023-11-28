@@ -57,3 +57,32 @@ div.transport-bar button svg path {
     fill: #102040;
     stroke: #102040;
 }
+
+div.timeline {
+    width: 1200px;
+    height: 50px;
+    border: dashed thin #102040;
+}
+
+div.timeline svg {
+    width: 100%;
+    height: 100%;
+}
+
+div.timeline svg g.track line {
+    stroke: #102040;
+}
+
+div.timeline svg g.track line.current {
+    stroke: #ff4040;
+}
+
+div.timeline svg g.track circle,
+div.timeline svg g.track rect {
+    fill: #102040;
+}
+
+div.timeline svg g.track circle.current,
+div.timeline svg g.track rect.current {
+    fill: #ff4040;
+}

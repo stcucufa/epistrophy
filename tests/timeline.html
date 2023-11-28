@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Timeline</title>
+        <meta charset="utf8">
+        <link rel="stylesheet" href="test.css">
+        <script type="module">
+
+import { test } from "./test.js";
+import { K } from "../lib/util.js";
+import { Timeline } from "../lib/timeline.js";
+import { VM } from "../lib/vm.js";
+
+test("Timeline(vm)", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+    t.equal(timeline.vm, vm, "vm");
+    t.instanceof(timeline.element, Element, "element");
+});
+
+test("Add and highlight elements", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawn();
+    thread.instant(K("ok?"));
+    thread.delay("3.3s");
+    thread.instant(v => v.replace(/\?/, "!"));
+
+    vm.clock.seek(1);
+    const track = timeline.element.querySelector("g.track");
+    const current = [...track.querySelectorAll(".current")];
+    t.equal(track.children.length, 3, "track contents count");
+    t.equal(track.firstChild.tagName, "line", "line for track");
+    t.equal(current.length, 2, "current items");
+    t.equal(current[0].tagName, "circle", "circle for zero dur item");
+    t.equal(current[1].tagName, "rect", "rect for non-zero dur item");
+
+    vm.clock.seek(3333);
+    t.equal(track.children.length, 4, "new content added");
+});
+
+        </script>
+    </head>
+    <body>
+        <p><a href="index.html">Back</a></p>
+    </body>
+</html>
