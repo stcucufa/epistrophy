@@ -31,9 +31,7 @@ test("scheduleForward(), unresolved time", t => {
     const thread = Thread();
     const scheduleItem = scheduler.scheduleForward(thread, time.unresolved, 0);
     t.equal(scheduleItem.thread, thread, "scheduled thread");
-    t.equal(scheduler.hasFuture, true, "a thread is scheduled");
-    t.equal(scheduler.nextFutureTime, null, "at the expected time");
-    t.equal(scheduler.nextFutureItem.thread, thread, "and is the expected thread");
+    t.equal(scheduler.hasFuture, false, "no thread is scheduled");
 });
 
 test("scheduleForward(), unresolved time then resolved time", t => {

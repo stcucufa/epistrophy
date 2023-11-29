@@ -87,6 +87,18 @@ test("setAttribute/unsetAttribute(element, attribute)", t => {
     t.equal(vm.valueOf(thread), "M100,50", "thread value (set is an effect)");
 });
 
+test("event(target, type)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    thread.event(window, "synth");
+    vm.clock.seek(31);
+    const event = new window.Event("synth");
+    window.dispatchEvent(event);
+    t.undefined(vm.valueOf(thread), "no value before the event");
+    vm.clock.seek(32);
+    t.equal(vm.valueOf(thread), event, "event value");
+});
+
         </script>
     </head>
     <body>

@@ -86,3 +86,7 @@ div.timeline svg g.track circle.current,
 div.timeline svg g.track rect.current {
     fill: #ff4040;
 }
+
+div.timeline svg g.track rect.unresolved {
+    fill-opacity: 0.3;
+}
