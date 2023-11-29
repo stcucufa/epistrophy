@@ -59,9 +59,7 @@ div.transport-bar button svg path {
 }
 
 div.timeline {
-    width: 1200px;
-    height: 50px;
-    border: dashed thin #102040;
+    border: solid thin #102040;
 }
 
 div.timeline svg {
