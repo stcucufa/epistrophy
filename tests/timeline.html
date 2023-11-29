@@ -29,15 +29,33 @@ test("Add and highlight elements", t => {
 
     vm.clock.seek(1);
     const track = timeline.element.querySelector("g.track");
-    const current = [...track.querySelectorAll(".current")];
-    t.equal(track.children.length, 3, "track contents count");
-    t.equal(track.firstChild.tagName, "line", "line for track");
+    t.equal(track.children.length, 2, "track contents count (support/items)");
+    t.equal(track.firstChild.firstChild.tagName, "line", "line for track");
+    const items = track.lastChild;
+    const current = [...items.querySelectorAll(".current")];
     t.equal(current.length, 2, "current items");
     t.equal(current[0].tagName, "circle", "circle for zero dur item");
     t.equal(current[1].tagName, "rect", "rect for non-zero dur item");
 
     vm.clock.seek(3333);
-    t.equal(track.children.length, 4, "new content added");
+    t.equal(items.children.length, 3, "new content added");
+});
+
+test("Show jump", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        instant(K(0)).
+        label("loop").
+        delay(23).
+        instant(x => x + 1).
+        jump("loop");
+
+    vm.clock.seek(41);
+    const track = timeline.element.querySelector("g.track");
+    const support = track.firstChild;
+    t.equal(support.firstChild.nextSibling.tagName, "rect", "rect for loop");
 });
 
         </script>
