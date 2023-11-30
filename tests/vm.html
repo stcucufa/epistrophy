@@ -143,6 +143,24 @@ test("Do, undo, redo (event)", t => {
     t.equal(effects, [51, 71], "Event B");
 });
 
+test("Do, undo, redo (jump)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        instant(K(0)).
+        label("loop").
+        delay(23).
+        instant(x => x + 1).
+        jump("loop");
+    vm.clock.seek(87);
+    t.equal(vm.valueOf(thread), 3, "value after 3 iterations");
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), 1, "back to second iteration");
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), 0, "back to first iteration");
+    vm.clock.seek(87);
+    t.equal(vm.valueOf(thread), 3, "redo");
+});
+
         </script>
     </head>
     <body>

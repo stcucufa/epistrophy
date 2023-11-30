@@ -15,16 +15,17 @@ import { show } from "../lib/show.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
+let count = 0;
+
 const span = document.querySelector("span");
 const button = document.querySelector("button");
 const vm = VM().start();
-const thread = vm.spawn();
 
-for (let i = 1; i <= 10; ++i) {
-    thread.event(button, "click");
-    thread.instant(K(i));
-    thread.set(span, "textContent");
-}
+vm.spawn().label("loop").
+    event(button, "click").
+    instant(() => ++count).
+    set(span, "textContent").
+    jump("loop");
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 

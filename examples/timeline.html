@@ -18,10 +18,10 @@ const vm = VM();
 document.body.appendChild(TransportBar(vm).element);
 document.body.appendChild(Timeline(vm).element);
 
-const thread = vm.spawn();
-thread.instant(K("3.3s"));
-thread.delay();
-thread.effect(v => console.log(`Waited for ${v}`));
+vm.spawn().
+    instant(K("3.3s")).
+    delay().
+    effect(v => console.log(`Waited for ${v}`));
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 

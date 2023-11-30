@@ -90,3 +90,9 @@ div.timeline svg g.track rect.current {
 div.timeline svg g.track rect.unresolved {
     fill-opacity: 0.3;
 }
+
+div.timeline svg g.track rect.repeat {
+    fill: none;
+    stroke: #102040;
+    stroke-dasharray: 4 4;
+}
