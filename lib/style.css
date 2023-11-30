@@ -63,14 +63,17 @@ svg.timeline {
     border: solid thin #102040;
 }
 
+svg.timeline text {
+    color: #102040;
+    font-size: 24px;
+}
+
 svg.timeline g.times rect:nth-child(even) {
     fill: #ffd;
-    fill-opacity: 0.5;
 }
 
 svg.timeline g.times rect:nth-child(odd) {
-    fill: #dff;
-    fill-opacity: 0.5;
+    fill: none;
 }
 
 svg.timeline g.track line {
