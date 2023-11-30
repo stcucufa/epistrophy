@@ -58,46 +58,42 @@ div.transport-bar button svg path {
     stroke: #102040;
 }
 
-div.timeline {
+svg.timeline {
+    display: block;
     border: solid thin #102040;
 }
 
-div.timeline g.times rect:nth-child(even) {
+svg.timeline g.times rect:nth-child(even) {
     fill: #ffd;
 }
 
-div.timeline g.times rect:nth-child(odd) {
+svg.timeline g.times rect:nth-child(odd) {
     fill: #dff;
 }
 
-div.timeline svg {
-    width: 100%;
-    height: 100%;
-}
-
-div.timeline svg g.track line {
+svg.timeline g.track line {
     stroke: #102040;
 }
 
-div.timeline svg g.track line.current {
+svg.timeline g.track line.current {
     stroke: #ff4040;
 }
 
-div.timeline svg g.track circle,
-div.timeline svg g.track rect {
+svg.timeline g.track circle,
+svg.timeline g.track rect {
     fill: #102040;
 }
 
-div.timeline svg g.track circle.current,
-div.timeline svg g.track rect.current {
+svg.timeline g.track circle.current,
+svg.timeline g.track rect.current {
     fill: #ff4040;
 }
 
-div.timeline svg g.track rect.unresolved {
+svg.timeline g.track rect.unresolved {
     fill-opacity: 0.3;
 }
 
-div.timeline svg g.track rect.repeat {
+svg.timeline g.track rect.repeat {
     fill: none;
     stroke: #102040;
     stroke-dasharray: 4 4;
