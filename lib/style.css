@@ -65,10 +65,12 @@ svg.timeline {
 
 svg.timeline g.times rect:nth-child(even) {
     fill: #ffd;
+    fill-opacity: 0.5;
 }
 
 svg.timeline g.times rect:nth-child(odd) {
     fill: #dff;
+    fill-opacity: 0.5;
 }
 
 svg.timeline g.track line {
