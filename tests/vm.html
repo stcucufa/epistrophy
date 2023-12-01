@@ -10,6 +10,7 @@ import { test } from "./test.js";
 import { notification } from "../lib/events.js";
 import { K } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
+import { Thread } from "../lib/thread.js";
 
 test("VM()", t => {
     const vm = VM();
@@ -147,12 +148,15 @@ test("Do, undo, redo (jump)", t => {
     const vm = VM();
     let count = 0;
     const object = {};
-    const thread = vm.spawnAt(17).
-        label("loop").
-        delay(23).
-        instant(() => ++count).
-        set(object, "value").
-        jump("loop");
+    const thread = vm.spawn().
+        delay(17).
+        spawn(Thread().
+            label("loop").
+            delay(23).
+            instant(() => ++count).
+            set(object, "value").
+            jump("loop")
+        );
     vm.clock.seek(87);
     t.equal(object.value, 3, "value after 3 iterations");
     vm.clock.seek(41);
