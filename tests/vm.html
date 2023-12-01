@@ -145,20 +145,22 @@ test("Do, undo, redo (event)", t => {
 
 test("Do, undo, redo (jump)", t => {
     const vm = VM();
+    let count = 0;
+    const object = {};
     const thread = vm.spawnAt(17).
-        instant(K(0)).
         label("loop").
         delay(23).
-        instant(x => x + 1).
+        instant(() => ++count).
+        set(object, "value").
         jump("loop");
     vm.clock.seek(87);
-    t.equal(vm.valueOf(thread), 3, "value after 3 iterations");
+    t.equal(object.value, 3, "value after 3 iterations");
     vm.clock.seek(41);
-    t.equal(vm.valueOf(thread), 1, "back to second iteration");
-    vm.clock.seek(18);
-    t.equal(vm.valueOf(thread), 0, "back to first iteration");
+    t.equal(object.value, 1, "back to second iteration");
+    vm.clock.seek(0);
+    t.undefined(object.value, "back to first iteration");
     vm.clock.seek(87);
-    t.equal(vm.valueOf(thread), 3, "redo");
+    t.equal(object.value, 3, "redo");
 });
 
         </script>
