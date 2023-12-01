@@ -143,6 +143,20 @@ test("Do, undo, redo (event)", t => {
     t.equal(effects, [51, 71], "Event B");
 });
 
+test("Do, undo, redo (await)", async t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    thread.await(() => fetch("./icons.svg"));
+    vm.clock.seek(18);
+    const { value } = await notification(vm, "await");
+    vm.clock.seek(19);
+    t.equal(vm.valueOf(thread), value, "do");
+    vm.clock.seek(0);
+    t.undefined(vm.valueOf(thread), "undo");
+    vm.clock.seek(19);
+    t.equal(vm.valueOf(thread), value, "redo");
+});
+
 test("Do, undo, redo (jump)", t => {
     const vm = VM();
     const thread = vm.spawnAt(17).
