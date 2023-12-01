@@ -7,9 +7,10 @@
         <script type="module">
 
 import { test } from "./test.js";
-import { K } from "../lib/util.js";
+import { K, nop } from "../lib/util.js";
 import { Timeline } from "../lib/timeline.js";
 import { VM } from "../lib/vm.js";
+import { Thread } from "../lib/thread.js";
 
 test("Timeline(vm)", t => {
     const vm = VM();
@@ -56,6 +57,21 @@ test("Show jump", t => {
     const track = timeline.element.querySelector("g.track");
     const support = track.firstChild;
     t.equal(support.firstChild.nextSibling.tagName, "rect", "rect for loop");
+});
+
+test("Add threads", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        spawn(Thread().delay(23).instant(nop)).
+        delay(31).
+        instant(nop);
+
+    vm.clock.seek(49);
+    t.equal(timeline.element.querySelectorAll("g.track").length, 2, "one track per thread");
+    t.equal(timeline.element.querySelectorAll("g.times rect").length, 4, "four time rects (0, 17, 40, 48)");
+    t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 1, "one arrow");
 });
 
         </script>
