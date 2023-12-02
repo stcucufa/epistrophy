@@ -11,6 +11,7 @@ import { K } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
 import { TransportBar } from "../lib/transport-bar.js";
 import { Timeline } from "../lib/timeline.js";
+import { Thread } from "../lib/thread.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
@@ -19,9 +20,15 @@ document.body.appendChild(TransportBar(vm).element);
 document.body.appendChild(Timeline(vm).element);
 
 vm.spawn().
+    delay(500).
+    spawn(Thread().
+        instant(K("1.8s")).
+        delay().
+        effect(v => { console.log(`Child thread waited for ${v}`); })
+    ).
     instant(K("3.3s")).
     delay().
-    effect(v => console.log(`Waited for ${v}`));
+    effect(v => { console.log(`Waited for ${v}`); });
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
