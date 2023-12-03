@@ -15,7 +15,7 @@ import { Thread } from "../lib/thread.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-const vm = VM();
+const vm = VM().start();
 document.body.appendChild(TransportBar(vm).element);
 document.body.appendChild(Timeline(vm).element);
 
@@ -24,11 +24,16 @@ vm.spawn().
     spawn(Thread().
         instant(K("1.8s")).
         delay().
-        effect(v => { console.log(`Child thread waited for ${v}`); })
+        effect(v => { console.log(`Child #1 waited for ${v}`); })
     ).
-    instant(K("3.3s")).
-    delay().
-    effect(v => { console.log(`Waited for ${v}`); });
+    spawn(Thread().
+        instant(K("1.3s")).
+        delay().
+        effect(v => { console.log(`Child #2 waited for ${v}`); })
+    ).
+    join().
+    delay("1.5s").
+    effect(v => { console.log(`Ended with ${v}`); });
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
