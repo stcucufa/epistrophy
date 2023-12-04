@@ -94,6 +94,13 @@ svg.timeline g.track rect.current {
     fill: #ff4040;
 }
 
+svg.timeline g.track circle.end,
+svg.timeline g.track circle.current.end {
+    fill: none;
+    stroke: #102040;
+    stroke-width: 3;
+}
+
 svg.timeline g.track rect.unresolved {
     fill-opacity: 0.3;
 }
