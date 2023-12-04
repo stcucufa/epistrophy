@@ -11,7 +11,7 @@ import { TransportBar } from "../lib/transport-bar.js";
 import { Timeline } from "../lib/timeline.js";
 import { VM } from "../lib/vm.js";
 import { K } from "../lib/util.js";
-import { show } from "../lib/show.js";
+import { Thread } from "../lib/thread.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
@@ -22,7 +22,8 @@ const button = document.querySelector("button");
 const vm = VM().start();
 
 vm.spawn().label("loop").
-    event(button, "click").
+    spawn(Thread().event(button, "click")).
+    join().
     instant(() => ++count).
     set(span, "textContent").
     jump("loop");
