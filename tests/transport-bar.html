@@ -49,6 +49,13 @@ test("The transport bar follows the clock", t => {
     t.equal(transportBar.state, "stopped", "clock has stopped");
 });
 
+test("But does not apply effects twice", t => {
+    const vm = VM();
+    const transportBar = TransportBar(vm);
+    vm.start();
+    t.equal(transportBar.state, "recording", "clock is running (once)");
+});
+
 test("The clock follows the transport bar", t => {
     const vm = VM();
     const transportBar = TransportBar(vm);
