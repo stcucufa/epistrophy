@@ -15,17 +15,16 @@ import { Thread } from "../lib/thread.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-let count = 0;
-
 const span = document.querySelector("span");
 const button = document.querySelector("button");
 const vm = VM().start();
 
-vm.spawn().label("loop").
-    spawn(Thread().event(button, "click")).
-    join().
-    instant(() => ++count).
+vm.spawn().instant(K(0)).
+    label("loop").
     set(span, "textContent").
+    spawn(Thread().event(button, "click")).
+    join(false).
+    instant(x => x + 1).
     jump("loop");
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
@@ -38,7 +37,7 @@ document.body.appendChild(Timeline(vm).element);
     <body>
         <p><a href="index.html">Back</a></p>
         <h1>Counter</h1>
-        <p>The count is now: <span>0</span> <button type="Button">+1</button></p>
+        <p>The count is now: <span>???</span> <button type="Button">+1</button></p>
         <script src="source.js" type="module"></script>
     </body>
 </html>
