@@ -39,7 +39,7 @@ test("effect(f)", t => {
 test("await(f)", async t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
-    thread.await(() => fetch("../icons.svg"));
+    thread.await(() => fetch("./icons.svg"));
     vm.clock.seek(18);
     t.undefined(vm.valueOf(thread), "no value yet");
     const { value } = await notification(vm, "await");
