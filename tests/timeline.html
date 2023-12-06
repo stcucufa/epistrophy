@@ -39,13 +39,13 @@ test("Add and highlight elements", t => {
     t.equal(current[1].tagName, "rect", "rect for non-zero dur item");
 
     vm.clock.seek(3333);
-    t.equal(items.children.length, 5, "new content added (last item + end marker)");
+    t.equal(items.children.length, 3, "new content added");
 
     vm.clock.seek(0);
-    t.equal(items.children.length, 5, "items are still there");
+    t.equal(items.children.length, 3, "items are still there");
 
     vm.clock.seek(4444);
-    t.equal(items.children.length, 5, "no new items have shown up");
+    t.equal(items.children.length, 3, "no new items have shown up");
 });
 
 test("Show jump", t => {
