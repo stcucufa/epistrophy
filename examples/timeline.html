@@ -23,15 +23,13 @@ vm.spawn().
     delay(500).
     spawn(Thread().
         instant(K("1.8s")).
-        delay().
-        effect(v => { console.log(`Child #1 waited for ${v}`); })
+        delay()
     ).
     spawn(Thread().
         instant(K("1.3s")).
-        delay().
-        effect(v => { console.log(`Child #2 waited for ${v}`); })
+        delay()
     ).
-    join().
+    joinDynamic().
     delay("1.5s").
     effect(v => { console.log(`Ended with ${v}`); });
 

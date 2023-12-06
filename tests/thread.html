@@ -125,6 +125,28 @@ test("label(name) and jump(name)", t => {
     t.equal(vm.valueOf(thread), 3, "value after 3 iterations");
 });
 
+test("join", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().instant(K(31)).delay()).
+        spawn(Thread().instant(K(19)).delay()).
+        spawn(Thread().instant(K(23)).delay()).
+        join();
+    vm.clock.seek(49);
+    t.equal(vm.valueOf(thread), [31, 19, 23], "values in static order");
+});
+
+test("joinDynamic", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().instant(K(31)).delay()).
+        spawn(Thread().instant(K(19)).delay()).
+        spawn(Thread().instant(K(23)).delay()).
+        joinDynamic();
+    vm.clock.seek(49);
+    t.equal(vm.valueOf(thread), [19, 23, 31], "values in dynamic order");
+});
+
         </script>
     </head>
     <body>
