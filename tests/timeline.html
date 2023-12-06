@@ -39,13 +39,13 @@ test("Add and highlight elements", t => {
     t.equal(current[1].tagName, "rect", "rect for non-zero dur item");
 
     vm.clock.seek(3333);
-    t.equal(items.children.length, 5, "new content added (last item + end marker)");
+    t.equal(items.children.length, 3, "new content added");
 
     vm.clock.seek(0);
-    t.equal(items.children.length, 5, "items are still there");
+    t.equal(items.children.length, 3, "items are still there");
 
     vm.clock.seek(4444);
-    t.equal(items.children.length, 5, "no new items have shown up");
+    t.equal(items.children.length, 3, "no new items have shown up");
 });
 
 test("Show jump", t => {
@@ -65,7 +65,7 @@ test("Show jump", t => {
     t.equal(support.firstChild.nextSibling.tagName, "rect", "rect for loop");
 });
 
-test("Add threads", t => {
+test("Spawn threads (but no join)", t => {
     const vm = VM();
     const timeline = Timeline(vm);
 
@@ -78,6 +78,20 @@ test("Add threads", t => {
     t.equal(timeline.element.querySelectorAll("g.track").length, 2, "one track per thread");
     t.equal(timeline.element.querySelectorAll("g.times rect").length, 4, "four time rects (0, 17, 40, 48)");
     t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 1, "one arrow");
+});
+
+test("Join threads", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        spawn(Thread().delay(23).instant(nop)).
+        join().
+        delay(31).
+        instant(nop);
+
+    vm.clock.seek(72);
+    t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 2, "two arrows");
 });
 
         </script>
