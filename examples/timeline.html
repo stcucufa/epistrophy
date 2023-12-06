@@ -22,13 +22,11 @@ document.body.appendChild(Timeline(vm).element);
 vm.spawn().
     delay(500).
     spawn(Thread().
-        instant(K("1.8s")).
-        delay()
+        spawn(Thread().instant(K("1.8s")).delay()).
+        spawn(Thread().instant(K("1.3s")).delay()).
+        join()
     ).
-    spawn(Thread().
-        instant(K("1.3s")).
-        delay()
-    ).
+    spawn(Thread().instant(K("1.3s")).delay()).
     joinDynamic().
     delay("1.5s").
     effect(v => { console.log(`Ended with ${v}`); });
