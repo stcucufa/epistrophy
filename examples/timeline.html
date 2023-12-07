@@ -21,12 +21,9 @@ document.body.appendChild(Timeline(vm).element);
 
 vm.spawn().
     delay(500).
-    spawn(Thread().
-        spawn(Thread().instant(K("1.8s")).delay()).
-        spawn(Thread().instant(K("1.3s")).delay()).
-        join()
-    ).
-    spawn(Thread().instant(K("1.3s")).delay()).
+    constant(["1.8s", "1.3s"]).
+    map(Thread().delay()).
+    spawn(Thread().instant(K("1.4s")).delay()).
     joinDynamic().
     delay("1.5s").
     effect(v => { console.log(`Ended with ${v}`); });
