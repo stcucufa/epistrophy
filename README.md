@@ -20,7 +20,7 @@ const button = document.querySelector("button");
 const span = document.querySelector("span");
 
 VM().start().spawn().
-    instant(() => 0).
+    constant(0).
     label("loop").
     set(span, "textContent").
     spawn(Thread().event(button, "click")).
@@ -40,17 +40,17 @@ in the interval between the last and the current update time.
 `VM().start().spawn()` creates a VM, starts its clock immediately, and spawns a
 top-level thread to which instructions can be added.
 
-This main thread starts by instantly producing a value with `instant(() => 0)`.
-It then sets up a label which will be the target of a jump later. `set(span,
-"textContent")` sets the text content of the span element to the current thread
-value, which is 0. Then a new thread (created with `Thread()`) is spawned. This
-child thread has only one instruction: waiting for a single click event from
-the button element. The two threads run concurrently, so while the child thread
-waits for an event, the parent thread continues running and reaches the
-`join(false)` instruction. This pauses the thread until the thread that it
-spawned ends; the `false` flag means that the value that that thread ends with
-will be discarded. At this point, both threads are suspended and execution
-stops, even though the clock is still running.
+This main thread starts by instantly producing an initial value with
+`constant(0)`. It then sets up a label which will be the target of a jump
+later. `set(span, "textContent")` sets the text content of the span element to
+the current thread value, which is 0. Then a new thread (created with
+`Thread()`) is spawned. This child thread has only one instruction: waiting for
+a single click event from the button element. The two threads run concurrently,
+so while the child thread waits for an event, the parent thread continues
+running and reaches the `join(false)` instruction. This pauses the thread until
+the thread that it spawned ends; the `false` flag means that the value that
+that thread ends with will be discarded. At this point, both threads are
+suspended and execution stops, even though the clock is still running.
 
 When the user clicks on the button, the child thread can continue executing,
 and reaches the end of its list of instruction; it therefore ends with the

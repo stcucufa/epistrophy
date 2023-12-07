@@ -19,7 +19,8 @@ const span = document.querySelector("span");
 const button = document.querySelector("button");
 const vm = VM().start();
 
-vm.spawn().instant(K(0)).
+vm.spawn().
+    constant(0).
     label("loop").
     set(span, "textContent").
     spawn(Thread().event(button, "click")).

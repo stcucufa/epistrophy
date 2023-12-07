@@ -26,6 +26,14 @@ test("instant(f)", t => {
     t.equal(vm.valueOf(thread), "ok", "instant value");
 });
 
+test("constant(value)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    thread.constant("ok");
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), "ok", "constant value");
+});
+
 test("effect(f)", t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
