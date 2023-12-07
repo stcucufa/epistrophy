@@ -80,6 +80,23 @@ test("Spawn threads (but no join)", t => {
     t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 1, "one arrow");
 });
 
+test("Spawn threads with map", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        constant([23, 31, 19]).
+        map(Thread().delay()).
+        spawn(Thread()).
+        join();
+
+    vm.clock.seek(49);
+    t.equal(timeline.element.querySelectorAll("g.track").length, 5, "one track per thread");
+    t.equal(timeline.element.querySelectorAll("g.times rect").length, 5, "four time rects (0, 17, 36, 40, 48)");
+    t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 8, "four arrows (4 arrows in both directions)");
+});
+
+
 test("Join threads", t => {
     const vm = VM();
     const timeline = Timeline(vm);
