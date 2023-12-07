@@ -47,7 +47,7 @@ test("effect(f)", t => {
 test("await(f)", async t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
-    thread.await(() => fetch("../icons.svg"));
+    thread.await(() => fetch("./icons.svg"));
     vm.clock.seek(18);
     t.undefined(vm.valueOf(thread), "no value yet");
     const { value } = await notification(vm, "await");
@@ -131,6 +131,62 @@ test("label(name) and jump(name)", t => {
     t.equal(vm.valueOf(thread), 2, "value after 2 iterations");
     vm.clock.seek(87);
     t.equal(vm.valueOf(thread), 3, "value after 3 iterations");
+});
+
+test("join()", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().instant(K(31)).delay()).
+        spawn(Thread().instant(K(19)).delay()).
+        spawn(Thread().instant(K(23)).delay()).
+        join();
+    vm.clock.seek(49);
+    t.equal(vm.valueOf(thread), [31, 19, 23], "values in static order");
+});
+
+test("join(), sync", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().instant(K(31))).
+        spawn(Thread().instant(K(19))).
+        spawn(Thread().instant(K(23))).
+        join();
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), [31, 19, 23], "values in static order");
+});
+
+test("join(ignoreValues)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        instant(K("ok")).
+        spawn(Thread().instant(K(31)).delay()).
+        spawn(Thread().instant(K(19)).delay()).
+        spawn(Thread().instant(K(23)).delay()).
+        join(false);
+    vm.clock.seek(49);
+    t.equal(vm.valueOf(thread), "ok", "ignored values");
+});
+
+test("joinDynamic()", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().instant(K(31)).delay()).
+        spawn(Thread().instant(K(19)).delay()).
+        spawn(Thread().instant(K(23)).delay()).
+        joinDynamic();
+    vm.clock.seek(49);
+    t.equal(vm.valueOf(thread), [19, 23, 31], "values in dynamic order");
+});
+
+test("joinDynamic(), sync", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().instant(K(31))).
+        spawn(Thread().instant(K(19))).
+        spawn(Thread().instant(K(23))).
+        joinDynamic();
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), [31, 19, 23], "values in dynamic order");
 });
 
         </script>
