@@ -96,7 +96,6 @@ test("Spawn threads with map", t => {
     t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 8, "four arrows (4 arrows in both directions)");
 });
 
-
 test("Join threads", t => {
     const vm = VM();
     const timeline = Timeline(vm);
@@ -109,6 +108,21 @@ test("Join threads", t => {
 
     vm.clock.seek(72);
     t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 2, "two arrows");
+});
+
+test("Join threads (no spawn)", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        join().
+        delay(31).
+        instant(nop);
+
+    vm.clock.seek(49);
+    t.equal(timeline.element.querySelectorAll("g.track g:nth-child(2) circle").length, 2, "two circles");
+    t.equal(timeline.element.querySelectorAll("g.track rect").length, 1, "only one rect");
+    t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 0, "no arrow");
 });
 
         </script>
