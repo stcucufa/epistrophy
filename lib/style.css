@@ -110,3 +110,9 @@ svg.timeline g.track rect.repeat {
     stroke: #102040;
     stroke-dasharray: 4 4;
 }
+
+svg.timeline g.track path.cancel {
+    stroke: #102040;
+    stroke-width: 4;
+    stroke-linecap: round;
+}
