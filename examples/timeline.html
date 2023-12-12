@@ -18,13 +18,6 @@ const vm = VM().start();
 document.body.appendChild(TransportBar(vm).element);
 document.body.appendChild(Timeline(vm).element);
 
-vm.spawnAt(17).
-        constant([23, 31, 19]).
-        map(Thread().delay()).
-        first();
-
-/*
-
 vm.spawn().
     delay(500).
     constant(["1.8s", "1.3s", "2.1s"]).
@@ -33,7 +26,6 @@ vm.spawn().
     first().
     delay("1.5s").
     effect(v => { console.log(`Ended with ${v}`); });
-*/
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
