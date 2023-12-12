@@ -133,6 +133,27 @@ test("label(name) and jump(name)", t => {
     t.equal(vm.valueOf(thread), 3, "value after 3 iterations");
 });
 
+test("map(childThread)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        constant([31, 19, 23]).
+        map(Thread().delay()).
+        join();
+    vm.clock.seek(49);
+    t.equal(vm.valueOf(thread), [31, 19, 23], "mapped values");
+});
+
+test("map(childThread), empty input", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        constant([]).
+        map(Thread().delay()).
+        join().
+        instant(v => Array.isArray(v) && v.length === 0);
+    vm.clock.seek(18);
+    t.equal(vm.valueOf(thread), true, "mapped values");
+});
+
 test("join()", t => {
     const vm = VM();
     const thread = vm.spawnAt(17).

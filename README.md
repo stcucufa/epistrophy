@@ -101,8 +101,7 @@ While the clock can be manipulated programmatically, Epistrophy also provides
 a ready to use transport bar widget that can be simply added to a page, letting
 the user or developer in control of the flow of time. A timeline visualizer is
 also provided, to be added to a page as well during development. The screenshot
-below shows both of these elements displayed alongside the code of a running
-program.
+below shows both of these elements as a program is running.
 
 ![Screenshot of Epistrophy with the transport bar and
 timeline](doc/screenshot.png)

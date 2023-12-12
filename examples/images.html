@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Images (async loading)</title>
+        <meta charset="utf8">
+        <link rel="stylesheet" href="examples.css"/>
+        <link rel="stylesheet" href="../lib/style.css"/>
+<style>
+
+.images img {
+    width: 200px;
+}
+
+</style>
+        <script type="module">
+
+import { imagePromise } from "../lib/util.js";
+import { VM } from "../lib/vm.js";
+import { TransportBar } from "../lib/transport-bar.js";
+import { Timeline } from "../lib/timeline.js";
+import { Thread } from "../lib/thread.js";
+
+// ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
+
+const vm = VM().start();
+
+vm.spawn().
+    constant("images.json").
+    await(url => fetch(url)).
+    await(response => response.json()).
+    map(Thread().await(([w, h]) => imagePromise(`https://placekitten.com/${w}/${h}`))).
+    join().
+    effect(images => {
+        const div = document.querySelector("div.images");
+        for (const image of images) {
+            div.appendChild(image);
+        }
+    });
+
+// ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
+
+document.body.appendChild(TransportBar(vm).element);
+document.body.appendChild(Timeline(vm).element);
+
+        </script>
+    </head>
+    <body>
+        <p><a href="index.html">Back</a></p>
+        <h1>Images (async loading)</h1>
+        <p>A JSON file is fetched describing the URLs of images to be loaded and displayed.</p>
+        <div class="images"></div>
+        <script src="source.js" type="module"></script>
+    </body>
+</html>

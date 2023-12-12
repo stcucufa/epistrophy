@@ -7,7 +7,6 @@
         <link rel="stylesheet" href="../lib/style.css"/>
         <script type="module">
 
-import { K } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
 import { TransportBar } from "../lib/transport-bar.js";
 import { Timeline } from "../lib/timeline.js";
@@ -21,13 +20,10 @@ document.body.appendChild(Timeline(vm).element);
 
 vm.spawn().
     delay(500).
-    spawn(Thread().
-        spawn(Thread().instant(K("1.8s")).delay()).
-        spawn(Thread().instant(K("1.3s")).delay()).
-        join()
-    ).
-    spawn(Thread().instant(K("1.3s")).delay()).
-    joinDynamic().
+    constant(["1.8s", "1.3s", "2.1s"]).
+    map(Thread().delay()).
+    spawn(Thread().constant("1.4s").delay()).
+    join().
     delay("1.5s").
     effect(v => { console.log(`Ended with ${v}`); });
 
