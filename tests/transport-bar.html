@@ -111,6 +111,21 @@ test("Pushing buttons", t => {
     t.equal(stopButton.disabled, true, "stop button is disabled");
 });
 
+test("Error", t => {
+    const vm = VM();
+    const transportBar = TransportBar(vm);
+
+    const thread = vm.spawnAt(17).
+        constant(-23).
+        delay().
+        constant("ko");
+
+    t.errors(() => { vm.clock.seek(18); }, "error message in the console");
+    for (const button of transportBar.element.querySelectorAll("button")) {
+        t.equal(button.disabled, true, `${button.name} is disabled`);
+    }
+});
+
         </script>
     </head>
     <body>

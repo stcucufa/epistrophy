@@ -102,7 +102,7 @@ svg.timeline g.track circle.current.end {
 }
 
 svg.timeline g.track rect.current.unresolved {
-    fill: #ffec27;
+    fill: #00e436;
 }
 
 svg.timeline g.track circle.error,

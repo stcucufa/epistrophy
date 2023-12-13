@@ -181,6 +181,16 @@ test("Do, undo, redo (jump)", t => {
     t.equal(object.value, 3, "redo");
 });
 
+test("Bail on error", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        constant(-23).
+        delay().
+        constant("ko");
+    t.errors(() => { vm.clock.seek(41); }, "error message in the console");
+    t.equal(vm.valueOf(thread) instanceof Error, true, "thread error");
+});
+
         </script>
     </head>
     <body>
