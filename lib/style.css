@@ -19,7 +19,7 @@ div.transport-bar div.display {
 }
 
 div.transport-bar span.time {
-    padding: 0.1rem 0.5rem;
+    padding: 0.3rem 0.5rem 0 0.5rem;
     font-size: 1.5rem;
     margin-left: 0.5rem;
     background-color: #83ebf5;

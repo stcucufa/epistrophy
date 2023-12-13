@@ -22,7 +22,7 @@ vm.spawn().
     delay(500).
     constant(["1.8s", "1.3s", "2.1s"]).
     map(Thread().delay()).
-    spawn(Thread().constant("14s").delay()).
+    spawn(Thread().constant("-14s").delay()).
     first().
     delay("1.5s").
     effect(v => { console.log(`Ended with ${v}`); });
