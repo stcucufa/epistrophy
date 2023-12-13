@@ -1,3 +1,7 @@
+div.transport-bar {
+    margin-bottom: 0.5rem;
+}
+
 div.transport-bar svg {
     display: block;
 }
@@ -15,10 +19,10 @@ div.transport-bar div.display {
 }
 
 div.transport-bar span.time {
+    padding: 0.1rem 0.5rem;
     font-size: 1.5rem;
-    line-height: 2.5rem;
     margin-left: 0.5rem;
-    background-color: #ffe;
+    background-color: #83ebf5;
     display: inline-block;
     font-family: ui-monospace, monospace;
 }
@@ -46,30 +50,30 @@ div.transport-bar button[disabled] {
 
 div.transport-bar button.pressed[disabled] {
     opacity: 1;
-    outline: solid thin #ff4040;
+    outline: solid thin #ff004d;
 }
 
 div.transport-bar button svg circle {
-    fill: #ff4040;
+    fill: #ff004d;
 }
 
 div.transport-bar button svg path {
-    fill: #102040;
-    stroke: #102040;
+    fill: #1d2b53;
+    stroke: #1d2b53;
 }
 
 svg.timeline {
     display: block;
-    border: solid thin #102040;
+    border: solid thin #1d2b53;
 }
 
 svg.timeline text {
-    color: #102040;
+    color: #1d2b53;
     font-size: 24px;
 }
 
 svg.timeline g.times rect:nth-child(even) {
-    fill: #ffd;
+    fill: #83ebf5;
 }
 
 svg.timeline g.times rect:nth-child(odd) {
@@ -77,42 +81,43 @@ svg.timeline g.times rect:nth-child(odd) {
 }
 
 svg.timeline g.track line {
-    stroke: #102040;
-}
-
-svg.timeline g.track line.current {
-    stroke: #ff4040;
+    stroke: #1d2b53;
 }
 
 svg.timeline g.track circle,
 svg.timeline g.track rect {
-    fill: #102040;
+    fill: #1d2b53;
 }
 
 svg.timeline g.track circle.current,
 svg.timeline g.track rect.current {
-    fill: #ff4040;
+    fill: #008751;
 }
 
 svg.timeline g.track circle.end,
 svg.timeline g.track circle.current.end {
     fill: none;
-    stroke: #102040;
+    stroke: #1d2b53;
     stroke-width: 3;
 }
 
-svg.timeline g.track rect.unresolved {
-    fill-opacity: 0.3;
+svg.timeline g.track rect.current.unresolved {
+    fill: #ffec27;
+}
+
+svg.timeline g.track circle.error,
+svg.timeline g.track rect.error {
+    fill: #ff004d;
 }
 
 svg.timeline g.track rect.repeat {
     fill: none;
-    stroke: #102040;
+    stroke: #1d2b53;
     stroke-dasharray: 4 4;
 }
 
 svg.timeline g.track path.cancel {
-    stroke: #102040;
+    stroke: #1d2b53;
     stroke-width: 4;
     stroke-linecap: round;
 }
