@@ -110,6 +110,20 @@ test("Join threads", t => {
     t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 2, "two arrows");
 });
 
+test("Join threads (first)", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        constant([23, 31, 19]).
+        map(Thread().delay()).
+        first();
+
+    vm.clock.seek(37);
+    t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 4, "4 arrows (3 down, 1 up)");
+    t.equal(timeline.element.querySelectorAll("path.cancel").length, 2, "2 cancels");
+});
+
 test("Join threads (no spawn)", t => {
     const vm = VM();
     const timeline = Timeline(vm);

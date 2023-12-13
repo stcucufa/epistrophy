@@ -210,6 +210,20 @@ test("joinDynamic(), sync", t => {
     t.equal(vm.valueOf(thread), [31, 19, 23], "values in dynamic order");
 });
 
+test("first()", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        constant([31, 19, 23]).
+        map(Thread().delay().effect(x => {
+            if (x > 19) {
+                throw Error("Thread was not cancelled");
+            }
+        })).
+        first();
+    vm.clock.seek(49);
+    t.equal(vm.valueOf(thread), 19, "first value");
+});
+
         </script>
     </head>
     <body>
