@@ -139,6 +139,10 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
         );
     },
 
+    errors(f, context) {
+        wrapConsoleMethod.call(this, "error", "an error", f, context);
+    },
+
     fail(message = "failed") {
         this.expectations.push([message, false]);
         this.failures.push(message);
@@ -205,20 +209,24 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
     },
 
     warns(f, context) {
-        const warn = console.warn;
-        let warnings = 0;
-        console.warn = () => { ++warnings; };
-        f();
-        console.warn = warn;
-        if (warnings > 0) {
-            this.expectations.push([context ?? "", true]);
-        } else {
-            const message = (context ? `${context}: ` : "") + "expected a warning";
-            this.expectations.push([message, false]);
-            this.failures.push(message);
-        }
+        wrapConsoleMethod.call(this, "warn", "a warning", f, context);
     },
 });
+
+function wrapConsoleMethod(method, expected, f, context) {
+    const original = console[method];
+    let k = 0;
+    console[method] = () => { ++k; };
+    f();
+    console[method] = original;
+    if (k > 0) {
+        this.expectations.push([context ?? "", true]);
+    } else {
+        const message = (context ? `${context}: ` : "") + `expected ${expected}`;
+        this.expectations.push([message, false]);
+        this.failures.push(message);
+    }
+}
 
 const icon = (function() {
     const prefix = Array.prototype.find.call(
