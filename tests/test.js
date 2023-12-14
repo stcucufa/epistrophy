@@ -51,6 +51,11 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
             this.warn.apply(console, args);
             this.expect(false, [() => `warning (${args[0]})`], true);
         };
+        this.error = console.error;
+        console.error = (...args) => {
+            this.error.apply(console, args);
+            this.expect(false, [() => `error (${args[0]})`], true);
+        };
         this.not = new Proxy(this, {
             get(that, property) {
                 if (property === "not") {
@@ -70,6 +75,7 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
     done(...args) {
         console.assert = this.assert;
         console.warn = this.warn;
+        console.error = this.error;
         postMessage(...args);
     },
 
@@ -148,11 +154,19 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
         this.failures.push(message);
     },
 
+    infos(f, context) {
+        wrapConsoleMethod.call(this, "info", "an informational message", f, context);
+    },
+
     instanceof(value, expected, context) {
         this.expect(
             value instanceof expected,
             [() => `${this.expected} ${show(value)} to be an instance of ${show(expected)}`, context]
         );
+    },
+
+    logs(f, context) {
+        wrapConsoleMethod.call(this, "log", "a message", f, context);
     },
 
     match(value, regex, context) {
