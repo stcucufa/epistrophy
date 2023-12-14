@@ -51,6 +51,11 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
             this.warn.apply(console, args);
             this.expect(false, [() => `warning (${args[0]})`], true);
         };
+        this.error = console.error;
+        console.error = (...args) => {
+            this.error.apply(console, args);
+            this.expect(false, [() => `error (${args[0]})`], true);
+        };
         this.not = new Proxy(this, {
             get(that, property) {
                 if (property === "not") {
@@ -70,6 +75,7 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
     done(...args) {
         console.assert = this.assert;
         console.warn = this.warn;
+        console.error = this.error;
         postMessage(...args);
     },
 
@@ -139,9 +145,17 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
         );
     },
 
+    errors(f, context) {
+        wrapConsoleMethod.call(this, "error", "an error", f, context);
+    },
+
     fail(message = "failed") {
         this.expectations.push([message, false]);
         this.failures.push(message);
+    },
+
+    infos(f, context) {
+        wrapConsoleMethod.call(this, "info", "an informational message", f, context);
     },
 
     instanceof(value, expected, context) {
@@ -149,6 +163,10 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
             value instanceof expected,
             [() => `${this.expected} ${show(value)} to be an instance of ${show(expected)}`, context]
         );
+    },
+
+    logs(f, context) {
+        wrapConsoleMethod.call(this, "log", "a message", f, context);
     },
 
     match(value, regex, context) {
@@ -205,20 +223,24 @@ const TestCase = assign(properties => create(properties).call(TestCase), {
     },
 
     warns(f, context) {
-        const warn = console.warn;
-        let warnings = 0;
-        console.warn = () => { ++warnings; };
-        f();
-        console.warn = warn;
-        if (warnings > 0) {
-            this.expectations.push([context ?? "", true]);
-        } else {
-            const message = (context ? `${context}: ` : "") + "expected a warning";
-            this.expectations.push([message, false]);
-            this.failures.push(message);
-        }
+        wrapConsoleMethod.call(this, "warn", "a warning", f, context);
     },
 });
+
+function wrapConsoleMethod(method, expected, f, context) {
+    const original = console[method];
+    let k = 0;
+    console[method] = () => { ++k; };
+    f();
+    console[method] = original;
+    if (k > 0) {
+        this.expectations.push([context ?? "", true]);
+    } else {
+        const message = (context ? `${context}: ` : "") + `expected ${expected}`;
+        this.expectations.push([message, false]);
+        this.failures.push(message);
+    }
+}
 
 const icon = (function() {
     const prefix = Array.prototype.find.call(
