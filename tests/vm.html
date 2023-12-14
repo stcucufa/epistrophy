@@ -8,7 +8,7 @@
 
 import { test } from "./test.js";
 import { notification } from "../lib/events.js";
-import { K } from "../lib/util.js";
+import { K, nop } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
 import { Thread } from "../lib/thread.js";
 
@@ -181,7 +181,7 @@ test("Do, undo, redo (jump)", t => {
     t.equal(object.value, 3, "redo");
 });
 
-test("Bail on error", t => {
+test("Bail on error (do)", t => {
     const vm = VM();
     const thread = vm.spawnAt(17).
         constant(-23).
@@ -189,6 +189,37 @@ test("Bail on error", t => {
         constant("ko");
     t.errors(() => { vm.clock.seek(41); }, "error message in the console");
     t.equal(vm.valueOf(thread) instanceof Error, true, "thread error");
+});
+
+test("Bail on error (undo)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        constant("before").
+        delay(23).
+        effect(nop, () => { throw "could not undo!"; }).
+        delay(31).
+        constant("after");
+    vm.clock.seek(72);
+    t.equal(vm.valueOf(thread), "after", "do");
+    t.errors(() => { vm.clock.seek(0); }, "error message during undo");
+    // FIXME 2D05 Review valueOf(thread) when going backward
+    // t.equal(vm.valueOf(thread) instanceof Error, true, "thread error (undo)");
+});
+
+test("Bail on error (redo)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        constant("before").
+        delay(23).
+        effect(nop, nop, () => { throw "could not redo!"; }).
+        delay(31).
+        constant("after");
+    vm.clock.seek(72);
+    t.equal(vm.valueOf(thread), "after", "do");
+    vm.clock.seek(0);
+    t.errors(() => { vm.clock.seek(72); }, "error message during redo");
+    // FIXME 2D05 Review valueOf(thread) when going backward
+    // t.equal(vm.valueOf(thread) instanceof Error, true, "thread error (undo)");
 });
 
         </script>
