@@ -196,7 +196,7 @@ test("Stop when reaching 0 (seeking)", t => {
 test("Broken clock", t => {
     const clock = Clock();
     clock.start();
-    clock.stop(false);
+    clock.pause(false);
     t.equal(clock.broken, true, "clock is broken after stopping abnormally");
     t.throws(() => { clock.start(); }, "broken clock cannot start");
 });
