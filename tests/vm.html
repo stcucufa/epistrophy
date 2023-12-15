@@ -222,6 +222,19 @@ test("Bail on error (redo)", t => {
     // t.equal(vm.valueOf(thread) instanceof Error, true, "thread error (redo)");
 });
 
+test("Bail on error (async)", async t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        await(() => new Promise((_, reject) => { setTimeout(() => { reject("async failure"); }, 0); })).
+        effect(() => { throw Error("!!!"); });
+    vm.clock.seek(18);
+    const { error } = await notification(vm, "await")
+    t.equal(error, "async failure", "error notification");
+    t.errors(() => { vm.clock.seek(23); }, "error message");
+    // FIXME 2D05 Review valueOf(thread) when going backward
+    // t.equal(vm.valueOf(thread) instanceof Error, true, "thread error (async)");
+});
+
         </script>
     </head>
     <body>

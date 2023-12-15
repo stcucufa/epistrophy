@@ -7,6 +7,7 @@
         <script type="module">
 
 import { test } from "./test.js";
+import { notification } from "../lib/events.js";
 import { K, nop } from "../lib/util.js";
 import { Timeline } from "../lib/timeline.js";
 import { VM } from "../lib/vm.js";
@@ -164,6 +165,22 @@ test("Error (undo)", t => {
     vm.clock.seek(72);
     t.errors(() => { vm.clock.seek(0); }, "error message in the console");
     t.equal(timeline.element.querySelectorAll("circle.error").length, 1, "error item");
+});
+
+test("Error(async)", async t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    vm.spawnAt(17).
+        await(() => new Promise((_, reject) => { setTimeout(() => { reject("async failure"); }, 0); })).
+        effect(() => { throw Error("!!!"); });
+
+    vm.clock.seek(18);
+    await notification(vm, "await");
+    t.errors(() => { vm.clock.seek(23); }, "error message in the console");
+    t.equal(timeline.element.querySelectorAll("g.times rect").length, 3, "3 time intervals");
+    t.equal(timeline.element.querySelectorAll("rect.error").length, 1, "error item");
+    t.equal(timeline.element.querySelectorAll("path.error").length, 1, "error mark");
 });
 
         </script>
