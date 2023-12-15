@@ -25,7 +25,7 @@ import { Thread } from "../lib/thread.js";
 const vm = VM().start();
 
 vm.spawn().
-    constant("imageszzz.json").
+    constant("images.json").
     await(url => fetch(url)).
     await(response => response.json()).
     map(Thread().await(([w, h]) => imagePromise(`https://placekitten.com/${w}/${h}`))).
