@@ -139,6 +139,33 @@ test("Join threads (no spawn)", t => {
     t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 0, "no arrow");
 });
 
+test("Error (do)", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        constant(-23).
+        delay().
+        constant("ko");
+
+    t.errors(() => { vm.clock.seek(18); }, "error message in the console");
+    t.equal(timeline.element.querySelectorAll(".error").length, 1, "error item");
+});
+
+test("Error (undo)", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    vm.spawnAt(17).
+        delay(23).
+        effect(nop, () => { throw "could not undo!"; }).
+        delay(31);
+
+    vm.clock.seek(72);
+    t.errors(() => { vm.clock.seek(0); }, "error message in the console");
+    t.equal(timeline.element.querySelectorAll("circle.error").length, 1, "error item");
+});
+
         </script>
     </head>
     <body>

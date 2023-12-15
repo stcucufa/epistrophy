@@ -34,7 +34,7 @@ test("constant(value)", t => {
     t.equal(vm.valueOf(thread), "ok", "constant value");
 });
 
-test("effect(f)", t => {
+test("effect(do)", t => {
     const vm = VM();
     const thread = vm.spawnAt(17);
     let effect;
