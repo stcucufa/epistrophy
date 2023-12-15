@@ -219,7 +219,7 @@ test("Bail on error (redo)", t => {
     vm.clock.seek(0);
     t.errors(() => { vm.clock.seek(72); }, "error message during redo");
     // FIXME 2D05 Review valueOf(thread) when going backward
-    // t.equal(vm.valueOf(thread) instanceof Error, true, "thread error (undo)");
+    // t.equal(vm.valueOf(thread) instanceof Error, true, "thread error (redo)");
 });
 
         </script>
