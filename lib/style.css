@@ -116,8 +116,16 @@ svg.timeline g.track rect.repeat {
     stroke-dasharray: 4 4;
 }
 
-svg.timeline g.track path.cancel {
-    stroke: #1d2b53;
+svg.timeline g.track path.cancel,
+svg.timeline g.track path.error {
     stroke-width: 4;
     stroke-linecap: round;
+}
+
+svg.timeline g.track path.cancel {
+    stroke: #1d2b53;
+}
+
+svg.timeline g.track path.error {
+    stroke: #ff004d;
 }
