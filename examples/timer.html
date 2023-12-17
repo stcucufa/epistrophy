@@ -9,34 +9,38 @@
 
 import { VM } from "../lib/vm.js";
 import { TransportBar } from "../lib/transport-bar.js";
-import { Timeline } from "../lib/timeline.js";
 import { Thread } from "../lib/thread.js";
 import { timecount } from "../lib/util.js";
 import * as time from "../lib/time.js";
 
 const vm = VM();
 document.body.appendChild(TransportBar(vm).element);
-// document.body.appendChild(Timeline(vm).element);
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
+const range = document.querySelector(`input[type="range"]`);
+const button = document.querySelector("button");
 const meter = document.querySelector("meter");
 
 vm.start().spawn().
-    constant("30s").
-    instant(time.read).
-    setAttribute(meter, "max").
+    event(button, "click").
+    constant(true).
+    set(button, "disabled").
+    instant(() => `${range.valueAsNumber}s`).
     spawn(Thread().
+        instant(time.read).
+        setAttribute(meter, "max").
         label("update").
-        instant((_, t) => t).
-        setAttribute(meter, "value").
-        instant(timecount).
-        set(meter, "textContent").
-        delay(200).
+            instant((_, t) => t).
+            setAttribute(meter, "value").
+            instant(timecount).
+            set(meter, "textContent").
+            delay(200).
         jump("update")
     ).
     spawn(Thread().delay()).
-    first();
+    first().
+    effect(dur => { alert(`Done after ${dur}!`); });
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
@@ -46,7 +50,13 @@ vm.start().spawn().
         <p><a href="index.html">Back</a></p>
         <h1>Timer</h1>
         <p>Timer example inspired by <a href="https://eugenkiss.github.io/7guis/tasks/#timer">7
-            GUIs</a>.</p>
+            GUIs</a>. Note that the delay cannot be change once it is set (issue 1R0K).</p>
+        <p>
+            <label>Set timer to <input type="range" min="0" max="90" value="30"/></label>
+        </p>
+        <p>
+            <button type="button">Start</button>
+        </p>
         <p>
             <label>Elapsed time: <meter>0</meter></label>
         </p>
