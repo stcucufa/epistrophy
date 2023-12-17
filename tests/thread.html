@@ -8,7 +8,7 @@
 
 import { test } from "./test.js";
 import { notification } from "../lib/events.js";
-import { Thread } from "../lib/thread.js";
+import { Thread, Timeout } from "../lib/thread.js";
 import { K, svg } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
 
@@ -186,6 +186,38 @@ test("join(ignoreValues)", t => {
         join(false);
     vm.clock.seek(49);
     t.equal(vm.valueOf(thread), "ok", "ignored values");
+});
+
+test("joinThread(thread)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().constant("ok")).
+        joinThread(Thread().delay(23)).
+        instant((xs, t) => [xs, t]);
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), [["ok"], 40], "extended duration");
+});
+
+test("joinThread(thread)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().constant("A").delay(19)).
+        spawn(Thread().constant("B").delay(31)).
+        joinThread(Thread().delay(23)).
+        instant((xs, t) => [xs, t]);
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), [["A", Timeout], 40], "shortened duration");
+});
+
+test("joinThread(thread, false)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        spawn(Thread().constant("A-").delay(19).constant("A+")).
+        spawn(Thread().constant("B-").delay(31).constant("B+")).
+        joinThread(Thread().delay(23), false).
+        instant((xs, t) => [xs, t]);
+    vm.clock.seek(41);
+    t.equal(vm.valueOf(thread), [["A+", "B-"], 40], "interrupted children");
 });
 
 test("joinDynamic()", t => {
