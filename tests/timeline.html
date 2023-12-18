@@ -111,6 +111,21 @@ test("Join threads", t => {
     t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 2, "two arrows");
 });
 
+test("Join threads (joinThread)", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    const thread = vm.spawnAt(17).
+        spawn(Thread().constant("A-").delay(19).constant("A+")).
+        spawn(Thread().constant("B-").delay(31).constant("B+")).
+        joinThread(Thread().delay(23), false).
+        instant((xs, t) => [xs, t]);
+
+    vm.clock.seek(41);
+    t.equal(timeline.element.querySelectorAll("line[marker-end]").length, 5, "5 arrows (3 ups, 2 down)");
+    t.equal(timeline.element.querySelectorAll("path.cancel").length, 1, "1 cancel");
+});
+
 test("Join threads (first)", t => {
     const vm = VM();
     const timeline = Timeline(vm);
