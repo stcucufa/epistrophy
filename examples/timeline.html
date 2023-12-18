@@ -14,7 +14,7 @@ import { Thread } from "../lib/thread.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-const vm = VM().start();
+const vm = VM().start().keepAlive();
 document.body.appendChild(TransportBar(vm).element);
 document.body.appendChild(Timeline(vm).element);
 

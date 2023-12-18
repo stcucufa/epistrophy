@@ -23,6 +23,24 @@ test("Start the clock", async t => {
     t.above(vm.clock.now, 0, `clock started (${vm.clock.now})`);
 });
 
+test("keepAlive (off by default)", async t => {
+    const vm = VM().start();
+    const thread = vm.spawn().event(window, "synth").constant("ok");
+    await notification(vm.clock, "update");
+    t.equal(vm.clock.paused, false, "clock still running (scheduler is not idle)");
+    window.dispatchEvent(new window.Event("synth"));
+    await notification(vm.clock, "update");
+    t.equal(vm.valueOf(thread), "ok", "thread ended normally");
+    await notification(vm.clock, "update");
+    t.equal(vm.clock.paused, true, "clock paused (scheduler is idle)");
+});
+
+test("keepAlive()", async t => {
+    const vm = VM().start().keepAlive();
+    await notification(vm.clock, "update");
+    t.equal(vm.clock.paused, false, "clock still running (scheduler is idle)");
+});
+
 test("spawn(t = now)", t => {
     const vm = VM();
     const thread = vm.spawn();
