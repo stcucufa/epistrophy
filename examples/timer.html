@@ -22,9 +22,24 @@ const range = document.querySelector(`input[type="range"]`);
 const button = document.querySelector("button");
 const meter = document.querySelector("meter");
 
-vm.start().spawn().
-    event(button, "click").
+const duration = document.querySelector("span.duration");
+const elapsed = document.querySelector("span.elapsed");
+
+vm.start().keepAlive().spawn().
+    constant(23).
+    spawn(Thread().
+        label("dur").
+        set(range, "value").
+        instant(d => timecount(d * 1000)).
+        set(duration, "textContent").
+        event(range, "input").
+        instant(e => e.target.valueAsNumber).
+        jump("dur")
+    ).
+    spawn(Thread().event(button, "click")).
+    first().
     constant(true).
+    set(range, "disabled").
     set(button, "disabled").
     instant(() => `${range.valueAsNumber}s`).
     spawn(Thread().
@@ -33,14 +48,16 @@ vm.start().spawn().
         label("update").
             instant((_, t) => t).
             setAttribute(meter, "value").
-            instant(timecount).
-            set(meter, "textContent").
-            delay(200).
+            spawn(Thread().
+                instant(timecount).
+                set(elapsed, "textContent")
+            ).
+            delay(100).
         jump("update")
     ).
     spawn(Thread().delay()).
     first().
-    effect(dur => { alert(`Done after ${dur}!`); });
+    effect(dur => { alert(`Done after ${timecount(dur)}!`); });
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
@@ -53,12 +70,13 @@ vm.start().spawn().
             GUIs</a>. Note that the delay cannot be change once it is set (issue 1R0K).</p>
         <p>
             <label>Set timer to <input type="range" min="0" max="90" value="30"/></label>
+            (<span class="duration">0</span>).
         </p>
         <p>
             <button type="button">Start</button>
         </p>
         <p>
-            <label>Elapsed time: <meter>0</meter></label>
+            <label>Elapsed time: <meter></meter></label> (<span class="elapsed">0</span>)
         </p>
         <script src="source.js" type="module"></script>
     </body>
