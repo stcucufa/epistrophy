@@ -127,15 +127,15 @@ test("Do, undo, redo (effect)", t => {
     );
 
     vm.clock.seek(41);
-    t.equal(effects, ["17: Do #1", "40: Do #2"], "effects (do)");
+    t.equal(effects, ["0: Do #1", "23: Do #2"], "effects (do)");
     vm.clock.seek(18);
-    t.equal(effects, ["17: Do #1", "40: Do #2", "40: Undo #2"], "effects (undo)");
+    t.equal(effects, ["0: Do #1", "23: Do #2", "23: Undo #2"], "effects (undo)");
     vm.clock.seek(41);
-    t.equal(effects, ["17: Do #1", "40: Do #2", "40: Undo #2", "40: Redo #2"], "effects (redo)");
+    t.equal(effects, ["0: Do #1", "23: Do #2", "23: Undo #2", "23: Redo #2"], "effects (redo)");
     vm.clock.seek(0);
     t.equal(
         effects,
-        ["17: Do #1", "40: Do #2", "40: Undo #2", "40: Redo #2", "40: Undo #2", "17: Undo #1"],
+        ["0: Do #1", "23: Do #2", "23: Undo #2", "23: Redo #2", "23: Undo #2", "0: Undo #1"],
         "effects (back to 0)"
     );
 });
@@ -153,13 +153,13 @@ test("Do, undo, redo (event)", t => {
     vm.clock.seek(51);
     window.dispatchEvent(new window.Event("A"));
     vm.clock.seek(61);
-    t.equal(effects, [51], "Event A");
+    t.equal(effects, [34], "Event A");
     vm.clock.seek(47);
     window.dispatchEvent(new window.Event("A"));
     vm.clock.seek(71);
     window.dispatchEvent(new window.Event("B"));
     vm.clock.seek(72)
-    t.equal(effects, [51, 71], "Event B");
+    t.equal(effects, [34, 54], "Event B");
 });
 
 test("Do, undo, redo (await)", async t => {

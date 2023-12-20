@@ -20,10 +20,10 @@ test("Thread", t => {
 
 test("instant(f)", t => {
     const vm = VM();
-    const thread = vm.spawnAt(17);
-    thread.instant(K("ok"));
+    const thread = vm.spawnAt(17).
+        instant((_, t) => `ok@${t}`);
     vm.clock.seek(18);
-    t.equal(vm.valueOf(thread), "ok", "instant value");
+    t.equal(vm.valueOf(thread), "ok@0", "instant value");
 });
 
 test("constant(value)", t => {
@@ -40,7 +40,7 @@ test("effect(do)", t => {
     let effect;
     thread.effect((value, t) => { effect = `${value}@${t}`; });
     vm.clock.seek(18);
-    t.equal(effect, "undefined@17", "effect parameters");
+    t.equal(effect, "undefined@0", "effect parameters");
     t.undefined(vm.valueOf(thread), "no value");
 });
 
@@ -195,7 +195,7 @@ test("joinThread(thread)", t => {
         joinThread(Thread().delay(23)).
         instant((xs, t) => [xs, t]);
     vm.clock.seek(41);
-    t.equal(vm.valueOf(thread), [["ok"], 40], "extended duration");
+    t.equal(vm.valueOf(thread), [["ok"], 23], "extended duration");
 });
 
 test("joinThread(thread)", t => {
@@ -206,7 +206,7 @@ test("joinThread(thread)", t => {
         joinThread(Thread().delay(23)).
         instant((xs, t) => [xs, t]);
     vm.clock.seek(41);
-    t.equal(vm.valueOf(thread), [["A", Timeout], 40], "shortened duration");
+    t.equal(vm.valueOf(thread), [["A", Timeout], 23], "shortened duration");
 });
 
 test("joinThread(thread, false)", t => {
@@ -217,7 +217,7 @@ test("joinThread(thread, false)", t => {
         joinThread(Thread().delay(23), false).
         instant((xs, t) => [xs, t]);
     vm.clock.seek(41);
-    t.equal(vm.valueOf(thread), [["A+", "B-"], 40], "interrupted children");
+    t.equal(vm.valueOf(thread), [["A+", "B-"], 23], "interrupted children");
 });
 
 test("joinDynamic()", t => {
