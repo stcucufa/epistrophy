@@ -9,12 +9,14 @@
 
 import { VM } from "../lib/vm.js";
 import { TransportBar } from "../lib/transport-bar.js";
+import { Timeline } from "../lib/timeline.js";
 import { Thread } from "../lib/thread.js";
 import { timecount } from "../lib/util.js";
 import * as time from "../lib/time.js";
 
 const vm = VM();
 document.body.appendChild(TransportBar(vm).element);
+document.body.appendChild(Timeline(vm).element);
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
@@ -26,7 +28,7 @@ const duration = document.querySelector("span.duration");
 const elapsed = document.querySelector("span.elapsed");
 
 vm.start().keepAlive().spawn().
-    constant(23).
+    constant(30).
     spawn(Thread().
         label("dur").
         set(range, "value").
@@ -69,13 +71,11 @@ vm.start().keepAlive().spawn().
         <p>Timer example inspired by <a href="https://eugenkiss.github.io/7guis/tasks/#timer">7
             GUIs</a>. Note that the delay cannot be change once it is set (issue 1R0K).</p>
         <p>
-            <label>Set timer to <input type="range" min="0" max="90" value="30"/></label>
+            <label>Set timer to <input type="range" min="0" max="90" value="0"/></label>
             (<span class="duration">0</span>).
         </p>
         <p>
             <button type="button">Start</button>
-        </p>
-        <p>
             <label>Elapsed time: <meter></meter></label> (<span class="elapsed">0</span>)
         </p>
         <script src="source.js" type="module"></script>
