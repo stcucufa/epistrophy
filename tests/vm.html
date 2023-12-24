@@ -176,18 +176,18 @@ test("Do, undo, redo (await)", async t => {
     t.equal(vm.valueOf(thread), value, "redo");
 });
 
-test("Do, undo, redo (jump)", t => {
+test("Do, undo, redo (repeat/loop)", t => {
     const vm = VM();
     let count = 0;
     const object = {};
     const thread = vm.spawn().
         delay(17).
         spawn(Thread().
-            label("loop").
+            repeat().
             delay(23).
             instant(() => ++count).
             set(object, "value").
-            jump("loop")
+            loop()
         );
     vm.clock.seek(87);
     t.equal(object.value, 3, "value after 3 iterations");
