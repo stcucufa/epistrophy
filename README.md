@@ -21,12 +21,12 @@ const span = document.querySelector("span");
 
 VM().start().spawn().
     constant(0).
-    label("loop").
+    repeat().
     set(span, "textContent").
     spawn(Thread().event(button, "click")).
     join(false).
     instant(x => x + 1).
-    jump("loop");
+    loop();
 ```
 
 A new virtual machine is created with `VM()`. The VM has a _clock_ and a
@@ -41,25 +41,26 @@ in the interval between the last and the current update time.
 top-level thread to which instructions can be added.
 
 This main thread starts by instantly producing an initial value with
-`constant(0)`. It then sets up a label which will be the target of a jump
-later. `set(span, "textContent")` sets the text content of the span element to
-the current thread value, which is 0. Then a new thread (created with
-`Thread()`) is spawned. This child thread has only one instruction: waiting for
-a single click event from the button element. The two threads run concurrently,
-so while the child thread waits for an event, the parent thread continues
-running and reaches the `join(false)` instruction. This pauses the thread until
-the thread that it spawned ends; the `false` flag means that the value that
-that thread ends with will be discarded. At this point, both threads are
-suspended and execution stops, even though the clock is still running.
+`constant(0)`. It then marks the start of a loop with `repeat()`, which will be
+matched by a `loop()` later. `set(span, "textContent")` sets the text content
+of the span element to the current thread value, which is 0. Then a new thread
+(created with `Thread()`) is spawned. This child thread has only one
+instruction: waiting for a single click event from the button element. The two
+threads run concurrently, so while the child thread waits for an event, the
+parent thread continues running and reaches the `join(false)` instruction.
+This pauses the thread until the thread that it spawned ends; the `false` flag
+means that the value that that thread ends with will be discarded. At this
+point, both threads are suspended and execution is paused, even though the
+clock is still running.
 
 When the user clicks on the button, the child thread can continue executing,
 and reaches the end of its list of instruction; it therefore ends with the
 event object as its value. The parent thread itself can then resume execution,
 and produces a new value instantly by applying the function `x => x + 1` to its
 current value (0), producing the new thread value of 1. Executing the next
-instruction jumps to the previously set label (named `loop`) and continues from
-that point, so the text content of the span is updated to the current value of
-the thread (_i.e._, it goes from 0 to 1), and a new child thread is spawned to
+instruction jumps back to the previous `repeat()` and continues from that
+point, so the text content of the span is updated to the current value of the
+thread (_i.e._, it goes from 0 to 1), and a new child thread is spawned to
 listen to another button click.
 
 The effect of this program is to increment a counter every time a button is

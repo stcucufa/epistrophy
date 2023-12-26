@@ -21,12 +21,12 @@ const vm = VM().start();
 
 vm.spawn().
     constant(0).
-    label("loop").
+    repeat().
     set(span, "textContent").
     spawn(Thread().event(button, "click")).
     join(false).
     instant(x => x + 1).
-    jump("loop");
+    loop();
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 

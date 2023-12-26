@@ -119,14 +119,14 @@ test("event(target, type)", t => {
     t.equal(vm.valueOf(thread), event, "event value");
 });
 
-test("label(name) and jump(name)", t => {
+test("repeat() and loop()", t => {
     const vm = VM();
     const thread = vm.spawnAt(17).
         instant(K(0)).
-        label("loop").
+        repeat().
         delay(23).
         instant(x => x + 1).
-        jump("loop");
+        loop();
     vm.clock.seek(64);
     t.equal(vm.valueOf(thread), 2, "value after 2 iterations");
     vm.clock.seek(87);

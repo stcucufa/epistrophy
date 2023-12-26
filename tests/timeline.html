@@ -55,10 +55,10 @@ test("Show jump", t => {
 
     const thread = vm.spawnAt(17).
         instant(K(0)).
-        label("loop").
+        repeat().
         delay(23).
         instant(x => x + 1).
-        jump("loop");
+        loop();
 
     vm.clock.seek(41);
     const track = timeline.element.querySelector("g.track");
