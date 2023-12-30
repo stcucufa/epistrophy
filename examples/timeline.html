@@ -24,7 +24,9 @@ vm.spawn().
     constant(["1.8s", "1.3s", "2.1s"]).
     map(Thread().delay().instant(dur => `Waited for ${dur}`)).
     joinThread(Thread().delay("1.9s"), false).
-    effect(v => { console.log(`Ended with ${show(v)}`); });
+    effect(v => { console.log(`Ended with ${show(v)}`); }).
+    halt().
+    effect(() => { throw "Unreachable"; });
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
