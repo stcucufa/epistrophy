@@ -22,7 +22,7 @@ const vm = VM().start();
 // TODO 2F01 Shorthand for redo in effect
 function done(x) {
     if (x >= 3) {
-        vm.pc = vm.currentThread.ops.length;
+        vm.haltCurrentThread();
     }
 }
 
