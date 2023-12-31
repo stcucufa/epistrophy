@@ -44,6 +44,18 @@ test("effect(do)", t => {
     t.undefined(vm.valueOf(thread), "no value");
 });
 
+test("halt()", t => {
+    let effect = false;
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        halt().
+        effect((value, t) => { effect = true; });
+    thread.effect((value, t) => { effect = `${value}@${t}`; });
+    vm.clock.seek(18);
+    t.equal(effect, false, "halted the thread");
+    t.undefined(vm.valueOf(thread), "no value");
+});
+
 test("await(f)", async t => {
     const vm = VM();
     const thread = vm.spawnAt(17);

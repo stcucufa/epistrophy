@@ -10,7 +10,7 @@
 import { TransportBar } from "../lib/transport-bar.js";
 import { Timeline } from "../lib/timeline.js";
 import { VM } from "../lib/vm.js";
-import { K } from "../lib/util.js";
+import { K, nop } from "../lib/util.js";
 import { Thread } from "../lib/thread.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
@@ -19,10 +19,18 @@ const span = document.querySelector("span");
 const button = document.querySelector("button");
 const vm = VM().start();
 
-vm.spawn().
+// TODO 2F01 Shorthand for redo in effect
+function done(x) {
+    if (x >= 3) {
+        vm.haltCurrentThread();
+    }
+}
+
+vm.keepAlive().spawn().
     constant(0).
     repeat().
     set(span, "textContent").
+    effect(done, nop, done).
     spawn(Thread().event(button, "click")).
     join(false).
     instant(x => x + 1).
