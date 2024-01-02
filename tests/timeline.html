@@ -49,6 +49,23 @@ test("Add and highlight elements", t => {
     t.equal(items.children.length, 3, "no new items have shown up");
 });
 
+test("Effect vs. value", t => {
+    const vm = VM();
+    const timeline = Timeline(vm);
+
+    vm.spawn().
+        constant("ok?").
+        effect(nop).
+        delay("3.3s").
+        await(() => new Promise(nop));
+
+    vm.clock.seek(3333);
+    const track = timeline.element.querySelector("g.track");
+    const items = [...track.querySelectorAll("circle, rect")];
+    t.equal(items.map(item => item.classList.contains("effect")), [false, true, true, false],
+        "constant and await are values, effect and delay are effects");
+});
+
 test("Show jump", t => {
     const vm = VM();
     const timeline = Timeline(vm);
