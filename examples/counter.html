@@ -16,24 +16,21 @@ import { Thread } from "../lib/thread.js";
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
 const span = document.querySelector("span");
-const button = document.querySelector("button");
+const [plus, minus] = [...document.querySelectorAll("button")];
 const vm = VM().start();
 
-// TODO 2F01 Shorthand for redo in effect
-function done(x) {
-    if (x >= 3) {
-        vm.haltCurrentThread();
-    }
-}
-
-vm.keepAlive().spawn().
+vm.spawn().
     constant(0).
     repeat().
     set(span, "textContent").
-    effect(done, nop, done).
-    spawn(Thread().event(button, "click")).
-    join(false).
-    instant(x => x + 1).
+    spawn(Thread().
+        spawn(Thread().event(plus, "click").constant(1)).
+        spawn(Thread().event(minus, "click").constant(-1)).
+        first()
+    ).
+    spawn(Thread()).
+    join().
+    instant(([i, n]) => n + i). 
     loop();
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
@@ -46,7 +43,10 @@ document.body.appendChild(Timeline(vm).element);
     <body>
         <p><a href="index.html">Back</a></p>
         <h1>Counter</h1>
-        <p>The count is now: <span>???</span> <button type="Button">+1</button></p>
+        <p>The count is now: <span>???</span>
+            <button type="button">+1</button>
+            <button type="button">-1</button>
+        </p>
         <script src="source.js" type="module"></script>
     </body>
 </html>
