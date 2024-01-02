@@ -30,13 +30,13 @@ const elapsed = document.querySelector("span.elapsed");
 vm.start().keepAlive().spawn().
     constant(30).
     spawn(Thread().
-        label("dur").
-        set(range, "value").
-        instant(d => timecount(d * 1000)).
-        set(duration, "textContent").
-        event(range, "input").
-        instant(e => e.target.valueAsNumber).
-        jump("dur")
+        repeat().
+            set(range, "value").
+            instant(d => timecount(d * 1000)).
+            set(duration, "textContent").
+            event(range, "input").
+            instant(e => e.target.valueAsNumber).
+        loop()
     ).
     spawn(Thread().event(button, "click")).
     first().
@@ -47,7 +47,7 @@ vm.start().keepAlive().spawn().
     spawn(Thread().
         instant(time.read).
         setAttribute(meter, "max").
-        label("update").
+        repeat().
             instant((_, t) => t).
             setAttribute(meter, "value").
             spawn(Thread().
@@ -55,7 +55,7 @@ vm.start().keepAlive().spawn().
                 set(elapsed, "textContent")
             ).
             delay(100).
-        jump("update")
+        loop()
     ).
     spawn(Thread().delay()).
     first().
