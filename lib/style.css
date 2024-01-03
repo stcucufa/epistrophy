@@ -84,9 +84,22 @@ svg.timeline g.track line {
     stroke: #1d2b53;
 }
 
+svg.timeline g.track circle.effect,
+svg.timeline g.track rect.effect {
+    stroke: #1d2b53;
+    stroke-width: 3;
+    fill: none;
+}
+
 svg.timeline g.track circle,
 svg.timeline g.track rect {
     fill: #1d2b53;
+}
+
+svg.timeline g.track circle.effect.current,
+svg.timeline g.track rect.effect.current {
+    fill: none;
+    stroke: #008751;
 }
 
 svg.timeline g.track circle.current,
@@ -101,8 +114,19 @@ svg.timeline g.track circle.current.end {
     stroke-width: 3;
 }
 
+svg.timeline g.track rect.effect.current.unresolved {
+    fill: none;
+    stroke: #00e436;
+}
+
 svg.timeline g.track rect.current.unresolved {
     fill: #00e436;
+}
+
+svg.timeline g.track circle.effect.error,
+svg.timeline g.track rect.effect.error {
+    fill: none;
+    stroke: #ff004d;
 }
 
 svg.timeline g.track circle.error,
