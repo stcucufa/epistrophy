@@ -18,30 +18,41 @@ test("Thread", t => {
     t.equal(thread.ops, [], "empty ops");
 });
 
+test("Nothing", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17);
+    vm.clock.seek(18);
+    t.undefined(vm.valueOf(thread), "no value");
+    t.equal(thread.values.length, 0, "no values in thread");
+});
+
 test("instant(f)", t => {
     const vm = VM();
     const thread = vm.spawnAt(17).
         instant((_, t) => `ok@${t}`);
     vm.clock.seek(18);
     t.equal(vm.valueOf(thread), "ok@0", "instant value");
+    t.equal(thread.values.length, 1, "one value in thread");
 });
 
 test("constant(value)", t => {
     const vm = VM();
-    const thread = vm.spawnAt(17);
-    thread.constant("ok");
+    const thread = vm.spawnAt(17).
+        constant("ok");
     vm.clock.seek(18);
     t.equal(vm.valueOf(thread), "ok", "constant value");
+    t.equal(thread.values.length, 1, "one value in thread");
 });
 
 test("effect(do)", t => {
     const vm = VM();
-    const thread = vm.spawnAt(17);
     let effect;
-    thread.effect((value, t) => { effect = `${value}@${t}`; });
+    const thread = vm.spawnAt(17).
+        effect((value, t) => { effect = `${value}@${t}`; });
     vm.clock.seek(18);
     t.equal(effect, "undefined@0", "effect parameters");
     t.undefined(vm.valueOf(thread), "no value");
+    t.equal(thread.values.length, 0, "no values in thread");
 });
 
 test("halt()", t => {
@@ -54,12 +65,13 @@ test("halt()", t => {
     vm.clock.seek(18);
     t.equal(effect, false, "halted the thread");
     t.undefined(vm.valueOf(thread), "no value");
+    t.equal(thread.values.length, 0, "no values in thread");
 });
 
 test("await(f)", async t => {
     const vm = VM();
-    const thread = vm.spawnAt(17);
-    thread.await(() => fetch("./icons.svg"));
+    const thread = vm.spawnAt(17).
+        await(() => fetch("./icons.svg"));
     vm.clock.seek(18);
     t.undefined(vm.valueOf(thread), "no value yet");
     const { value } = await notification(vm, "await");
@@ -91,12 +103,12 @@ test("delay()", t => {
 
 test("set/unset(object, property)", t => {
     const vm = VM();
-    const thread = vm.spawnAt(17);
     const object = { foo: "bar" };
-    thread.instant(K("fum"));
-    thread.set(object, "foo");
-    thread.delay(23);
-    thread.unset(object, "foo");
+    const thread = vm.spawnAt(17).
+        constant("fum").
+        set(object, "foo").
+        delay(23).
+        unset(object, "foo");
     vm.clock.seek(18);
     t.equal(object.foo, "fum", "property was set");
     vm.clock.seek(41);
