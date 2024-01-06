@@ -8,7 +8,7 @@
 
 import { test } from "./test.js";
 import { notification } from "../lib/events.js";
-import { Thread, Timeout } from "../lib/thread.js";
+import { Thread, Timeout, send } from "../lib/thread.js";
 import { K, svg } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
 
@@ -126,6 +126,17 @@ test("event(target, type)", t => {
     vm.clock.seek(31);
     const event = new window.Event("synth");
     window.dispatchEvent(event);
+    t.undefined(vm.valueOf(thread), "no value before the event");
+    vm.clock.seek(32);
+    t.equal(vm.valueOf(thread), event, "event value");
+});
+
+test("receive(target, type)", t => {
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        receive(window, "synth");
+    vm.clock.seek(31);
+    const event = send(window, "synth", { arg: "foo" }); 
     t.undefined(vm.valueOf(thread), "no value before the event");
     vm.clock.seek(32);
     t.equal(vm.valueOf(thread), event, "event value");
