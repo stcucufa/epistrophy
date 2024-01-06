@@ -209,8 +209,8 @@ test("Receive cancellation", t => {
     const vm = VM();
     const thread = vm.spawn().
         repeat().
-        spawn(Thread().event(window, "A").effect(() => { effects.push("A"); })).
-        spawn(Thread().event(window, "B").effect(() => { effects.push("B"); })).
+        spawn(Thread().receive(window, "A").effect(() => { effects.push("A"); })).
+        spawn(Thread().receive(window, "B").effect(() => { effects.push("B"); })).
         first().
         loop();
 
