@@ -24,8 +24,8 @@ vm.spawn().
     repeat().
     set(span, "textContent").
     spawn(Thread().
-        spawn(Thread().event(plus, "click").constant(1)).
-        spawn(Thread().event(minus, "click").constant(-1)).
+        spawn(Thread().receive(plus, "click").constant(1)).
+        spawn(Thread().receive(minus, "click").constant(-1)).
         first()
     ).
     spawn(Thread()).

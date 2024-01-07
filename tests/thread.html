@@ -119,10 +119,9 @@ test("setAttribute/unsetAttribute(element, attribute)", t => {
     t.equal(vm.valueOf(thread), "M100,50", "thread value (set is an effect)");
 });
 
-test("event(target, type)", t => {
+test("receive(target, type); DOM event", t => {
     const vm = VM();
-    const thread = vm.spawnAt(17);
-    thread.event(window, "synth");
+    const thread = vm.spawnAt(17).receive(window, "synth");
     vm.clock.seek(31);
     const event = new window.Event("synth");
     window.dispatchEvent(event);
@@ -131,10 +130,9 @@ test("event(target, type)", t => {
     t.equal(vm.valueOf(thread), event, "event value");
 });
 
-test("receive(target, type)", t => {
+test("receive(target, type); internal event", t => {
     const vm = VM();
-    const thread = vm.spawnAt(17).
-        receive(window, "synth");
+    const thread = vm.spawnAt(17).receive(window, "synth", { dom: false });
     vm.clock.seek(31);
     const event = send(window, "synth", { arg: "foo" }); 
     t.undefined(vm.valueOf(thread), "no value before the event");

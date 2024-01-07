@@ -12,7 +12,7 @@ import { VM } from "../lib/vm.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-const vm = VM().start();
+const vm = VM().start().keepAlive();
 const transportBar = TransportBar(vm);
 document.body.appendChild(transportBar.element);
 

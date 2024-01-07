@@ -25,7 +25,7 @@ test("Start the clock", async t => {
 
 test("keepAlive (off by default)", async t => {
     const vm = VM().start();
-    const thread = vm.spawn().event(window, "synth").constant("ok");
+    const thread = vm.spawn().receive(window, "synth").constant("ok");
     await notification(vm.clock, "update");
     t.equal(vm.clock.paused, false, "clock still running (scheduler is not idle)");
     window.dispatchEvent(new window.Event("synth"));
@@ -140,56 +140,14 @@ test("Do, undo, redo (effect)", t => {
     );
 });
 
-test("Do, undo, redo (event)", t => {
-    const effects = [];
-    const vm = VM();
-    const thread = vm.spawnAt(17).
-        delay(23).
-        event(window, "A").
-        effect((_, t) => { effects.push(t); }).
-        event(window, "B").
-        effect((_, t) => { effects.push(t); });
-
-    vm.clock.seek(51);
-    window.dispatchEvent(new window.Event("A"));
-    vm.clock.seek(61);
-    t.equal(effects, [34], "event A");
-    vm.clock.seek(47);
-    window.dispatchEvent(new window.Event("A"));
-    vm.clock.seek(71);
-    window.dispatchEvent(new window.Event("B"));
-    vm.clock.seek(72)
-    t.equal(effects, [34, 54], "event B");
-});
-
-test("Event listener cancellation", t => {
-    const effects = [];
-    const vm = VM();
-    const thread = vm.spawn().
-        repeat().
-        spawn(Thread().event(window, "A").effect(() => { effects.push("A"); })).
-        spawn(Thread().event(window, "B").effect(() => { effects.push("B"); })).
-        first().
-        loop();
-
-    vm.clock.seek(17);
-    window.dispatchEvent(new window.Event("A"));
-    vm.clock.seek(19);
-    window.dispatchEvent(new window.Event("A"));
-    vm.clock.seek(23);
-    window.dispatchEvent(new window.Event("B"));
-    vm.clock.seek(31);
-    t.equal(effects, ["A", "A", "B"], "events as they occurred");
-});
-
 test("Do, undo, redo (receive)", t => {
     const effects = [];
     const vm = VM();
     const thread = vm.spawnAt(17).
         delay(23).
-        receive(window, "A").
+        receive(window, "A", { dom: false }).
         effect((_, t) => { effects.push(t); }).
-        receive(window, "B").
+        receive(window, "B", { dom: false }).
         effect((_, t) => { effects.push(t); });
 
     vm.clock.seek(51);
@@ -209,8 +167,8 @@ test("Receive cancellation", t => {
     const vm = VM();
     const thread = vm.spawn().
         repeat().
-        spawn(Thread().receive(window, "A").effect(() => { effects.push("A"); })).
-        spawn(Thread().receive(window, "B").effect(() => { effects.push("B"); })).
+        spawn(Thread().receive(window, "A", { dom: false }).effect(() => { effects.push("A"); })).
+        spawn(Thread().receive(window, "B", { dom: false }).effect(() => { effects.push("B"); })).
         first().
         loop();
 
@@ -220,6 +178,48 @@ test("Receive cancellation", t => {
     send(window, "A");
     vm.clock.seek(23);
     send(window, "B");
+    vm.clock.seek(31);
+    t.equal(effects, ["A", "A", "B"], "events as they occurred");
+});
+
+test("Do, undo, redo (DOM event)", t => {
+    const effects = [];
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        delay(23).
+        receive(window, "A").
+        effect((_, t) => { effects.push(t); }).
+        receive(window, "B").
+        effect((_, t) => { effects.push(t); });
+
+    vm.clock.seek(51);
+    window.dispatchEvent(new window.Event("A"));
+    vm.clock.seek(61);
+    t.equal(effects, [34], "event A");
+    vm.clock.seek(47);
+    window.dispatchEvent(new window.Event("A"));
+    vm.clock.seek(71);
+    window.dispatchEvent(new window.Event("B"));
+    vm.clock.seek(72)
+    t.equal(effects, [34, 54], "event B");
+});
+
+test("DOM event listener cancellation", t => {
+    const effects = [];
+    const vm = VM();
+    const thread = vm.spawn().
+        repeat().
+        spawn(Thread().receive(window, "A").effect(() => { effects.push("A"); })).
+        spawn(Thread().receive(window, "B").effect(() => { effects.push("B"); })).
+        first().
+        loop();
+
+    vm.clock.seek(17);
+    window.dispatchEvent(new window.Event("A"));
+    vm.clock.seek(19);
+    window.dispatchEvent(new window.Event("A"));
+    vm.clock.seek(23);
+    window.dispatchEvent(new window.Event("B"));
     vm.clock.seek(31);
     t.equal(effects, ["A", "A", "B"], "events as they occurred");
 });
