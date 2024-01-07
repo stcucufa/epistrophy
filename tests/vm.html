@@ -10,7 +10,7 @@ import { test } from "./test.js";
 import { notification } from "../lib/events.js";
 import { K, nop } from "../lib/util.js";
 import { VM } from "../lib/vm.js";
-import { Thread } from "../lib/thread.js";
+import { Thread, send } from "../lib/thread.js";
 
 test("VM()", t => {
     const vm = VM();
@@ -178,6 +178,48 @@ test("Event listener cancellation", t => {
     window.dispatchEvent(new window.Event("A"));
     vm.clock.seek(23);
     window.dispatchEvent(new window.Event("B"));
+    vm.clock.seek(31);
+    t.equal(effects, ["A", "A", "B"], "events as they occurred");
+});
+
+test("Do, undo, redo (receive)", t => {
+    const effects = [];
+    const vm = VM();
+    const thread = vm.spawnAt(17).
+        delay(23).
+        receive(window, "A").
+        effect((_, t) => { effects.push(t); }).
+        receive(window, "B").
+        effect((_, t) => { effects.push(t); });
+
+    vm.clock.seek(51);
+    send(window, "A");
+    vm.clock.seek(61);
+    t.equal(effects, [34], "event A");
+    vm.clock.seek(47);
+    send(window, "A");
+    vm.clock.seek(71);
+    send(window, "B");
+    vm.clock.seek(72)
+    t.equal(effects, [34, 54], "event B");
+});
+
+test("Receive cancellation", t => {
+    const effects = [];
+    const vm = VM();
+    const thread = vm.spawn().
+        repeat().
+        spawn(Thread().receive(window, "A").effect(() => { effects.push("A"); })).
+        spawn(Thread().receive(window, "B").effect(() => { effects.push("B"); })).
+        first().
+        loop();
+
+    vm.clock.seek(17);
+    send(window, "A");
+    vm.clock.seek(19);
+    send(window, "A");
+    vm.clock.seek(23);
+    send(window, "B");
     vm.clock.seek(31);
     t.equal(effects, ["A", "A", "B"], "events as they occurred");
 });
