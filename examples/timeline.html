@@ -15,7 +15,7 @@ import { show } from "../lib/show.js";
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
-const vm = VM().start().keepAlive();
+const vm = VM().start();
 document.body.appendChild(TransportBar(vm).element);
 document.body.appendChild(Timeline(vm).element);
 
