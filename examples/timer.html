@@ -22,7 +22,7 @@ document.body.appendChild(Timeline(vm).element);
 
 const range = document.querySelector(`input[type="range"]`);
 const button = document.querySelector("button");
-const meter = document.querySelector("meter");
+const progress = document.querySelector("progress");
 
 const duration = document.querySelector("span.duration");
 const elapsed = document.querySelector("span.elapsed");
@@ -34,11 +34,11 @@ vm.start().keepAlive().spawn().
             set(range, "value").
             instant(d => timecount(d * 1000)).
             set(duration, "textContent").
-            event(range, "input").
+            receive(range, "input").
             instant(e => e.target.valueAsNumber).
         loop()
     ).
-    spawn(Thread().event(button, "click")).
+    spawn(Thread().receive(button, "click")).
     first().
     constant(true).
     set(range, "disabled").
@@ -46,10 +46,10 @@ vm.start().keepAlive().spawn().
     instant(() => `${range.valueAsNumber}s`).
     spawn(Thread().
         instant(time.read).
-        setAttribute(meter, "max").
+        setAttribute(progress, "max").
         repeat().
             instant((_, t) => t).
-            setAttribute(meter, "value").
+            setAttribute(progress, "value").
             spawn(Thread().
                 instant(timecount).
                 set(elapsed, "textContent")
@@ -76,7 +76,7 @@ vm.start().keepAlive().spawn().
         </p>
         <p>
             <button type="button">Start</button>
-            <label>Elapsed time: <meter></meter></label> (<span class="elapsed">0</span>)
+            <label>Elapsed time: <progress></progress></label> (<span class="elapsed">0</span>)
         </p>
         <script src="source.js" type="module"></script>
     </body>
