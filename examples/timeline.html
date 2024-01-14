@@ -21,7 +21,7 @@ document.body.appendChild(Timeline(vm).element);
 
 vm.spawn().
     delay(500).
-    ramp(p => { console.log(p); }, 200).
+    ramp((p, t) => { console.log(p, t); }, 200).
     constant(["1.8s", "1.3s", "2.1s"]).
     map(Thread().delay().instant(dur => `Waited for ${dur}`)).
     joinThread(Thread().delay("1.9s"), false).
