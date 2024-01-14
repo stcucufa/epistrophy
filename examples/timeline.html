@@ -21,12 +21,11 @@ document.body.appendChild(Timeline(vm).element);
 
 vm.spawn().
     delay(500).
+    ramp(p => { console.log(p); }, 200).
     constant(["1.8s", "1.3s", "2.1s"]).
     map(Thread().delay().instant(dur => `Waited for ${dur}`)).
     joinThread(Thread().delay("1.9s"), false).
-    effect(v => { console.log(`Ended with ${show(v)}`); }).
-    halt().
-    effect(() => { throw "Unreachable"; });
+    effect(v => { console.log(`Ended with ${show(v)}`); });
 
 // ----8<--------8<--------8<--------8<--------8<--------8<--------8<----
 
