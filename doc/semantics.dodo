@@ -1,0 +1,188 @@
+{ article: "The operational semantics of Epistrophy" lang: en status: wip
+
+    # Definitions
+    # An instant is defined by (i, j), the time for a thread at this instant is 
+    # Time index (i) and thread index (j)
+    # Value of þ at time (t, i) = þ[t, i]
+    # End, Last for the last i, j of a thread
+    # Child threads list is cleared every time i increases (forget child threads if we don’t wait for them)
+    # Execution modes: Record mode (●), Playback mode (▶), Reverse mode (◀)
+    # A thread stops running when j > Last[j] or þ[i, j] = ⊥ (●, ▶) or j < 0 (◀).
+
+    # Operator semantics
+
+    { p { code Instant(f) } represents the instantaneous computation { em f }, where { em f } is a
+    synchronous function that computes a new value for the thread from its current value and time. This
+    value is set as the new value of the thread in the current instant. { em f } must be a pure function
+    and produce no effect; this means that the value needs to be computed only once, when in recording
+    mode. }
+    { equations
+        { eq Instant(f)[þ, i, j, ●] = þ[i, j + 1] ← f(þ[i, j], T[þ, i]), i, j + 1 }
+        { eq Instant(f)[þ, i, j, ▶] = ∅, i, j + 1 }
+        { eq Instant(f)[þ, i, j + 1, ◀] = ∅, i, j }
+    }
+
+    { p { code Effect(f, g, h) } represents an instantaneous effect { em f }, where { em f } is a
+    synchronous function that produces an effect from the current value and time of the thread. Because
+    the effect may need to be different when it is redone or undone, two additional functions { em g }
+    and { em h } should be provided for playback and reverse modes. The value of the thread is
+    unaffected. }
+    { equations
+        { eq Effect(f, _, _)[þ, i, j, ●] = f(þ[i, j], T[þ, i]), i, j + 1 }
+        { li Effect(_, g, _)[þ, i, j, ▶] = g(þ[i, j], T[þ, i]), i, j + 1 }
+        { li Effect(_, _, h)[þ, i, j + 1, ◀] = h(þ[i, j], T[þ, i]), i, j }
+    }
+
+    { p { code Delay(dur) } represents a delay of duration { em dur }, with { em dur }&nbsp;>&nbsp;0.
+    The delay may be unspecified, in which case the current thread value is used as the delay (which
+    means that this value must represent a non-zero duration). }
+    { equations
+        { eq Delay(ε)[þ, i, j, ●] = T[þ, i + 1] ← T[þ, i] + þ[i, j], i + 1, j + 1 }
+        { eq Delay(dur)[þ, i, j, ●] = T[þ, i + 1] ← T[þ, i] + dur, i + 1, j + 1 }
+        { eq Delay(_)[þ, i, j, ▶] = ø, i + 1, j + 1 }
+        { eq Delay(_)[þ, i + 1, j + 1, ◀] = ø, i, j }
+    }
+
+    { p { code Await(f) } represents the computation { em f }, where { em f } is an asynchronous function
+    that computes a new value for the thread from its current value and time, and returns a new value and
+    a later time. Note that we also include event listeners under this term, since they can be wrapped
+    inside a function that registers this event listener and return the event value once it is received. }
+    { equations
+        { eq Await(f)[þ, i, j, ●] =
+            { equations
+                { eq let v, t = f(þ[i, j], T[þ, i]) in }
+                { eq þ[i + 1, j + 1] ← v; T[þ, i + 1] ← t, i + 1, j + 1 }
+            }
+        }
+        { eq Await(f)[þ, i, j, ▶] = ∅, i + 1, j + 1 }
+        { eq Await(f)[þ, i + 1, j + 1, ◀] = ∅, i, j }
+    }
+
+    # Stacks of repeat points (from, to) and count (check if k < 0)
+
+    { p { code Repeat } creates a repeat point that can be looped back to. }
+    { equations
+        { eq Loop[þ, i, j, ●] = ... }
+        { eq Loop[þ, i, j, ▶] = ... }
+        { eq Loop[þ, i, j, ◀] = ... }
+    }
+
+    { p { code Loop(p) } loops back to the closest repeat point if the predicate { em p } is satisfied. }
+    { equations
+        { eq Repeat(p)[þ, i, j, ●] =
+            { equations
+                { eq if p(þ[i, j], T[þ, i]) then ... }
+                { eq else ... }
+            }
+        }
+        { eq Repeat(p)[þ, i, j, ▶] = ... }
+        { eq Repeat(p)[þ, i, j, ◀] = ... }
+    }
+
+    { p { em Spawning } a thread { em þ } means creating a new instance { em þ’ } of that thread with the
+    { code instantiate } operator. { em þ’ } has the same sequence of operations as { em þ }, but will have
+    its own sequence of instants and values independently of þ, allowing several instances of the same
+    thread to be active at once. A thread is also spawned with an initial value { em v } and a begin time
+    { em t } with the { code spawn } helper function. }
+    { equations
+        { eq spawn þ v t =
+            { equations
+                { eq let þ’ = instantiate þ in }
+                { eq þ’[0, 0] = v; T[þ’, 0] = t; þ’ }
+            }
+        }
+    }
+
+    { p { code Spawn(þ’) } then represents the instantaneous spawning of a new child thread { em þ” } of
+    { em þ } from a thread þ’. The child thread is added to the list of child threads of þ and begins at
+    spawning time with the current value of its parent. }
+    { equations
+        { eq Spawn(þ’)[þ, i, j, ●] =
+            { equations
+                { eq let þ” = spawn þ’ þ[i, j] T[þ, i] in }
+                { eq S[þ, i, j + 1] ← S[þ, i, j] . þ”, i, j + 1 }
+            }
+        }
+        { eq Spawn(þ’)[þ, i, j, ▶] = ø, i, j + 1 }
+        { eq Spawn(þ’)[þ, i, j + 1, ◀] = ø, i, j }
+    }
+
+    { p { code Map(þ’) } is similar to { code Spawn } but expects a list of values as the current value
+    of the parent thread { em þ } and spawns a new instance of { em þ’ } for every input. }
+    { equations
+        { eq Map(þ’)[þ, i, j, ●] =
+            { equations
+                { eq S[þ, i, j + 1] ← S[þ, i, j] . (spawn þ’ v T[þ, i] ∀ v ∈ þ[i, j]), }
+                { eq i, j + 1 }
+            }
+        }
+        { eq Map(þ’)[þ, i, j, ▶] = ø, i, j + 1 }
+        { eq Map(þ’)[þ, i, j + 1, ◀] = ø, i, j }
+    }
+
+    { p { code Join } waits for all the child threads of { em þ } to end and collects all of its values. }
+    { equations
+        { eq Join[þ, i, j, ●] =
+            { equations
+                { eq T[þ, i + 1, j + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
+                { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀ þ’ ∈ S[þ, i, j] }
+                { eq i + 1, j + 1 }
+            }
+        }
+        { eq Join[þ, i, j, ▶] = ø, i, j + 1 }
+        { eq Join[þ, i, j + 1, ◀] = ø, i, j }
+    }
+
+    { p { code Join/dynamic } is an alternate version of { code Join } that collects the values of the
+    child threads in the order in which they end (using the { code sort } operator that sorts threads
+    by increasing end time; if two threads end in the same instant, then the order in the list of child
+    threads of their common parent is used as the tie breaker). }
+    { equations
+        { eq Join/dynamic[þ, i, j, ●] =
+            { equations
+                { eq T[þ, i + 1, j + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
+                { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀ þ’ ∈ sort S[þ, i, j] }
+                { eq i + 1, j + 1 }
+            }
+        }
+        { eq Join/dynamic[þ, i, j, ▶] = ø, i, j + 1 }
+        { eq Join/dynamic[þ, i, j + 1, ◀] = ø, i, j }
+    }
+
+    { p { code First } is an eager version of { code Join } that only waits for the child thread that
+    finishes first and cancels all the others. Cancelling a thread not only means that it will not run
+    any further, but also that is own child threads are cancelled. }
+    { equations
+        { eq First[þ, i, j, ●] =
+            { equations
+                { eq let cancel þ t =
+                    { equations
+                        { eq T[þ, End[þ] + 1, Current[þ]] = t; }
+                        { eq þ[End[þ], Current[þ]] = ⊥; }
+                        { eq cancel þ’ t ∀ þ’ ∈ S[þ, End[þ], Current[þ]] }
+                    }
+                }
+                { eq in let þ’ = first sort S[þ, i, j] in }
+                { eq T[þ, i + 1, j + 1] ← End[þ’]; }
+                { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]]; }
+                { eq cancel þ” T[þ, i + 1] ∀ þ” ∈ S[þ, i, j] ∧ þ” ≠ þ’, }
+                { eq i + 1, j + 1 }
+            }
+        }
+        { eq First[þ, i, j, ▶] = ø, i, j + 1 }
+        { eq First[þ, i, j + 1, ◀] = ø, i, j }
+    }
+
+    { p Finally, { code timeof(X) } is a modifier that discards any value change normally caused by X.
+    This is used to wait for the timing effects of X (such as Await, Join, Join/dynamic or First), but
+    ignoring its value. }
+    { equations
+        { eq timeof(X)[þ, i, j, m] =
+            { equations
+                { eq let F, i’, j’ = X[þ, i, j, m] in }
+                { eq F; þ[i’, j’] ← þ[i, j], i’, j’ }
+            }
+        }
+    }
+
+}
