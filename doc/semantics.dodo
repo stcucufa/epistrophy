@@ -9,8 +9,6 @@
     # Execution modes: Record mode (●), Playback mode (▶), Reverse mode (◀)
     # A thread stops running when j > Last[j] or þ[i, j] = ⊥ (●, ▶) or j < 0 (◀).
 
-    # Operator semantics
-
     { p { code Instant(f) } represents the instantaneous computation { em f }, where { em f } is a
     synchronous function that computes a new value for the thread from its current value and time. This
     value is set as the new value of the thread in the current instant. { em f } must be a pure function
@@ -62,21 +60,36 @@
 
     { p { code Repeat } creates a repeat point that can be looped back to. }
     { equations
-        { eq Loop[þ, i, j, ●] = ... }
-        { eq Loop[þ, i, j, ▶] = ... }
-        { eq Loop[þ, i, j, ◀] = ... }
-    }
-
-    { p { code Loop(p) } loops back to the closest repeat point if the predicate { em p } is satisfied. }
-    { equations
-        { eq Repeat(p)[þ, i, j, ●] =
+        { eq Repeat[þ, i, j, ● | ▶] = push R[þ, i, j] (j, ⊥, 0), i, j + 1 }
+        { eq Repeat[þ, i, j + 1, ◀] =
             { equations
-                { eq if p(þ[i, j], T[þ, i]) then ... }
-                { eq else ... }
+                { eq let (_, j’, k) = pop R[þ, i, j + 1] in }
+                { eq if k = 0 then ∅, i, j }
+                { eq else push R[þ, i, j + 1] (j, j’, k - 1), i, j’ }
             }
         }
-        { eq Repeat(p)[þ, i, j, ▶] = ... }
-        { eq Repeat(p)[þ, i, j, ◀] = ... }
+    }
+
+    { p { code Loop(p) } loops back to the closest repeat point if the predicate { em p } is satisfied;
+    { em p } should be a pure function (or at the very least idempotent) as it may be evaluated several
+    times for the same instant. }
+    { equations
+        { eq Loop(p)[þ, i, j, ● | ▶] =
+            { equations
+                { eq if p þ[i, j] T[þ, i] then }
+                { equations
+                    { eq let (j’, _, k) = pop R[þ, i, j] in }
+                    { eq push R[þ, i, j] (j’, j, k + 1), i, j’ }
+                }
+                { eq else ø, i, j + 1 }
+            }
+        }
+        { eq Loop(p)[þ, i, j + 1, ◀] =
+            { equations
+                { eq let (j’, _, k) = pop R[þ, i, j + 1] in }
+                { eq push R[þ, i, j + 1] (j’, j + 1, k - 1), i, j }
+            }
+        }
     }
 
     { p { em Spawning } a thread { em þ } means creating a new instance { em þ’ } of that thread with the
@@ -124,7 +137,7 @@
     { equations
         { eq Join[þ, i, j, ●] =
             { equations
-                { eq T[þ, i + 1, j + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
+                { eq T[þ, i + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
                 { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀ þ’ ∈ S[þ, i, j] }
                 { eq i + 1, j + 1 }
             }
@@ -140,7 +153,7 @@
     { equations
         { eq Join/dynamic[þ, i, j, ●] =
             { equations
-                { eq T[þ, i + 1, j + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
+                { eq T[þ, i + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
                 { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀ þ’ ∈ sort S[þ, i, j] }
                 { eq i + 1, j + 1 }
             }
@@ -151,19 +164,20 @@
 
     { p { code First } is an eager version of { code Join } that only waits for the child thread that
     finishes first and cancels all the others. Cancelling a thread not only means that it will not run
-    any further, but also that is own child threads are cancelled. }
+    any further, but also that is own child threads are cancelled. Cancelling a thread that has already
+    ended has no effect. }
     { equations
         { eq First[þ, i, j, ●] =
             { equations
                 { eq let cancel þ t =
                     { equations
-                        { eq T[þ, End[þ] + 1, Current[þ]] = t; }
-                        { eq þ[End[þ], Current[þ]] = ⊥; }
+                        { eq T[þ, End[þ] + 1] = t; }
+                        { eq þ[End[þ] + 1, Current[þ]] = ⊥; }
                         { eq cancel þ’ t ∀ þ’ ∈ S[þ, End[þ], Current[þ]] }
                     }
                 }
                 { eq in let þ’ = first sort S[þ, i, j] in }
-                { eq T[þ, i + 1, j + 1] ← End[þ’]; }
+                { eq T[þ, i + 1] ← End[þ’]; }
                 { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]]; }
                 { eq cancel þ” T[þ, i + 1] ∀ þ” ∈ S[þ, i, j] ∧ þ” ≠ þ’, }
                 { eq i + 1, j + 1 }
