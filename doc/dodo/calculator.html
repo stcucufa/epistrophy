@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Calculator</title>
+        <style>
+
+body, button {
+    font-family: system-ui;
+    font-size: 24pt;
+}
+
+#display {
+    text-align: right;
+    padding: 0.5rem 0;
+}
+
+button {
+    width: 100%;
+    padding: 0.3rem 1rem 0.5rem 1rem;
+}
+
+td[colspan="2"] button {
+    text-align: left;
+}
+
+td[rowspan="2"] button {
+    padding-top: 3.8rem;
+}
+
+        </style>
+        <script type="module" src="calculator.js"></script>
+    </head>
+    <body>
+        <table>
+            <tbody>
+                <tr>
+                    <td colspan="4" id="display"></td>
+                </tr>
+                <tr>
+                    <td><button type="button">C</button></td>
+                    <td><button type="button">E</button></td>
+                    <td><button type="button">=</button></td>
+                    <td><button type="button">*</button></td>
+                </tr>
+                <tr>
+                    <td><button type="button">7</button></td>
+                    <td><button type="button">8</button></td>
+                    <td><button type="button">9</button></td>
+                    <td><button type="button">/</button></td>
+                </tr>
+                <tr>
+                    <td><button type="button">4</button></td>
+                    <td><button type="button">5</button></td>
+                    <td><button type="button">6</button></td>
+                    <td><button type="button">-</button></td>
+                </tr>
+                <tr>
+                    <td><button type="button">1</button></td>
+                    <td><button type="button">2</button></td>
+                    <td><button type="button">3</button></td>
+                    <td rowspan="2" valign="bottom"><button type="button">+</button></td>
+                </tr>
+                <tr>
+                    <td colspan="2"><button type="button">0</button></td>
+                    <td><button type="button">.</button></td>
+                </tr>
+            </tbody>
+        </table>
+        
+    </body>
+</html>

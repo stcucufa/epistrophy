@@ -1,0 +1,44 @@
+{ html lang: en
+    { head
+        { title Calculator }
+    }
+    { body
+
+        { table
+            { tbody
+                { tr
+                    { td colspan: 4 e/id: display }
+                }
+                { tr
+                    { td { button C } }
+                    { td { button E } }
+                    { td { button = } }
+                    { td { button * } }
+                }
+                { tr
+                    { td { button 7 } }
+                    { td { button 8 } }
+                    { td { button 9 } }
+                    { td { button / } }
+                }
+                { tr
+                    { td { button 4 } }
+                    { td { button 5 } }
+                    { td { button 6 } }
+                    { td { button - } }
+                }
+                { tr
+                    { td { button 1 } }
+                    { td { button 2 } }
+                    { td { button 3 } }
+                    { td rowspan: 2 { button + } }
+                }
+                { tr
+                    { td colspan: 2 { button 0 } }
+                    { td { button . } }
+                }
+            }
+        }
+
+    }
+}
