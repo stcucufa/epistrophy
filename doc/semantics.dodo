@@ -3,6 +3,7 @@
     # Definitions
     # An instant is defined by (i, j), the time for a thread at this instant is 
     # Time index (i) and thread index (j)
+    # T[þ, i] is the absolute time; t[þ, i] = T[þ, i] - T[þ, 0] is the relative time for instant i of þ.
     # Value of þ at time (t, i) = þ[t, i]
     # End, Last for the last i, j of a thread
     # Child threads list is cleared every time i increases (forget child threads if we don’t wait for them)
@@ -15,7 +16,7 @@
     and produce no effect; this means that the value needs to be computed only once, when in recording
     mode. }
     { equations
-        { eq Instant(f)[þ, i, j, ●] = þ[i, j + 1] ← f(þ[i, j], T[þ, i]), i, j + 1 }
+        { eq Instant(f)[þ, i, j, ●] = þ[i, j + 1] ← f þ[i, j] t[þ, i], i, j + 1 }
         { eq Instant(f)[þ, i, j, ▶] = ∅, i, j + 1 }
         { eq Instant(f)[þ, i, j + 1, ◀] = ∅, i, j }
     }
@@ -26,9 +27,9 @@
     and { em h } should be provided for playback and reverse modes. The value of the thread is
     unaffected. }
     { equations
-        { eq Effect(f, _, _)[þ, i, j, ●] = f(þ[i, j], T[þ, i]), i, j + 1 }
-        { li Effect(_, g, _)[þ, i, j, ▶] = g(þ[i, j], T[þ, i]), i, j + 1 }
-        { li Effect(_, _, h)[þ, i, j + 1, ◀] = h(þ[i, j], T[þ, i]), i, j }
+        { eq Effect(f, _, _)[þ, i, j, ●] = f þ[i, j] t[þ, i], i, j + 1 }
+        { li Effect(_, g, _)[þ, i, j, ▶] = g þ[i, j] t[þ, i], i, j + 1 }
+        { li Effect(_, _, h)[þ, i, j + 1, ◀] = h þ[i, j] t[þ, i], i, j }
     }
 
     { p { code Delay(dur) } represents a delay of duration { em dur }, with { em dur }&nbsp;>&nbsp;0.
@@ -48,7 +49,7 @@
     { equations
         { eq Await(f)[þ, i, j, ●] =
             { equations
-                { eq let v, t = f(þ[i, j], T[þ, i]) in }
+                { eq let v, t = f þ[i, j] t[þ, i] in }
                 { eq þ[i + 1, j + 1] ← v; T[þ, i + 1] ← t, i + 1, j + 1 }
             }
         }
@@ -57,6 +58,7 @@
     }
 
     # Stacks of repeat points (from, to) and count (check if k < 0)
+    # TODO should Repeat have a predicate as well? Could skip altogether?
 
     { p { code Repeat } creates a repeat point that can be looped back to. }
     { equations
@@ -76,7 +78,7 @@
     { equations
         { eq Loop(p)[þ, i, j, ● | ▶] =
             { equations
-                { eq if p þ[i, j] T[þ, i] then }
+                { eq if p þ[i, j] t[þ, i] then }
                 { equations
                     { eq let (j’, _, k) = pop R[þ, i, j] in }
                     { eq push R[þ, i, j] (j’, j, k + 1), i, j’ }
@@ -125,7 +127,7 @@
     { equations
         { eq Map(þ’)[þ, i, j, ●] =
             { equations
-                { eq S[þ, i, j + 1] ← S[þ, i, j] . (spawn þ’ v T[þ, i] ∀ v ∈ þ[i, j]), }
+                { eq S[þ, i, j + 1] ← S[þ, i, j] . (spawn þ’ v T[þ, i] ∀v ∈ þ[i, j]), }
                 { eq i, j + 1 }
             }
         }
@@ -137,14 +139,16 @@
     { equations
         { eq Join[þ, i, j, ●] =
             { equations
-                { eq T[þ, i + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
-                { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀ þ’ ∈ S[þ, i, j] }
+                { eq T[þ, i + 1] ← max End[þ’] ∀þ’ ∈ S[þ, i, j]; }
+                { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀þ’ ∈ S[þ, i, j] }
                 { eq i + 1, j + 1 }
             }
         }
         { eq Join[þ, i, j, ▶] = ø, i, j + 1 }
         { eq Join[þ, i, j + 1, ◀] = ø, i, j }
     }
+
+    { p Error handling }
 
     { p { code Join/dynamic } is an alternate version of { code Join } that collects the values of the
     child threads in the order in which they end (using the { code sort } operator that sorts threads
@@ -153,8 +157,8 @@
     { equations
         { eq Join/dynamic[þ, i, j, ●] =
             { equations
-                { eq T[þ, i + 1] ← max End[þ’] ∀ þ’ ∈ S[þ, i, j]; }
-                { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀ þ’ ∈ sort S[þ, i, j] }
+                { eq T[þ, i + 1] ← max End[þ’] ∀þ’ ∈ S[þ, i, j]; }
+                { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]] ∀þ’ ∈ sort S[þ, i, j] }
                 { eq i + 1, j + 1 }
             }
         }
@@ -162,41 +166,33 @@
         { eq Join/dynamic[þ, i, j + 1, ◀] = ø, i, j }
     }
 
-    { p { code First } is an eager version of { code Join } that only waits for the child thread that
+    { p { code Join/first } is an eager version of { code Join } that only waits for the child thread that
     finishes first and cancels all the others. Cancelling a thread not only means that it will not run
     any further, but also that is own child threads are cancelled. Cancelling a thread that has already
     ended has no effect. }
     { equations
-        { eq First[þ, i, j, ●] =
+        { eq Join/first[þ, i, j, ●] =
             { equations
                 { eq let cancel þ t =
                     { equations
                         { eq T[þ, End[þ] + 1] = t; }
                         { eq þ[End[þ] + 1, Current[þ]] = ⊥; }
-                        { eq cancel þ’ t ∀ þ’ ∈ S[þ, End[þ], Current[þ]] }
+                        { eq cancel þ’ t ∀þ’ ∈ S[þ, End[þ], Current[þ]] }
                     }
                 }
                 { eq in let þ’ = first sort S[þ, i, j] in }
                 { eq T[þ, i + 1] ← End[þ’]; }
                 { eq þ[i + 1, j + 1] ← þ’[End[þ’], Last[þ’]]; }
-                { eq cancel þ” T[þ, i + 1] ∀ þ” ∈ S[þ, i, j] ∧ þ” ≠ þ’, }
+                { eq cancel þ” T[þ, i + 1] ∀þ” ∈ S[þ, i, j] ∧ þ” ≠ þ’, }
                 { eq i + 1, j + 1 }
             }
         }
-        { eq First[þ, i, j, ▶] = ø, i, j + 1 }
-        { eq First[þ, i, j + 1, ◀] = ø, i, j }
+        { eq Join/first[þ, i, j, ▶] = ø, i, j + 1 }
+        { eq Join/first[þ, i, j + 1, ◀] = ø, i, j }
     }
 
-    { p Finally, { code timeof(X) } is a modifier that discards any value change normally caused by X.
-    This is used to wait for the timing effects of X (such as Await, Join, Join/dynamic or First), but
-    ignoring its value. }
-    { equations
-        { eq timeof(X)[þ, i, j, m] =
-            { equations
-                { eq let F, i’, j’ = X[þ, i, j, m] in }
-                { eq F; þ[i’, j’] ← þ[i, j], i’, j’ }
-            }
-        }
-    }
+    # Lib
+
+    { p { code send }, { code fail }, ... }
 
 }
