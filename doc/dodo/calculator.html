@@ -45,10 +45,22 @@ table {
     background-color: var(--dark-grey);
     padding: 1rem 0.5rem;
     border-radius: 0.5rem;
+    margin: auto;
+    box-shadow: 0 8px 16px var(--dark-blue);
+}
+
+thead {
+    font-size: 10pt;
+    text-align: right;
 }
 
 td {
     padding: 0.2rem;
+}
+
+thead td {
+    padding-bottom: 1rem;
+    padding-right: 1rem;
 }
 
 #display {
@@ -56,6 +68,8 @@ td {
 }
 
 #display span {
+    box-shadow: inset 2px 2px 4px var(--light-grey);
+    text-shadow: 1px 1px 2px var(--light-grey);
     width: 100%;
     display: inline-block;
     text-align: right;
@@ -67,6 +81,7 @@ td {
 
 button {
     min-width: 4rem;
+    height: 4rem;
     width: 100%;
     border-radius: 0.5rem;
     border: none;
@@ -82,7 +97,11 @@ td:last-child button {
 }
 
 td:last-child button.highlighted {
-    color: var(--red);
+    background-color: var(--dark-orange);
+}
+
+button:active {
+    transform: scale(0.95);
 }
 
         </style>
@@ -90,13 +109,18 @@ td:last-child button.highlighted {
     </head>
     <body>
         <table>
+            <thead>
+                <tr>
+                    <td colspan="4">🦤</td>
+                </tr>
+            </thead>
             <tbody>
                 <tr>
-                    <td colspan="4" id="display"><span>0123456789</span></td>
+                    <td colspan="4" id="display"><span></span></td>
                 </tr>
                 <tr>
                     <td><button type="button">C</button></td>
-                    <td><button type="button">M+</button></td>
+                    <td><button type="button">M</button></td>
                     <td><button type="button">MR</button></td>
                     <td><button type="button">÷</button></td>
                 </tr>
