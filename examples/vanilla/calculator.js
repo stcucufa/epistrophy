@@ -46,8 +46,6 @@ function op(text, button) {
     return States.Operator;
 }
 
-const defaults = { C, op };
-
 const States = {
     Init: {
         "0": input("LeftZero", Replace),
@@ -57,30 +55,41 @@ const States = {
             delete this.memory;
             return this.state;
         },
-        "MR": recall("Left"),
-        ...defaults
+        MR: recall("Left"),
+        C, op
     },
 
     Left: {
         "0": input("Left"),
         digit: input("Left"),
         ".": input("LeftDecimal"),
-        "MR": recall("Left"),
-        ...defaults
+        M() {
+            this.memory = parseFloat(this.input);
+            return States.LeftStored;
+        },
+        MR: recall("Left"),
+        C, op
     },
 
     LeftZero: {
         digit: input("Left", Replace),
         ".": input("LeftDecimal"),
-        "MR": recall("Left"),
-        ...defaults
+        MR: recall("Left"),
+        C, op
     },
 
     LeftDecimal: {
         "0": input("LeftDecimal"),
         digit: input("LeftDecimal"),
-        "MR": recall("Left"),
-        ...defaults
+        MR: recall("Left"),
+        C, op
+    },
+
+    LeftStored: {
+        "0": input("LeftZero", Replace),
+        digit: input("Left", Replace),
+        ".": input("LeftDecimal", Replace),
+        C, op
     },
 
     Operator: {
@@ -88,24 +97,27 @@ const States = {
         digit: newInput("Right"),
         ".": newInput("RightDecimal", "0"),
         "=": function() {
-            this.x = this.input;
+            this.x = parseFloat(this.input);
             this.apply(this.op);
             return States.Equal;
         },
-        "MR": recall("Right"),
-        ...defaults
+        MR() {
+            this.x = parseFloat(this.input);
+            return recall("Right").call(this);
+        },
+        C, op
     },
 
     Equal: {
         "0": newInput("LeftZero"),
         digit: newInput("Left"),
         ".": newInput("LeftDecimal", "0"),
-        "MR": recall("Left"),
+        MR: recall("Left"),
         M() {
             this.memory = parseFloat(this.input);
             return this.state;
         },
-        ...defaults
+        C, op
     },
 
     Right: {
@@ -115,7 +127,7 @@ const States = {
         ".": input("RightDecimal"),
         op: apply("Operator"),
         "=": apply("Equal"),
-        "MR": recall("Right"),
+        MR: recall("Right"),
     },
 
     RightZero: {
@@ -124,7 +136,7 @@ const States = {
         ".": input("RightDecimal"),
         op: apply("Operator"),
         "=": apply("Equal"),
-        "MR": recall("Right"),
+        MR: recall("Right"),
     },
 
     RightDecimal: {
@@ -133,7 +145,7 @@ const States = {
         digit: input("RightDecimal"),
         op: apply("Operator"),
         "=": apply("Equal"),
-        "MR": recall("Right"),
+        MR: recall("Right"),
     },
 };
 
@@ -152,12 +164,20 @@ const Calculator = {
         }
 
         const q = Object.keys(States).find(q => States[q] === this.state);
-        console.log(`>>> [${q}], input="${this.input}", x=${this.x}, op=${this.op}, M=${this.memory}`);
+        console.log(
+            `>>> [${q}/${text}], input="${this.input}", x=${
+                typeof this.x === "string" ? `"${this.x}"` : this.x
+            }, op=${this.op}, M=${
+                typeof this.memory === "string" ? `"${this.memory}"` : this.memory
+            }`
+        );
     },
 
     clear() {
         this.input = "0";
         this.updateDisplay();
+        delete this.op;
+        delete this.x;
         document.querySelector("button.highlighted")?.classList.remove("highlighted");
         return States.Init;
     },
