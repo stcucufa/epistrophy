@@ -1,0 +1,37 @@
+html, body {
+    height: 100%;
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    margin: 2em;
+    max-width: 48em;
+    background-color: #f8f9f0;
+    color: #102040;
+    text-align: justify;
+}
+
+li span:first-child {
+    font-weight: bold;
+}
+
+li span.ok, li span.ko {
+    font-weight: bold;
+    font-size: smaller;
+    font-variant: small-caps;
+    padding: 0 0.3em;
+    border-radius: 0.5em;
+}
+
+li span.ok {
+    background-color: #40ff40;
+}
+
+li span.ko {
+    background-color: #ff4040;
+    color: #f8f9f0;
+}
+
+li.todo {
+    opacity: 0.5;
+}
