@@ -1,11 +1,11 @@
 import test from "./test.js";
-import { Queue } from "../lib/util.js";
+import { Queue, message, on, off } from "../lib/util.js";
 import Fiber from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // 4E0A	Priority queue
 
-test("new Queue([cmp])", t => {
+test("new Queue(cmp?)", t => {
     const queue = new Queue();
     t.same(queue.length, 0, "empty queue");
     t.same(queue.cmp(17, 23), -6, "default comparison between items");
@@ -117,10 +117,88 @@ test("Queue.remove(at), last element", t => {
     t.equal(queue, [17], "after first removal");
 });
 
+// 4C01 Synchronous messages
+
+test("message(from, type) sends a message; on(from, type, handler) listens to messages", t => {
+    const A = {};
+    on(A, "hello", ({ from, type }) => {
+        t.same(from, A, "from field");
+        t.same(type, "hello", "type field");
+        A.handled = true;
+    });
+    message(A, "hello");
+    t.same(A.handled, true, "message was handled");
+});
+
+test("message(from, type, message) adds additional arguments", t => {
+    const A = {};
+    on(A, "bye", ({ from, type, until }) => {
+        t.same(from, A, "from field (with message argument)");
+        t.same(type, "bye", "type field (with message argument)");
+        t.same(until, "later", "custom field");
+    });
+    message(A, "bye", { until: "later" });
+});
+
+test("message() returns the message that was sent, or nothing if there are no listeners.", t => {
+    const A = {};
+    on(A, "hello", () => { A.handled = true; });
+    const { from, type } = message(A, "hello");
+    t.same(from, A, "from field");
+    t.same(type, "hello", "type field");
+    t.same(A.handled, true, "message was handled");
+    const m = message(A, "bye");
+    t.undefined(m, "no message was actually sent as there was no listener");
+});
+
+test("on(from, type, handler) accepts an object with a `handleMessage` method as handler", t => {
+    const A = {};
+    const B = {
+        received: 0,
+        handleMessage({ from, type }) {
+            if (this.received === 0) {
+                t.same(from, A, "from field");
+                t.same(type, "hello", "type field");
+            }
+            B.received += 1;
+        }
+    };
+    on(A, "hello", B);
+    message(A, "hello");
+    t.same(B.received, 1, "message was handled");
+    message(A, "hello");
+    t.same(B.received, 2, "message was handled again");
+    message(A, "hello");
+    t.same(B.received, 3, "and again");
+});
+
+test("off(from, type, handler) removes the handler", t => {
+    const A = {};
+    const B = {};
+    const C = {
+        received: 0,
+        handleMessage({ from, type }) { this.received += 1; }
+    };
+    on(A, "hello", C);
+    on(B, "hello", C);
+    message(A, "hello");
+    t.same(C.received, 1, "message was handled");
+    message(A, "hello");
+    t.same(C.received, 2, "message was handled again");
+    off(A, "hello", C);
+    t.same(C.received, 2, "the last message was not handled");
+    off(B, "hello", C);
+    t.undefined(message(B, "hello"), "no more listeners");
+});
+
+// 4D0A Scheduler
+
 test("new Scheduler()", t => {
     const scheduler = new Scheduler();
     t.atleast(scheduler.clock.now, 0, "has a clock");
 });
+
+// 4D07 Fiber class
 
 test("new Fiber()", t => {
     const fiber = new Fiber();
