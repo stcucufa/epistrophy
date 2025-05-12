@@ -1,6 +1,121 @@
 import test from "./test.js";
+import { Queue } from "../lib/util.js";
 import Fiber from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
+
+// 4E0A	Priority queue
+
+test("Queue([cmp])", t => {
+    const queue = Queue();
+    t.same(queue.length, 0, "empty queue");
+    t.same(queue.cmp(17, 23), -6, "comparison between items");
+});
+
+test("Queue.insert(x), min heap", t => {
+    const queue = Queue();
+    t.same(queue.insert(17), 17, "return the pushed value");
+    t.equal(queue, [17], "item in the queue");
+    queue.insert(23);
+    queue.insert(19);
+    queue.insert(7);
+    queue.insert(31);
+    queue.insert(13);
+    t.equal(queue, [7, 17, 13, 23, 31, 19], "items in the queue");
+});
+
+test("Queue.insert(x), max heap", t => {
+    const queue = Queue((a, b) => b - a);
+    queue.insert(17);
+    queue.insert(23);
+    queue.insert(19);
+    queue.insert(7);
+    queue.insert(31);
+    queue.insert(13);
+    t.equal(queue, [31, 23, 19, 7, 17, 13], "items in the queue");
+});
+
+test("Queue.remove(), min heap", t => {
+    const queue = Queue();
+    queue.insert(17);
+    queue.insert(23);
+    queue.insert(19);
+    queue.insert(7);
+    queue.insert(31);
+    queue.insert(13);
+    t.equal(queue, [7, 17, 13, 23, 31, 19], "before");
+    t.same(queue.remove(), 7, "return top item");
+    t.equal(queue, [13, 17, 19, 23, 31], "after first removal");
+    t.same(queue.remove(), 13, "next");
+    t.equal(queue, [17, 23, 19, 31], "after second removal");
+    t.same(queue.remove(), 17, "next");
+    t.same(queue.remove(), 19, "next");
+    t.same(queue.remove(), 23, "next");
+    t.same(queue.remove(), 31, "last");
+    t.undefined(queue.remove(), "empty queue");
+});
+
+test("Queue.remove(), max heap", t => {
+    const queue = Queue((a, b) => b - a);
+    const N = 7;
+    const xs = [4, 0, 2, 5, 6, 4, 6];
+    for (let i = 0; i < N; ++i) {
+        const x = xs[i];
+        queue.insert(x);
+    }
+    xs.sort((a, b) => b - a);
+    const dequeued = [];
+    for (let i = 0; i < N; ++i) {
+        dequeued.push(queue.remove());
+    }
+    t.equal(xs, dequeued, "items removed in order");
+});
+
+test("Queue.remove(), randomized", t => {
+    let ops = 0;
+    const queue = Queue((a, b) => (++ops, a - b));
+    const N = 77777;
+    const xs = [];
+    for (let i = 0; i < N; ++i) {
+        const x = Math.floor(Math.random() * N);
+        xs.push(x);
+        queue.insert(x);
+    }
+    xs.sort((a, b) => a - b);
+    const dequeued = [];
+    for (let i = 0; i < N; ++i) {
+        dequeued.push(queue.remove());
+    }
+    t.equal(xs, dequeued, "items removed in order");
+    t.atmost(ops, 3 * N * Math.log2(N), "O(log n) ops");
+});
+
+test("Queue.remove(at), min heap", t => {
+    const queue = Queue();
+    queue.insert(17);
+    queue.insert(23);
+    queue.insert(19);
+    queue.insert(7);
+    queue.insert(31);
+    queue.insert(13);
+    t.equal(queue, [7, 17, 13, 23, 31, 19], "before");
+    t.same(queue.remove(1), 17, "return the removed item");
+    t.equal(queue, [7, 19, 13, 23, 31], "after first removal");
+    t.same(queue.remove(), 7, "next");
+    t.same(queue.remove(), 13, "next");
+    t.same(queue.remove(), 19, "next");
+    t.same(queue.remove(), 23, "next");
+    t.same(queue.remove(), 31, "last");
+    t.undefined(queue.remove(), "empty queue");
+});
+
+test("Queue.remove(at), last element", t => {
+    const queue = Queue();
+    queue.insert(17);
+    queue.insert(23);
+    t.equal(queue, [17, 23], "before");
+    t.same(queue.remove(1), 23, "return the removed item");
+    t.equal(queue, [17], "after first removal");
+});
 
 test("new Scheduler()", t => {
     const scheduler = new Scheduler();
