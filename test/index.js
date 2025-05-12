@@ -299,7 +299,9 @@ test("Fiber.either(f) recovers from errors", t => {
     t.undefined(fiber.error, "the error was cleared");
 });
 
-test("Fiber.event(target, type)", t => {
+// 4D0D Event
+
+test("Fiber.event(target, type, delegate?)", t => {
     const fiber = new Fiber().
         exec(() => 31).
         event(window, "hello").
@@ -313,7 +315,7 @@ test("Fiber.event(target, type)", t => {
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
-test("Fiber.event(target, type)", t => {
+test("Fiber.event(target, type, delegate?)", t => {
     const A = {};
     const fiber = new Fiber().
         exec(() => 31).
@@ -327,6 +329,108 @@ test("Fiber.event(target, type)", t => {
     message(A, "hello");
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
+
+test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
+    const delegate = {
+        count: 0,
+        eventShouldBeIgnored(...args) {
+            const event = args[0];
+            if (this.count === 0) {
+                t.same(args.length, 3, "called with three arguments");
+                t.same(this, delegate, "`this` is the delegate object");
+                t.same(event.target === window && event.type === "hello", true, "`event` is the first argument");
+                t.same(args[1], fiber, "`fiber` is the second argument");
+                t.same(args[2], scheduler, "`scheduler` is the third argument");
+            }
+            this.count += 1;
+            return event.detail?.whom !== "world";
+        }
+    };
+    const fiber = new Fiber().
+        exec(() => 37).
+        event(window, "hello", delegate).
+        exec(({ value }) => -value);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    window.dispatchEvent(new CustomEvent("hello"));
+    t.same(fiber.value, 37, "event was not handled yet");
+    window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    t.same(fiber.value, -37, "fiber execution resumed on second try");
+    window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    t.same(delegate.count, 2, "delegate method was called twice");
+});
+
+test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
+    const delegate = {
+        count: 0,
+        eventShouldBeIgnored(...args) {
+            const event = args[0];
+            if (this.count === 0) {
+                t.same(args.length, 3, "called with three arguments");
+                t.same(this, delegate, "`this` is the delegate object");
+                t.same(event.from === A && event.type === "hello", true, "`event` is the first argument");
+                t.same(args[1], fiber, "`fiber` is the second argument");
+                t.same(args[2], scheduler, "`scheduler` is the third argument");
+            }
+            this.count += 1;
+            return event.whom !== "world";
+        }
+    };
+    const A = {};
+    const fiber = new Fiber().
+        exec(() => 37).
+        event(A, "hello", delegate).
+        exec(({ value }) => -value);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    message(A, "hello");
+    t.same(fiber.value, 37, "event was not handled yet");
+    message(A, "hello", { whom: "world" });
+    t.same(fiber.value, -37, "fiber execution resumed on second try");
+    message(A, "hello", { whom: "world" });
+    t.same(delegate.count, 2, "delegate method was called twice");
+});
+
+test("Event delegate: eventWasHandled(event, fiber, scheduler)", t => {
+    const delegate = {
+        eventWasHandled(...args) {
+            const event = args[0];
+            t.same(args.length, 3, "called with three arguments");
+            t.same(this, delegate, "`this` is the delegate object");
+            t.same(event.target === window && event.type === "hello", true, "`event` is the first argument");
+            t.same(args[1], fiber, "`fiber` is the second argument");
+            t.same(args[2], scheduler, "`scheduler` is the third argument");
+            fiber.value = event.detail.whom;
+        }
+    };
+    const fiber = new Fiber().event(window, "hello", delegate);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    t.same(fiber.value, "world", "fiber value was set");
+});
+
+test("Event delegate: eventWasHandled(event, fiber, scheduler)", t => {
+    const A = {};
+    const delegate = {
+        eventWasHandled(...args) {
+            const event = args[0];
+            t.same(args.length, 3, "called with three arguments");
+            t.same(this, delegate, "`this` is the delegate object");
+            t.same(event.from === A && event.type === "hello", true, "`event` is the first argument");
+            t.same(args[1], fiber, "`fiber` is the second argument");
+            t.same(args[2], scheduler, "`scheduler` is the third argument");
+            fiber.value = event.whom;
+        }
+    };
+    const fiber = new Fiber().event(A, "hello", delegate);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    message(A, "hello", { whom: "world" });
+    t.same(fiber.value, "world", "fiber value was set");
+});
+
+// 4D0E Repeat
 
 test("Fiber.repeat(f, delegate)", t => {
     const delegate = {
