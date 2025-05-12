@@ -1,6 +1,29 @@
 const tests = [];
 let request;
 
+// Finer-grained typeof for testing purposes; distinguishes between different types of objects.
+const typeOf = x => typeof x !== "object" ? typeof x :
+    x === null ? "null" :
+    Array.isArray(x) ? "array" :
+    x instanceof Function ? "object/function" :
+    x instanceof String ? "string" :
+    x instanceof RegExp ? "regex" :
+    x instanceof Map ? "map" :
+    x instanceof Set ? "set" : "object";
+
+// Deep equality test, using special comparisons by type.
+const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(x)]?.(x, y));
+
+// Compare x and y depending on their type (despite x !== y).
+const Equal = {
+    array: (x, y) => x.length === y.length && x.every((xi, i) => equal(xi, y[i])),
+    number: (x, y) => isNaN(x) && isNaN(y),
+    object: (x, y) => {
+        const keys = Object.keys(x);
+        return keys.length === Object.keys(y).length && keys.every(key => key in y && equal(x[key], y[key]));
+    },
+};
+
 class Test {
     constructor(title, f) {
         this.title = title;
@@ -32,6 +55,14 @@ class Test {
 
     atleast(x, y, message) {
         this.report(message, !(x >= y) && `${x} >= ${y}`);
+    }
+
+    atmost(x, y, message) {
+        this.report(message, !(x <= y) && `${x} <= ${y}`);
+    }
+
+    equal(x, y, message) {
+        this.report(message, !(equal(x, y)) && `${x} and ${y} to be equal`);
     }
 
     ok(x, message) {
