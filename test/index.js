@@ -1,11 +1,11 @@
 import test from "./test.js";
-import { Queue } from "../lib/util.js";
+import { Queue, message, on, off } from "../lib/util.js";
 import Fiber from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // 4E0A	Priority queue
 
-test("new Queue([cmp])", t => {
+test("new Queue(cmp?)", t => {
     const queue = new Queue();
     t.same(queue.length, 0, "empty queue");
     t.same(queue.cmp(17, 23), -6, "default comparison between items");
@@ -117,10 +117,75 @@ test("Queue.remove(at), last element", t => {
     t.equal(queue, [17], "after first removal");
 });
 
+// 4C01 Synchronous messages
+
+test("message(from, type) sends a message; on(from, type, handler) listens to messages", t => {
+    const A = {};
+    on(A, "hello", ({ from, type }) => {
+        t.same(from, A, "from field");
+        t.same(type, "hello", "type field");
+        A.handled = true;
+    });
+    t.undefined(message(A, "hello"), "return nothing");
+    t.same(A.handled, true, "message was handled");
+});
+
+test("message(from, type, message) adds additional arguments", t => {
+    const A = {};
+    on(A, "bye", ({ from, type, until }) => {
+        t.same(from, A, "from field (with message argument)");
+        t.same(type, "bye", "type field (with message argument)");
+        t.same(until, "later", "custom field");
+    });
+    message(A, "bye", { until: "later" });
+});
+
+test("on(from, type, handler) accepts an object with a `handleMessage` method as handler", t => {
+    const A = {};
+    const B = {
+        received: 0,
+        handleMessage({ from, type }) {
+            if (this.received === 0) {
+                t.same(from, A, "from field");
+                t.same(type, "hello", "type field");
+            }
+            B.received += 1;
+        }
+    };
+    on(A, "hello", B);
+    message(A, "hello");
+    t.same(B.received, 1, "message was handled");
+    message(A, "hello");
+    t.same(B.received, 2, "message was handled again");
+    message(A, "hello");
+    t.same(B.received, 3, "and again");
+});
+
+test("off(from, type, handler) removes the handler", t => {
+    const A = {};
+    const B = {};
+    const C = {
+        received: 0,
+        handleMessage({ from, type }) { this.received += 1; }
+    };
+    on(A, "hello", C);
+    on(B, "hello", C);
+    message(A, "hello");
+    t.same(C.received, 1, "message was handled");
+    message(A, "hello");
+    t.same(C.received, 2, "message was handled again");
+    off(A, "hello", C);
+    t.same(C.received, 2, "the last message was not handled");
+});
+
+// 4D0A Scheduler
+
 test("new Scheduler()", t => {
     const scheduler = new Scheduler();
     t.atleast(scheduler.clock.now, 0, "has a clock");
 });
+
+// 4D07 Fiber class
 
 test("new Fiber()", t => {
     const fiber = new Fiber();
@@ -233,6 +298,139 @@ test("Fiber.either(f) recovers from errors", t => {
     t.same(fiber.value, 29, "the fiber has a value");
     t.undefined(fiber.error, "the error was cleared");
 });
+
+// 4D0D Event
+
+test("Fiber.event(target, type, delegate?)", t => {
+    const fiber = new Fiber().
+        exec(() => 31).
+        event(window, "hello").
+        exec(({ value }) => {
+            t.pass("handles an event of `type` from `target`");
+            t.same(value, 31, "value was not affected");
+            return -value;
+        });
+    new Scheduler().resume(fiber);
+    window.dispatchEvent(new CustomEvent("hello"));
+    t.same(fiber.value, -31, "fiber execution resumed after message was sent");
+});
+
+test("Fiber.event(target, type, delegate?)", t => {
+    const A = {};
+    const fiber = new Fiber().
+        exec(() => 31).
+        event(A, "hello").
+        exec(({ value }) => {
+            t.pass("handles a synchronous message of `type` from `target`");
+            t.same(value, 31, "value was not affected");
+            return -value;
+        });
+    new Scheduler().resume(fiber);
+    message(A, "hello");
+    t.same(fiber.value, -31, "fiber execution resumed after message was sent");
+});
+
+test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
+    const delegate = {
+        count: 0,
+        eventShouldBeIgnored(...args) {
+            const event = args[0];
+            if (this.count === 0) {
+                t.same(args.length, 3, "called with three arguments");
+                t.same(this, delegate, "`this` is the delegate object");
+                t.same(event.target === window && event.type === "hello", true, "`event` is the first argument");
+                t.same(args[1], fiber, "`fiber` is the second argument");
+                t.same(args[2], scheduler, "`scheduler` is the third argument");
+            }
+            this.count += 1;
+            return event.detail?.whom !== "world";
+        }
+    };
+    const fiber = new Fiber().
+        exec(() => 37).
+        event(window, "hello", delegate).
+        exec(({ value }) => -value);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    window.dispatchEvent(new CustomEvent("hello"));
+    t.same(fiber.value, 37, "event was not handled yet");
+    window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    t.same(fiber.value, -37, "fiber execution resumed on second try");
+    window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    t.same(delegate.count, 2, "delegate method was called twice");
+});
+
+test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
+    const delegate = {
+        count: 0,
+        eventShouldBeIgnored(...args) {
+            const event = args[0];
+            if (this.count === 0) {
+                t.same(args.length, 3, "called with three arguments");
+                t.same(this, delegate, "`this` is the delegate object");
+                t.same(event.from === A && event.type === "hello", true, "`event` is the first argument");
+                t.same(args[1], fiber, "`fiber` is the second argument");
+                t.same(args[2], scheduler, "`scheduler` is the third argument");
+            }
+            this.count += 1;
+            return event.whom !== "world";
+        }
+    };
+    const A = {};
+    const fiber = new Fiber().
+        exec(() => 37).
+        event(A, "hello", delegate).
+        exec(({ value }) => -value);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    message(A, "hello");
+    t.same(fiber.value, 37, "event was not handled yet");
+    message(A, "hello", { whom: "world" });
+    t.same(fiber.value, -37, "fiber execution resumed on second try");
+    message(A, "hello", { whom: "world" });
+    t.same(delegate.count, 2, "delegate method was called twice");
+});
+
+test("Event delegate: eventWasHandled(event, fiber, scheduler)", t => {
+    const delegate = {
+        eventWasHandled(...args) {
+            const event = args[0];
+            t.same(args.length, 3, "called with three arguments");
+            t.same(this, delegate, "`this` is the delegate object");
+            t.same(event.target === window && event.type === "hello", true, "`event` is the first argument");
+            t.same(args[1], fiber, "`fiber` is the second argument");
+            t.same(args[2], scheduler, "`scheduler` is the third argument");
+            fiber.value = event.detail.whom;
+        }
+    };
+    const fiber = new Fiber().event(window, "hello", delegate);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    t.same(fiber.value, "world", "fiber value was set");
+});
+
+test("Event delegate: eventWasHandled(event, fiber, scheduler)", t => {
+    const A = {};
+    const delegate = {
+        eventWasHandled(...args) {
+            const event = args[0];
+            t.same(args.length, 3, "called with three arguments");
+            t.same(this, delegate, "`this` is the delegate object");
+            t.same(event.from === A && event.type === "hello", true, "`event` is the first argument");
+            t.same(args[1], fiber, "`fiber` is the second argument");
+            t.same(args[2], scheduler, "`scheduler` is the third argument");
+            fiber.value = event.whom;
+        }
+    };
+    const fiber = new Fiber().event(A, "hello", delegate);
+    const scheduler = new Scheduler();
+    scheduler.resume(fiber);
+    message(A, "hello", { whom: "world" });
+    t.same(fiber.value, "world", "fiber value was set");
+});
+
+// 4D0E Repeat
 
 test("Fiber.repeat(f, delegate)", t => {
     const delegate = {
