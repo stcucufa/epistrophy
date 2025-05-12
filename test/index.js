@@ -188,10 +188,10 @@ test("new Scheduler()", t => {
 // 4D07 Fiber class
 
 // Utility function to run a fiber synchronously.
-function run(fiber, scheduler) {
+function run(fiber, scheduler, until = Infinity) {
     scheduler ??= new Scheduler();
     scheduler.resume(fiber);
-    scheduler.clock.now = Infinity;
+    scheduler.clock.now = until;
     return scheduler;
 }
 
@@ -317,8 +317,9 @@ test("Fiber.event(target, type, delegate?)", t => {
             t.same(value, 31, "value was not affected");
             return -value;
         });
-    run(fiber);
+    const scheduler = run(fiber, new Scheduler(), 1);
     window.dispatchEvent(new CustomEvent("hello"));
+    run(fiber, scheduler);
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
@@ -332,8 +333,9 @@ test("Fiber.event(target, type, delegate?)", t => {
             t.same(value, 31, "value was not affected");
             return -value;
         });
-    run(fiber);
+    const scheduler = run(fiber, new Scheduler(), 1);
     message(A, "hello");
+    run(fiber, scheduler);
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
@@ -358,12 +360,15 @@ test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
         event(window, "hello", delegate).
         exec(({ value }) => -value);
     const scheduler = new Scheduler();
-    run(fiber);
+    run(fiber, scheduler, 1);
     window.dispatchEvent(new CustomEvent("hello"));
+    run(fiber, scheduler, 2);
     t.same(fiber.value, 37, "event was not handled yet");
     window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    run(fiber, scheduler, 3);
     t.same(fiber.value, -37, "fiber execution resumed on second try");
     window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
+    run(fiber, scheduler, 4);
     t.same(delegate.count, 2, "delegate method was called twice");
 });
 
@@ -472,4 +477,17 @@ test("Fiber.repeat fails if it has zero duration and no delegate", t => {
     run(fiber);
     t.undefined(fiber.value, "the fiber has no value");
     t.ok(fiber.error, "the fiber has an error");
+});
+
+// 4E03 Delay
+
+test("Fiber.delay(dur)", t => {
+    const fiber = new Fiber().
+        effect((_, scheduler) => {
+            t.same(scheduler.currentTime, 0, "time before delay");
+        }).
+        delay(777).
+        exec((_, scheduler) => scheduler.currentTime);
+    run(fiber);
+    t.same(fiber.value, 777, "fiber resumed after the delay");
 });
