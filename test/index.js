@@ -126,7 +126,7 @@ test("message(from, type) sends a message; on(from, type, handler) listens to me
         t.same(type, "hello", "type field");
         A.handled = true;
     });
-    message(A, "hello");
+    t.undefined(message(A, "hello"), "return nothing");
     t.same(A.handled, true, "message was handled");
 });
 
@@ -138,17 +138,6 @@ test("message(from, type, message) adds additional arguments", t => {
         t.same(until, "later", "custom field");
     });
     message(A, "bye", { until: "later" });
-});
-
-test("message() returns the message that was sent, or nothing if there are no listeners.", t => {
-    const A = {};
-    on(A, "hello", () => { A.handled = true; });
-    const { from, type } = message(A, "hello");
-    t.same(from, A, "from field");
-    t.same(type, "hello", "type field");
-    t.same(A.handled, true, "message was handled");
-    const m = message(A, "bye");
-    t.undefined(m, "no message was actually sent as there was no listener");
 });
 
 test("on(from, type, handler) accepts an object with a `handleMessage` method as handler", t => {
@@ -187,8 +176,6 @@ test("off(from, type, handler) removes the handler", t => {
     t.same(C.received, 2, "message was handled again");
     off(A, "hello", C);
     t.same(C.received, 2, "the last message was not handled");
-    off(B, "hello", C);
-    t.undefined(message(B, "hello"), "no more listeners");
 });
 
 // 4D0A Scheduler
@@ -310,6 +297,35 @@ test("Fiber.either(f) recovers from errors", t => {
     new Scheduler().resume(fiber);
     t.same(fiber.value, 29, "the fiber has a value");
     t.undefined(fiber.error, "the error was cleared");
+});
+
+test("Fiber.event(target, type)", t => {
+    const fiber = new Fiber().
+        exec(() => 31).
+        event(window, "hello").
+        exec(({ value }) => {
+            t.pass("handles an event of `type` from `target`");
+            t.same(value, 31, "value was not affected");
+            return -value;
+        });
+    new Scheduler().resume(fiber);
+    window.dispatchEvent(new CustomEvent("hello"));
+    t.same(fiber.value, -31, "fiber execution resumed after message was sent");
+});
+
+test("Fiber.event(target, type)", t => {
+    const A = {};
+    const fiber = new Fiber().
+        exec(() => 31).
+        event(A, "hello").
+        exec(({ value }) => {
+            t.pass("handles a synchronous message of `type` from `target`");
+            t.same(value, 31, "value was not affected");
+            return -value;
+        });
+    new Scheduler().resume(fiber);
+    message(A, "hello");
+    t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
 test("Fiber.repeat(f, delegate)", t => {

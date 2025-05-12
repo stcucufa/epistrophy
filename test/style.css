@@ -15,7 +15,7 @@ li span:first-child {
     font-weight: bold;
 }
 
-li span.ok, li span.ko {
+span.ok, span.ko {
     font-weight: bold;
     font-size: smaller;
     font-variant: small-caps;
@@ -23,15 +23,19 @@ li span.ok, li span.ko {
     border-radius: 0.5em;
 }
 
-li span.ok {
+span.ok {
     background-color: #40ff40;
 }
 
-li span.ko {
+span.ko {
     background-color: #ff4040;
     color: #f8f9f0;
 }
 
 li.todo {
     opacity: 0.5;
+}
+
+p.report {
+    padding-bottom: 2em;
 }
