@@ -5,14 +5,14 @@ import Scheduler from "../lib/scheduler.js";
 
 // 4E0A	Priority queue
 
-test("Queue([cmp])", t => {
-    const queue = Queue();
+test("new Queue([cmp])", t => {
+    const queue = new Queue();
     t.same(queue.length, 0, "empty queue");
-    t.same(queue.cmp(17, 23), -6, "comparison between items");
+    t.same(queue.cmp(17, 23), -6, "default comparison between items");
 });
 
 test("Queue.insert(x), min heap", t => {
-    const queue = Queue();
+    const queue = new Queue();
     t.same(queue.insert(17), 17, "return the pushed value");
     t.equal(queue, [17], "item in the queue");
     queue.insert(23);
@@ -24,7 +24,7 @@ test("Queue.insert(x), min heap", t => {
 });
 
 test("Queue.insert(x), max heap", t => {
-    const queue = Queue((a, b) => b - a);
+    const queue = new Queue((a, b) => b - a);
     queue.insert(17);
     queue.insert(23);
     queue.insert(19);
@@ -35,7 +35,7 @@ test("Queue.insert(x), max heap", t => {
 });
 
 test("Queue.remove(), min heap", t => {
-    const queue = Queue();
+    const queue = new Queue();
     queue.insert(17);
     queue.insert(23);
     queue.insert(19);
@@ -55,7 +55,7 @@ test("Queue.remove(), min heap", t => {
 });
 
 test("Queue.remove(), max heap", t => {
-    const queue = Queue((a, b) => b - a);
+    const queue = new Queue((a, b) => b - a);
     const N = 7;
     const xs = [4, 0, 2, 5, 6, 4, 6];
     for (let i = 0; i < N; ++i) {
@@ -72,7 +72,7 @@ test("Queue.remove(), max heap", t => {
 
 test("Queue.remove(), randomized", t => {
     let ops = 0;
-    const queue = Queue((a, b) => (++ops, a - b));
+    const queue = new Queue((a, b) => (++ops, a - b));
     const N = 77777;
     const xs = [];
     for (let i = 0; i < N; ++i) {
@@ -90,7 +90,7 @@ test("Queue.remove(), randomized", t => {
 });
 
 test("Queue.remove(at), min heap", t => {
-    const queue = Queue();
+    const queue = new Queue();
     queue.insert(17);
     queue.insert(23);
     queue.insert(19);
@@ -109,7 +109,7 @@ test("Queue.remove(at), min heap", t => {
 });
 
 test("Queue.remove(at), last element", t => {
-    const queue = Queue();
+    const queue = new Queue();
     queue.insert(17);
     queue.insert(23);
     t.equal(queue, [17, 23], "before");
