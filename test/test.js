@@ -59,11 +59,15 @@ class Test {
     // Assertions
 
     atleast(x, y, message) {
-        this.report(message, !(x >= y) && `${x} >= ${y}`);
+        this.report(message, !(x >= y) && `${x} ≥ ${y}`);
     }
 
     atmost(x, y, message) {
-        this.report(message, !(x <= y) && `${x} <= ${y}`);
+        this.report(message, !(x <= y) && `${x} ≤ ${y}`);
+    }
+
+    below(x, y, message) {
+        this.report(message, !(x < y) && `${x} < ${y}`);
     }
 
     equal(x, y, message) {
