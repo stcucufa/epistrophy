@@ -3,6 +3,14 @@ import { Queue, message, on, off } from "../lib/util.js";
 import Fiber from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
+// Utility function to run a fiber synchronously.
+function run(fiber, scheduler, until = Infinity) {
+    scheduler ??= new Scheduler();
+    scheduler.resume(fiber);
+    scheduler.clock.now = until;
+    return scheduler;
+}
+
 // 4E0A	Priority queue
 
 test("new Queue(cmp?)", t => {
@@ -182,18 +190,24 @@ test("off(from, type, handler) removes the handler", t => {
 
 test("new Scheduler()", t => {
     const scheduler = new Scheduler();
-    t.atleast(scheduler.clock.now, 0, "has a clock");
+    t.same(scheduler.clock.now, 0, "creates a scheduler with a clock");
+});
+
+test("Scheduler.now", t => {
+    const scheduler = new Scheduler();
+    scheduler.clock.now = 444;
+    t.same(scheduler.now, scheduler.clock.now, "is the same as Scheduler.clock.now");
+    const fiber = new Fiber().
+        delay(111).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 555, "except when updating");
+            t.same(scheduler.clock.now, 1111, "the clock is ahead");
+        });
+    run(fiber, scheduler, 1111);
+    t.same(scheduler.now, scheduler.clock.now, "is the same as Scheduler.clock.now after update");
 });
 
 // 4D07 Fiber class
-
-// Utility function to run a fiber synchronously.
-function run(fiber, scheduler, until = Infinity) {
-    scheduler ??= new Scheduler();
-    scheduler.resume(fiber);
-    scheduler.clock.now = until;
-    return scheduler;
-}
 
 test("new Fiber()", t => {
     const fiber = new Fiber();
