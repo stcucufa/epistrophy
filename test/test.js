@@ -30,12 +30,14 @@ class Test {
         this.f = f;
     }
 
+    static DefaultMessage = "expectation was met";
+
     report(message, expected) {
         if (expected) {
             this.passes = false;
-            this.li.innerHTML += ` <span class="ko">ko</span> ${message} (expected ${expected})`;
+            this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.DefaultMessage} (expected ${expected})`;
         } else {
-            this.li.innerHTML += ` <span class="ok">ok</span> ${message}`;
+            this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessage}`;
         }
         this.li.scrollIntoView({ block: "end" });
     }
