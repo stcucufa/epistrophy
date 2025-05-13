@@ -68,6 +68,10 @@ class Test {
         this.report(message, !(equal(x, y)) && `${x} and ${y} to be equal`);
     }
 
+    fail(message) {
+        this.report(message, "not to fail");
+    }
+
     pass(message) {
         this.report(message);
     }

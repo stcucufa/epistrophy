@@ -548,3 +548,83 @@ test("Fiber.delay is skipped when the fiber is failing", t => {
     run(fiber);
     t.same(fiber.value, 0, "no delay");
 });
+
+// 4E0C Spawn
+
+test("Fiber.spawn() creates a new fiber immediately", t => {
+    const fiber = new Fiber();
+    const child = fiber.spawn();
+    t.same(child.parent, fiber, "the new fiber has a parent");
+});
+
+test("Fiber.spawn(f) creates a new fiber immediately", t => {
+    const fiber = new Fiber();
+    t.same(fiber.spawn(child => {
+        t.same(child.parent, fiber, "the function parameter is called with the child fiber as argument")
+    }), fiber, "but the parent fiber is returned");
+});
+
+test("Fiber.spawn: child execution", t => {
+    const values = [];
+    const fiber = new Fiber().
+        exec(() => 37).
+        spawn(fiber => fiber.
+            effect(fiber => {
+                t.same(fiber.value, fiber.parent.value, "child fiber gets its value from the parent");
+                values.push("child");
+            }).
+            delay(111).
+            effect(fiber => { values.push("child again"); }).
+            delay(222).
+            effect(fiber => { values.push("child finally"); })
+        ).
+        effect(() => { values.push("parent (before)"); }).
+        delay(222).
+        effect(() => { values.push("parent (after)"); });
+    run(fiber);
+    t.equal(values, ["parent (before)", "child", "child again", "parent (after)", "child finally"],
+        "child begins after parent yields and runs concurrently");
+});
+
+test("Fiber.spawn: children and grand-children", t => {
+    const values = [];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.effect(() => { values.push("B"); })).
+            spawn(fiber => fiber.effect(() => { values.push("C"); }))
+        ).
+        effect(() => { values.push("A"); }).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.effect(() => { values.push("D"); })).
+            spawn(fiber => fiber.effect(() => { values.push("E"); }))
+        );
+    run(fiber);
+    t.equal(values, ["A", "B", "C", "D", "E"], "descendants begin depth-first");
+});
+
+test("Fiber.spawn: children and grand-children (yielding)", t => {
+    const values = [];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.effect(() => { values.push("A"); })).
+            spawn(fiber => fiber.effect(() => { values.push("B"); }))
+        ).
+        delay(1).
+        effect(() => { values.push("C"); }).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.effect(() => { values.push("D"); })).
+            spawn(fiber => fiber.effect(() => { values.push("E"); }))
+        );
+    run(fiber);
+    t.equal(values, ["A", "B", "C", "D", "E"], "descendants begin as soon as the parent yields");
+});
+
+test("Fiber.spawn: child does not begin when the parent is failing", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        spawn(fiber => fiber.
+            effect(() => { t.fail("child fiber should not begin"); })
+        );
+    run(fiber);
+    t.pass("parent is failing");
+});

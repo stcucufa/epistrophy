@@ -1,3 +1,10 @@
+:root {
+    --picotron-white: #fff1e8;
+    --picotron-dark-blue: #1d2b53;
+    --picotron-green: #00e436;
+    --picotron-red: #ff004d;
+}
+
 html, body {
     height: 100%;
 }
@@ -6,8 +13,8 @@ body {
     font-family: system-ui, sans-serif;
     margin: 2em;
     max-width: 48em;
-    background-color: #f8f9f0;
-    color: #102040;
+    background-color: var(--picotron-white);
+    color: var(--picotron-dark-blue);
     text-align: justify;
 }
 
@@ -24,12 +31,12 @@ span.ok, span.ko {
 }
 
 span.ok {
-    background-color: #40ff40;
+    background-color: var(--picotron-green);
 }
 
 span.ko {
-    background-color: #ff4040;
-    color: #f8f9f0;
+    background-color: var(--picotron-red);
+    color: var(--picotron-white);
 }
 
 li.todo {
