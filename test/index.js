@@ -376,13 +376,13 @@ test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
     const scheduler = new Scheduler();
     run(fiber, scheduler, 1);
     window.dispatchEvent(new CustomEvent("hello"));
-    run(fiber, scheduler, 2);
+    scheduler.clock.now = 2;
     t.same(fiber.value, 37, "event was not handled yet");
     window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
-    run(fiber, scheduler, 3);
+    scheduler.clock.now = 3;
     t.same(fiber.value, -37, "fiber execution resumed on second try");
     window.dispatchEvent(new CustomEvent("hello", { detail: { whom: "world" } }));
-    run(fiber, scheduler, 4);
+    scheduler.clock.now = 4;
     t.same(delegate.count, 2, "delegate method was called twice");
 });
 
@@ -408,12 +408,15 @@ test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
         event(A, "hello", delegate).
         exec(({ value }) => -value);
     const scheduler = new Scheduler();
-    scheduler.resume(fiber);
+    run(fiber, scheduler, 1);
     message(A, "hello");
+    scheduler.clock.now = 2;
     t.same(fiber.value, 37, "event was not handled yet");
     message(A, "hello", { whom: "world" });
+    scheduler.clock.now = 3;
     t.same(fiber.value, -37, "fiber execution resumed on second try");
     message(A, "hello", { whom: "world" });
+    scheduler.clock.now = 4;
     t.same(delegate.count, 2, "delegate method was called twice");
 });
 
