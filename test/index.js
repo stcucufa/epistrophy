@@ -1,5 +1,5 @@
 import test from "./test.js";
-import { Queue, message, on, off } from "../lib/util.js";
+import { nop, Queue, message, on, off } from "../lib/util.js";
 import Fiber from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
@@ -657,4 +657,38 @@ test("Fiber.join() is a noop if there are no child fibers", t => {
         exec(({ value }) => value * 2 + 1);
     run(fiber);
     t.same(fiber.value, 31, "fiber ended with expected value");
+});
+
+test("Fiber.join(delegate) calls the `fiberWillJoin` delegate method before yielding", t => {
+    const delegate = {
+        fiberWillJoin(...args) {
+            t.equal(args, [fiber, scheduler], "`fiberWillJoin` is called with `fiber` and `scheduler` as arguments");
+            t.same(this, delegate, "and `this` is the delegate object");
+        }
+    };
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        spawn(nop).
+        join(delegate);
+    run(fiber, scheduler);
+    t.atleast(t.expectations, 2, "`fiberWillJoin` was called");
+});
+
+test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fiber ends", t => {
+    const delegate = {
+        childFiberDidEnd(...args) {
+            t.equal(
+                args,
+                [child, scheduler],
+                "`fiberWillJoin` is called with `fiber` (the child fiber) and `scheduler` as arguments"
+            );
+            t.same(this, delegate, "and `this` is the delegate object");
+        }
+    };
+    const scheduler = new Scheduler();
+    const fiber = new Fiber();
+    const child = fiber.spawn();
+    fiber.join(delegate);
+    run(fiber, scheduler);
+    t.atleast(t.expectations, 2, "`childFiberDidEnd` was called");
 });
