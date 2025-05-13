@@ -548,3 +548,11 @@ test("Fiber.delay is skipped when the fiber is failing", t => {
     run(fiber);
     t.same(fiber.value, 0, "no delay");
 });
+
+// 4E0C Spawn
+
+test("Fiber.spawn() creates a new fiber immediately", t => {
+    const fiber = new Fiber();
+    const child = fiber.spawn();
+    t.same(child.parent, fiber, "the new fiber has a parent");
+});
