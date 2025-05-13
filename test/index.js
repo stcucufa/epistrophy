@@ -556,3 +556,10 @@ test("Fiber.spawn() creates a new fiber immediately", t => {
     const child = fiber.spawn();
     t.same(child.parent, fiber, "the new fiber has a parent");
 });
+
+test("Fiber.spawn(f) creates a new fiber immediately", t => {
+    const fiber = new Fiber();
+    t.same(fiber.spawn(child => {
+        t.same(child.parent, fiber, "the function parameter is called with the child fiber as argument")
+    }), fiber, "but the parent fiber is returned");
+});
