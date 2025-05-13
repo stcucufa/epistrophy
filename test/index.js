@@ -217,6 +217,13 @@ test("new Fiber()", t => {
     run(fiber);
 });
 
+test("Fiber with no op", t => {
+    const fiber = new Fiber();
+    run(fiber);
+    t.same(fiber.beginTime, 0, "began at t=0");
+    t.same(fiber.endTime, 0, "ended at t=0");
+});
+
 test("Fiber.exec(f)", t => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().exec(function(...args) {
@@ -626,5 +633,28 @@ test("Fiber.spawn: child does not begin when the parent is failing", t => {
             effect(() => { t.fail("child fiber should not begin"); })
         );
     run(fiber);
-    t.pass("parent is failing");
+    t.same(t.expectations, 0, "parent is failing");
+});
+
+// 4E0D Join
+
+test("Fiber.join()", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => { t.same(scheduler.now, 333, "child fiber ends after delay"); })
+        ).
+        join().
+        effect((_, scheduler) => { t.same(scheduler.now, 333, "parent fiber resumed after child ended"); })
+    run(fiber);
+    t.atleast(t.expectations, 2, "fiber joined");
+});
+
+test("Fiber.join() is a noop if there are no child fibers", t => {
+    const fiber = new Fiber().
+        exec(() => 15).
+        join().
+        exec(({ value }) => value * 2 + 1);
+    run(fiber);
+    t.same(fiber.value, 31, "fiber ended with expected value");
 });

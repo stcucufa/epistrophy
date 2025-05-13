@@ -28,6 +28,7 @@ class Test {
     constructor(title, f) {
         this.title = title;
         this.f = f;
+        this.expectations = 0;
     }
 
     static DefaultMessage = "expectation was met";
@@ -40,6 +41,7 @@ class Test {
             this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessage}`;
         }
         this.li.scrollIntoView({ block: "end" });
+        this.expectations += 1;
     }
 
     run(li) {
