@@ -508,3 +508,43 @@ test("Fiber.delay(dur)", t => {
     run(fiber);
     t.same(fiber.value, 777, "fiber resumed after the delay");
 });
+
+test("Fiber.delay(dur)", t => {
+    const fiber = new Fiber().
+        delay(-777).
+        delay(0).
+        delay("for a while").
+        exec((_, scheduler) => scheduler.currentTime);
+    run(fiber);
+    t.same(fiber.value, 0, "no delay when dur is not > 0");
+});
+
+test("Fiber.delay(dur)", t => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        delay((...args) => {
+            t.equal(args, [fiber, scheduler], "`dur` may be a function called with `fiber` and `scheduler` as arguments");
+            return 333;
+        }).
+        exec((_, scheduler) => scheduler.currentTime);
+    run(fiber, scheduler);
+    t.same(fiber.value, 333, "fiber resumed after the delay returned by the `dur` function");
+});
+
+test("Fiber delay fails if `dur` is a function that fails", t => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        delay(() => { throw Error("AUGH"); }).
+        either((_, scheduler) => scheduler.currentTime);
+    run(fiber);
+    t.same(fiber.value, 0, "no delay");
+});
+
+test("Fiber.delay is skipped when the fiber is failing", t => {
+    const fiber = new Fiber().
+        exec(() => { throw "AUGH"; }).
+        delay(999).
+        either((_, scheduler) => scheduler.currentTime);
+    run(fiber);
+    t.same(fiber.value, 0, "no delay");
+});
