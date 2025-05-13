@@ -618,3 +618,13 @@ test("Fiber.spawn: children and grand-children (yielding)", t => {
     run(fiber);
     t.equal(values, ["A", "B", "C", "D", "E"], "descendants begin as soon as the parent yields");
 });
+
+test("Fiber.spawn: child does not begin when the parent is failing", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        spawn(fiber => fiber.
+            effect(() => { t.fail("child fiber should not begin"); })
+        );
+    run(fiber);
+    t.pass("parent is failing");
+});
