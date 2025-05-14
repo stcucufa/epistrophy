@@ -524,6 +524,45 @@ test("Fiber.repeat does not continue when the fiber is failing", t => {
     t.atleast(t.expectations, 1, "went through a repeat but no more");
 });
 
+// 4E0G	Retry
+
+test("Fiber.retry(f, delegate) is like repeat but only repeats when the fiber is failing", t => {
+    const delegate = {
+        repeatShouldEnd(...args) {
+            t.same(args.length, 3, "`repeatShouldEnd` is called with three arguments");
+            t.same(this, delegate, "`this` is the delegate object");
+            t.same(args[0], 0, "iteration count is the first argument (starting at zero before the first iteration)");
+            t.same(args[1], fiber, "`fiber` is the second argument");
+            t.same(args[2], scheduler, "`scheduler` is the third argument");
+            return false;
+        }
+    };
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        exec(K(19)).
+        retry(fiber => fiber.exec(({ value }) => value + 1), delegate);
+    run(fiber, scheduler);
+    t.same(fiber.value, 20, "no failure so no retry");
+});
+
+test("Fiber.retry(f, delegate) is like repeat but only repeats when the fiber is failing", t => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        retry(fiber => fiber.
+            exec((_, scheduler) => {
+                if (scheduler.now < 666) {
+                    throw Error("Try again");
+                }
+                return "ok";
+            }).
+            delay(234)
+        );
+    run(fiber, scheduler);
+    t.same(fiber.value, "ok", "the fiber has a value");
+    t.same(fiber.endTime, 3 * 234, "after multiple tries");
+    t.undefined(fiber.error, "the fiber has no error");
+});
+
 // 4E03 Delay
 
 test("Fiber.delay(dur)", t => {
