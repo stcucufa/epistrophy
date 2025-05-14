@@ -512,6 +512,18 @@ test("Fiber.repeat does not begin if the fiber is failing", t => {
     t.same(fiber.value, true, "repeat did not begin");
 });
 
+test("Fiber.repeat does not continue when the fiber is failing", t => {
+    const fiber = new Fiber().
+        repeat(fiber => fiber.effect(() => { throw Error("AUGH"); }), {
+            repeatShouldEnd: count => {
+                t.atmost(count, 1, "only go through the first iteration");
+                return count > 3;
+            }
+        });
+    run(fiber);
+    t.atleast(t.expectations, 1, "went through a repeat but no more");
+});
+
 // 4E03 Delay
 
 test("Fiber.delay(dur)", t => {
