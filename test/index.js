@@ -503,6 +503,15 @@ test("Fiber.repeat fails if it has zero duration and no delegate", t => {
     t.ok(fiber.error, "the fiber has an error");
 });
 
+test("Fiber.repeat does not begin if the fiber is failing", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        repeat(fiber => fiber.effect(() => { t.fail("repeat should not begin"); })).
+        either(({ error }) => error.message === "AUGH");
+    run(fiber);
+    t.same(fiber.value, true, "repeat did not begin");
+});
+
 // 4E03 Delay
 
 test("Fiber.delay(dur)", t => {
