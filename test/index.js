@@ -1,6 +1,6 @@
 import test from "./test.js";
 import { nop, K, Queue, message, on, off } from "../lib/util.js";
-import Fiber, { All } from "../lib/fiber.js";
+import Fiber, { All, Last } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // Utility function to run a fiber synchronously.
@@ -663,7 +663,7 @@ test("Fiber.join(delegate) calls the `fiberWillJoin` delegate method before yiel
     const delegate = {
         fiberWillJoin(...args) {
             t.equal(args, [fiber, scheduler], "`fiberWillJoin` is called with `fiber` and `scheduler` as arguments");
-            t.same(this, delegate, "and `this` is the delegate object");
+            t.same(Object.getPrototypeOf(this), delegate, "and `this` is a copy of the delegate object");
         }
     };
     const scheduler = new Scheduler();
@@ -677,8 +677,12 @@ test("Fiber.join(delegate) calls the `fiberWillJoin` delegate method before yiel
 test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fiber ends", t => {
     const delegate = {
         childFiberDidEnd(...args) {
-            t.equal(args, [child, 0, scheduler], "`fiberWillJoin` is called with `fiber` (the child fiber), its index in the list of children, and `scheduler` as arguments");
-            t.same(this, delegate, "and `this` is the delegate object");
+            t.equal(
+                args,
+                [child, scheduler],
+                "`fiberWillJoin` is called with `fiber` (the child fiber) and `scheduler` as arguments"
+            );
+            t.same(Object.getPrototypeOf(this), delegate, "and `this` is the delegate object");
         }
     };
     const scheduler = new Scheduler();
@@ -687,23 +691,6 @@ test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fi
     fiber.join(delegate);
     run(fiber, scheduler);
     t.atleast(t.expectations, 2, "`childFiberDidEnd` was called");
-});
-
-test("childFiberDidEnd is called for every child fiber that ends", t => {
-    const fiber = new Fiber().
-        spawn(fiber => fiber.delay(111).exec(K("A"))).
-        spawn(fiber => fiber.exec(K("B"))).
-        join({
-            count: 0,
-            childFiberDidEnd(fiber, index) {
-                t.below(this.count, 2, "called once per child");
-                t.same(fiber.value, this.count === 0 ? "B" : "A", "called with the right fiber");
-                t.same(index, this.count === 0 ? 1 : 0, "called with the right index");
-                this.count += 1;
-            }
-        });
-    run(fiber);
-    t.atleast(t.expectations, 6, "join did complete");
 });
 
 test("Fiber.join(All) gathers all child values of a fiber", t => {
@@ -730,5 +717,33 @@ test("Fiber.join(All): children and grand-children", t => {
         ).
         join(All);
     run(fiber);
-    t.equal(fiber.value, ["A", "B", "C", "D", "E"], "all values are gathered in depth-first order");
+    t.equal(fiber.value, [["A", "B"], "C", ["D", "E"]], "all values are gathered in depth-first order");
+});
+
+test("Fiber.join(Last) gathers all child values of a fiber in the order in which they end", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.delay(111).exec(K("B"))).
+        spawn(fiber => fiber.exec(K("A"))).
+        join(Last);
+    run(fiber);
+    t.equal(fiber.value, ["A", "B"], "values in ending order");
+});
+
+test("Fiber.join(Last): children and grand-children", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(1111).
+            spawn(fiber => fiber.delay(333).exec(K("E"))).
+            spawn(fiber => fiber.exec(K("D"))).
+            join(Last)
+        ).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.exec(K("A"))).
+            spawn(fiber => fiber.exec(K("B"))).
+            join(Last)
+        ).
+        spawn(fiber => fiber.exec(K("C"))).
+        join(Last);
+    run(fiber);
+    t.equal(fiber.value, [["A", "B"], "C", ["D", "E"]], "all values are gathered in depth-first order");
 });
