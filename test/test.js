@@ -28,6 +28,7 @@ class Test {
     constructor(title, f) {
         this.title = title;
         this.f = f;
+        this.expectations = 0;
     }
 
     static DefaultMessage = "expectation was met";
@@ -40,6 +41,7 @@ class Test {
             this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessage}`;
         }
         this.li.scrollIntoView({ block: "end" });
+        this.expectations += 1;
     }
 
     run(li) {
@@ -57,11 +59,15 @@ class Test {
     // Assertions
 
     atleast(x, y, message) {
-        this.report(message, !(x >= y) && `${x} >= ${y}`);
+        this.report(message, !(x >= y) && `${x} ≥ ${y}`);
     }
 
     atmost(x, y, message) {
-        this.report(message, !(x <= y) && `${x} <= ${y}`);
+        this.report(message, !(x <= y) && `${x} ≤ ${y}`);
+    }
+
+    below(x, y, message) {
+        this.report(message, !(x < y) && `${x} < ${y}`);
     }
 
     equal(x, y, message) {

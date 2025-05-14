@@ -1,6 +1,6 @@
 import test from "./test.js";
-import { Queue, message, on, off } from "../lib/util.js";
-import Fiber from "../lib/fiber.js";
+import { nop, K, Queue, message, on, off } from "../lib/util.js";
+import Fiber, { All, Last } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // Utility function to run a fiber synchronously.
@@ -217,6 +217,13 @@ test("new Fiber()", t => {
     run(fiber);
 });
 
+test("Fiber with no op", t => {
+    const fiber = new Fiber();
+    run(fiber);
+    t.same(fiber.beginTime, 0, "began at t=0");
+    t.same(fiber.endTime, 0, "ended at t=0");
+});
+
 test("Fiber.exec(f)", t => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().exec(function(...args) {
@@ -232,7 +239,7 @@ test("Fiber.exec(f)", t => {
 
 test("Fiber.exec(f) catches errors", t => {
     const fiber = new Fiber().
-        exec(() => 17).
+        exec(K(17)).
         exec(() => { throw Error("AUGH"); });
     run(fiber);
     t.undefined(fiber.value, "the fiber has no value");
@@ -242,7 +249,7 @@ test("Fiber.exec(f) catches errors", t => {
 test("Fiber.exec(f) does not run after an error", t => {
     const fiber = new Fiber().
         exec(() => { throw Error("AUGH"); }).
-        effect(() => 17);
+        effect(K(17));
     run(fiber);
     t.undefined(fiber.value, "the fiber still has no value");
     t.same(fiber.error.message, "AUGH", "the error was caught");
@@ -252,7 +259,7 @@ test("Fiber.effect(f)", t => {
     const scheduler = new Scheduler();
     let ran = false;
     const fiber = new Fiber().
-        exec(() => 19).
+        exec(K(19)).
         effect(function(...args) {
             t.same(args.length, 2, "f is called with two arguments");
             t.same(args[0], fiber, "f is called with `fiber` as the first argument");
@@ -267,7 +274,7 @@ test("Fiber.effect(f)", t => {
 
 test("Fiber.effect(f) catches errors", t => {
     const fiber = new Fiber().
-        exec(() => 17).
+        exec(K(17)).
         effect(() => { throw Error("AUGH"); });
     run(fiber);
     t.undefined(fiber.value, "the fiber has no value");
@@ -300,7 +307,7 @@ test("Fiber.either(f)", t => {
 
 test("Fiber.either(f) catches error", t => {
     const fiber = new Fiber().
-        exec(() => 17).
+        exec(K(17)).
         either(() => { throw Error("AUGH"); });
     run(fiber);
     t.undefined(fiber.value, "the fiber has no value");
@@ -324,7 +331,7 @@ test("Fiber.either(f) recovers from errors", t => {
 
 test("Fiber.event(target, type, delegate?)", t => {
     const fiber = new Fiber().
-        exec(() => 31).
+        exec(K(31)).
         event(window, "hello").
         exec(({ value }) => {
             t.pass("handles an event of `type` from `target`");
@@ -340,7 +347,7 @@ test("Fiber.event(target, type, delegate?)", t => {
 test("Fiber.event(target, type, delegate?)", t => {
     const A = {};
     const fiber = new Fiber().
-        exec(() => 31).
+        exec(K(31)).
         event(A, "hello").
         exec(({ value }) => {
             t.pass("handles a synchronous message of `type` from `target`");
@@ -370,7 +377,7 @@ test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
         }
     };
     const fiber = new Fiber().
-        exec(() => 37).
+        exec(K(37)).
         event(window, "hello", delegate).
         exec(({ value }) => -value);
     const scheduler = new Scheduler();
@@ -404,7 +411,7 @@ test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
     };
     const A = {};
     const fiber = new Fiber().
-        exec(() => 37).
+        exec(K(37)).
         event(A, "hello", delegate).
         exec(({ value }) => -value);
     const scheduler = new Scheduler();
@@ -480,7 +487,7 @@ test("Fiber.repeat(f, delegate)", t => {
     };
     const scheduler = new Scheduler();
     const fiber = new Fiber().
-        exec(() => 19).
+        exec(K(19)).
         repeat(fiber => fiber.exec(({ value }) => value + 1), delegate);
     run(fiber, scheduler);
     t.same(fiber.value, 23, "the fiber has a value");
@@ -489,7 +496,7 @@ test("Fiber.repeat(f, delegate)", t => {
 
 test("Fiber.repeat fails if it has zero duration and no delegate", t => {
     const fiber = new Fiber().
-        exec(() => 19).
+        exec(K(19)).
         repeat(fiber => fiber.exec(({ value }) => value + 1));
     run(fiber);
     t.undefined(fiber.value, "the fiber has no value");
@@ -567,7 +574,7 @@ test("Fiber.spawn(f) creates a new fiber immediately", t => {
 test("Fiber.spawn: child execution", t => {
     const values = [];
     const fiber = new Fiber().
-        exec(() => 37).
+        exec(K(37)).
         spawn(fiber => fiber.
             effect(fiber => {
                 t.same(fiber.value, fiber.parent.value, "child fiber gets its value from the parent");
@@ -626,5 +633,117 @@ test("Fiber.spawn: child does not begin when the parent is failing", t => {
             effect(() => { t.fail("child fiber should not begin"); })
         );
     run(fiber);
-    t.pass("parent is failing");
+    t.same(t.expectations, 0, "parent is failing");
+});
+
+// 4E0D Join
+
+test("Fiber.join()", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => { t.same(scheduler.now, 333, "child fiber ends after delay"); })
+        ).
+        join().
+        effect((_, scheduler) => { t.same(scheduler.now, 333, "parent fiber resumed after child ended"); })
+    run(fiber);
+    t.atleast(t.expectations, 2, "fiber joined");
+});
+
+test("Fiber.join() is a noop if there are no child fibers", t => {
+    const fiber = new Fiber().
+        exec(K(15)).
+        join().
+        exec(({ value }) => value * 2 + 1);
+    run(fiber);
+    t.same(fiber.value, 31, "fiber ended with expected value");
+});
+
+test("Fiber.join(delegate) calls the `fiberWillJoin` delegate method before yielding", t => {
+    const delegate = {
+        fiberWillJoin(...args) {
+            t.equal(args, [fiber, scheduler], "`fiberWillJoin` is called with `fiber` and `scheduler` as arguments");
+            t.same(Object.getPrototypeOf(this), delegate, "and `this` is a copy of the delegate object");
+        }
+    };
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        spawn(nop).
+        join(delegate);
+    run(fiber, scheduler);
+    t.atleast(t.expectations, 2, "`fiberWillJoin` was called");
+});
+
+test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fiber ends", t => {
+    const delegate = {
+        childFiberDidEnd(...args) {
+            t.equal(
+                args,
+                [child, scheduler],
+                "`fiberWillJoin` is called with `fiber` (the child fiber) and `scheduler` as arguments"
+            );
+            t.same(Object.getPrototypeOf(this), delegate, "and `this` is the delegate object");
+        }
+    };
+    const scheduler = new Scheduler();
+    const fiber = new Fiber();
+    const child = fiber.spawn();
+    fiber.join(delegate);
+    run(fiber, scheduler);
+    t.atleast(t.expectations, 2, "`childFiberDidEnd` was called");
+});
+
+test("Fiber.join(All) gathers all child values of a fiber", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.delay(111).exec(K("A"))).
+        spawn(fiber => fiber.exec(K("B"))).
+        join(All);
+    run(fiber);
+    t.equal(fiber.value, ["A", "B"], "values in the right order");
+});
+
+test("Fiber.join(All): children and grand-children", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.exec(K("A"))).
+            spawn(fiber => fiber.exec(K("B"))).
+            join(All)
+        ).
+        spawn(fiber => fiber.exec(K("C"))).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.exec(K("D"))).
+            spawn(fiber => fiber.exec(K("E"))).
+            join(All)
+        ).
+        join(All);
+    run(fiber);
+    t.equal(fiber.value, [["A", "B"], "C", ["D", "E"]], "all values are gathered in depth-first order");
+});
+
+test("Fiber.join(Last) gathers all child values of a fiber in the order in which they end", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.delay(111).exec(K("B"))).
+        spawn(fiber => fiber.exec(K("A"))).
+        join(Last);
+    run(fiber);
+    t.equal(fiber.value, ["A", "B"], "values in ending order");
+});
+
+test("Fiber.join(Last): children and grand-children", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(1111).
+            spawn(fiber => fiber.delay(333).exec(K("E"))).
+            spawn(fiber => fiber.exec(K("D"))).
+            join(Last)
+        ).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.exec(K("A"))).
+            spawn(fiber => fiber.exec(K("B"))).
+            join(Last)
+        ).
+        spawn(fiber => fiber.exec(K("C"))).
+        join(Last);
+    run(fiber);
+    t.equal(fiber.value, [["A", "B"], "C", ["D", "E"]], "all values are gathered in depth-first order");
 });
