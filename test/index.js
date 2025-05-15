@@ -521,7 +521,7 @@ test("Fiber.repeat does not continue when the fiber is failing", t => {
             }
         });
     run(fiber);
-    t.atleast(t.expectations, 1, "went through a repeat but no more");
+    t.atleast(t.expectations, 1, "went through a repeat once but no more");
 });
  
 // 4E03 Delay
