@@ -1,6 +1,6 @@
 import test from "./test.js";
 import { nop, K, Queue, message, on, off } from "../lib/util.js";
-import Fiber, { All, Last } from "../lib/fiber.js";
+import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // Utility function to run a fiber synchronously.
@@ -767,4 +767,21 @@ test("Fiber.join(Last): children and grand-children", t => {
         join(Last);
     run(fiber);
     t.equal(fiber.value, [["A", "B"], "C", ["D", "E"]], "all values are gathered in depth-first order");
+});
+
+// 4E0F Cancel error
+
+test("Fiber.join(First) cancels sibling fibers", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(111).
+            either(({ error }, scheduler) => {
+                t.same(error.message, "cancelled", "fiber was cancelled");
+                t.same(scheduler.now, 0, "delay was skipped");
+            })
+        ).
+        spawn(fiber => fiber.exec(K("ok"))).
+        join(First);
+    run(fiber);
+    t.equal(fiber.value, "ok", "first value won");
 });
