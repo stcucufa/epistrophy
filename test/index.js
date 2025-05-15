@@ -546,18 +546,18 @@ test("Fiber.retry(f, delegate) is like repeat but only repeats when the fiber is
 });
 
 test("Fiber.retry(f, delegate) is like repeat but only repeats when the fiber is failing", t => {
-    const scheduler = new Scheduler();
     const fiber = new Fiber().
         retry(fiber => fiber.
+            either(K("ko")).
+            delay(234).
             exec((_, scheduler) => {
                 if (scheduler.now < 666) {
                     throw Error("Try again");
                 }
                 return "ok";
-            }).
-            delay(234)
+            })
         );
-    run(fiber, scheduler);
+    run(fiber);
     t.same(fiber.value, "ok", "the fiber has a value");
     t.same(fiber.endTime, 3 * 234, "after multiple tries");
     t.undefined(fiber.error, "the fiber has no error");
