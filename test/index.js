@@ -771,6 +771,28 @@ test("Fiber.join(Last): children and grand-children", t => {
 
 // 4E0F Cancel error
 
+test("Cancel the current event listener", t => {
+    const fiber = new Fiber().
+        event(window, "hello", {
+            eventShouldBeIgnored() {
+                t.fail("event delegate should not be called");
+            }
+        });
+    const scheduler = new Scheduler();
+    run(fiber, scheduler);
+    fiber.cancel(scheduler);
+    t.equal(fiber.error.message, "cancelled", "fiber is cancelled");
+    window.dispatchEvent(new CustomEvent("hello"));
+});
+
+test("Self cancellation", t => {
+    const fiber = new Fiber().
+        exec(K("ko")).
+        effect((fiber, scheduler) => fiber.cancel(scheduler));
+    run(fiber);
+    t.equal(fiber.error.message, "cancelled", "fiber cancelled itself");
+});
+
 test("Fiber.join(Gate) cancels sibling fibers", t => {
     const fiber = new Fiber().
         exec(K("ok")).
@@ -786,6 +808,7 @@ test("Fiber.join(Gate) cancels sibling fibers", t => {
     run(fiber);
     t.equal(fiber.value, "ok", "did not change the fiber value");
 });
+
 test("Fiber.join(First) cancels sibling fibers", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.
