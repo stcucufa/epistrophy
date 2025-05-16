@@ -1,6 +1,6 @@
 import test from "./test.js";
 import { nop, K, Queue, message, on, off } from "../lib/util.js";
-import Fiber, { All, Last, Gate, First } from "../lib/fiber.js";
+import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // Utility function to run a fiber synchronously.
@@ -793,7 +793,22 @@ test("Self cancellation", t => {
     t.equal(fiber.error.message, "cancelled", "fiber cancelled itself");
 });
 
-test("Fiber.join(Gate) cancels sibling fibers", t => {
+test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(111).
+            either(({ error }, scheduler) => {
+                t.same(error.message, "cancelled", "fiber was cancelled");
+                t.same(scheduler.now, 0, "delay was skipped");
+            })
+        ).
+        spawn(fiber => fiber.exec(K("ok"))).
+        join(First());
+    run(fiber);
+    t.equal(fiber.value, "ok", "first value won");
+});
+
+test("Fiber.join(First(false)) cancels sibling fibers and does not set its value", t => {
     const fiber = new Fiber().
         exec(K("ok")).
         spawn(fiber => fiber.
@@ -804,22 +819,7 @@ test("Fiber.join(Gate) cancels sibling fibers", t => {
             })
         ).
         spawn(fiber => fiber.exec(K("ko"))).
-        join(Gate);
+        join(First(false));
     run(fiber);
     t.equal(fiber.value, "ok", "did not change the fiber value");
-});
-
-test("Fiber.join(First) cancels sibling fibers", t => {
-    const fiber = new Fiber().
-        spawn(fiber => fiber.
-            delay(111).
-            either(({ error }, scheduler) => {
-                t.same(error.message, "cancelled", "fiber was cancelled");
-                t.same(scheduler.now, 0, "delay was skipped");
-            })
-        ).
-        spawn(fiber => fiber.exec(K("ok"))).
-        join(First);
-    run(fiber);
-    t.equal(fiber.value, "ok", "first value won");
 });
