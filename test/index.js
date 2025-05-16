@@ -808,6 +808,17 @@ test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t =>
     t.equal(fiber.value, "ok", "first value won");
 });
 
+test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.exec(K("ok"))).
+        spawn(fiber => fiber.
+            either(({ error }, scheduler) => { t.same(error.message, "cancelled", "fiber was cancelled"); })
+        ).
+        join(First());
+    run(fiber);
+    t.equal(fiber.value, "ok", "first value won (sync)");
+});
+
 test("Fiber.join(First(false)) cancels sibling fibers and does not set its value", t => {
     const fiber = new Fiber().
         exec(K("ok")).
@@ -836,5 +847,19 @@ test("Cancel pending children when joining", t => {
         spawn(nop).
         join(First());
     run(fiber);
-    t.pass("LGTM");
+    t.pass();
+});
+
+test("Do not cancel child when not joining", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.
+                delay(1111).
+                effect(() => { t.pass("child of cancelled fiber was not cancelled"); })
+            )
+        ).
+        spawn(nop).
+        join(First());
+    run(fiber);
+    t.atleast(t.expectations, 1, "child fiber kept running");
 });
