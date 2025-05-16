@@ -823,3 +823,18 @@ test("Fiber.join(First(false)) cancels sibling fibers and does not set its value
     run(fiber);
     t.equal(fiber.value, "ok", "did not change the fiber value");
 });
+
+test("Cancel pending children when joining", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.
+                delay(1111).
+                effect(() => { t.fail("child of cancelled fiber should be cancelled"); })
+            ).
+            join()
+        ).
+        spawn(nop).
+        join(First());
+    run(fiber);
+    t.pass("LGTM");
+});
