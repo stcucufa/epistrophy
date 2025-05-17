@@ -29,15 +29,10 @@ class Test {
         this.title = title;
         this.f = f;
         this.expectations = 0;
-        this.wrappedAssert = console.assert;
-        console.assert = p => {
-            if (!p) {
-                this.fail("assertion failed");
-            }
-        }
     }
 
     static DefaultMessage = "expectation was met";
+    static FailDefaultMessage = "unconditional failure";
 
     report(message, expected) {
         if (expected) {
@@ -50,10 +45,24 @@ class Test {
         this.expectations += 1;
     }
 
+    fail(message) {
+        this.passes = false;
+        this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? FailDefaultMessage}`;
+        this.li.scrollIntoView({ block: "end" });
+        this.expectations += 1;
+    }
+
     run(li) {
         this.li = li;
         li.innerHTML = `<span>${this.title}</span>`;
         this.passes = true;
+        this.wrappedAssert = console.assert;
+        console.assert = (...args) => {
+            this.wrappedAssert.apply(console, args);
+            if (!args[0]) {
+                this.fail("assertion failed");
+            }
+        }
         try {
             this.f(this);
         } catch (error) {
@@ -80,10 +89,6 @@ class Test {
 
     equal(x, y, message) {
         this.report(message, !(equal(x, y)) && `${x} and ${y} to be equal`);
-    }
-
-    fail(message) {
-        this.report(message, "not to fail");
     }
 
     pass(message) {
