@@ -47,7 +47,7 @@ class Test {
 
     fail(message) {
         this.passes = false;
-        this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? FailDefaultMessage}`;
+        this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.FailDefaultMessage}`;
         this.li.scrollIntoView({ block: "end" });
         this.expectations += 1;
     }
@@ -56,9 +56,9 @@ class Test {
         this.li = li;
         li.innerHTML = `<span>${this.title}</span>`;
         this.passes = true;
-        this.wrappedAssert = console.assert;
+        const assert = console.assert;
         console.assert = (...args) => {
-            this.wrappedAssert.apply(console, args);
+            assert.apply(console, args);
             if (!args[0]) {
                 this.fail("assertion failed");
             }
@@ -69,7 +69,7 @@ class Test {
             this.report("error running test", `no exception but got: <em>${error.message}</em>`);
             this.passes = false;
         } finally {
-            console.assert = this.wrappedAssert;
+            console.assert = assert;
         }
     }
 
