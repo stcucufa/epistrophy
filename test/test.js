@@ -29,6 +29,12 @@ class Test {
         this.title = title;
         this.f = f;
         this.expectations = 0;
+        this.wrappedAssert = console.assert;
+        console.assert = p => {
+            if (!p) {
+                this.fail("assertion failed");
+            }
+        }
     }
 
     static DefaultMessage = "expectation was met";
@@ -53,6 +59,8 @@ class Test {
         } catch (error) {
             this.report("error running test", `no exception but got: <em>${error.message}</em>`);
             this.passes = false;
+        } finally {
+            console.assert = this.wrappedAssert;
         }
     }
 
