@@ -340,7 +340,7 @@ test("Fiber.event(target, type, delegate?)", t => {
         });
     const scheduler = run(fiber, new Scheduler(), 1);
     window.dispatchEvent(new CustomEvent("hello"));
-    run(fiber, scheduler);
+    scheduler.clock.now = Infinity;
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
@@ -356,7 +356,7 @@ test("Fiber.event(target, type, delegate?)", t => {
         });
     const scheduler = run(fiber, new Scheduler(), 1);
     message(A, "hello");
-    run(fiber, scheduler);
+    scheduler.clock.now = Infinity;
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
