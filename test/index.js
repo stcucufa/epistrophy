@@ -1,6 +1,6 @@
 import test from "./test.js";
-import { nop, K, Queue, message, on, off } from "../lib/util.js";
-import Fiber, { All, Last } from "../lib/fiber.js";
+import { nop, remove, K, Queue, message, on, off } from "../lib/util.js";
+import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // Utility function to run a fiber synchronously.
@@ -10,6 +10,12 @@ function run(fiber, scheduler, until = Infinity) {
     scheduler.clock.now = until;
     return scheduler;
 }
+
+test("remove(xs, x)", t => {
+    const xs = [1, 2, 3, 4, 5, 2, 2, 2];
+    t.same(remove(xs, 2), 2, "the removed element is removed");
+    t.equal(xs, [1, 3, 4, 5, 2, 2, 2], "only the first occurrence is removed");
+});
 
 // 4E0A	Priority queue
 
@@ -340,7 +346,7 @@ test("Fiber.event(target, type, delegate?)", t => {
         });
     const scheduler = run(fiber, new Scheduler(), 1);
     window.dispatchEvent(new CustomEvent("hello"));
-    run(fiber, scheduler);
+    scheduler.clock.now = Infinity;
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
@@ -356,7 +362,7 @@ test("Fiber.event(target, type, delegate?)", t => {
         });
     const scheduler = run(fiber, new Scheduler(), 1);
     message(A, "hello");
-    run(fiber, scheduler);
+    scheduler.clock.now = Infinity;
     t.same(fiber.value, -31, "fiber execution resumed after message was sent");
 });
 
@@ -767,4 +773,99 @@ test("Fiber.join(Last): children and grand-children", t => {
         join(Last);
     run(fiber);
     t.equal(fiber.value, [["A", "B"], "C", ["D", "E"]], "all values are gathered in depth-first order");
+});
+
+// 4E0F Cancel error
+
+test("Cancel the current event listener", t => {
+    const fiber = new Fiber().
+        event(window, "hello", {
+            eventShouldBeIgnored() {
+                t.fail("event delegate should not be called");
+            }
+        });
+    const scheduler = new Scheduler();
+    run(fiber, scheduler);
+    fiber.cancel(scheduler);
+    t.equal(fiber.error.message, "cancelled", "fiber is cancelled");
+    window.dispatchEvent(new CustomEvent("hello"));
+});
+
+test("Self cancellation", t => {
+    const fiber = new Fiber().
+        exec(K("ko")).
+        effect((fiber, scheduler) => fiber.cancel(scheduler));
+    run(fiber);
+    t.equal(fiber.error.message, "cancelled", "fiber cancelled itself");
+});
+
+test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(111).
+            either(({ error }, scheduler) => {
+                t.same(error.message, "cancelled", "fiber was cancelled");
+                t.same(scheduler.now, 0, "delay was skipped");
+            })
+        ).
+        spawn(fiber => fiber.exec(K("ok"))).
+        join(First());
+    run(fiber);
+    t.equal(fiber.value, "ok", "first value won");
+});
+
+test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.exec(K("ok"))).
+        spawn(fiber => fiber.
+            either(({ error }, scheduler) => { t.same(error.message, "cancelled", "fiber was cancelled"); })
+        ).
+        join(First());
+    run(fiber);
+    t.equal(fiber.value, "ok", "first value won (sync)");
+});
+
+test("Fiber.join(First(false)) cancels sibling fibers and does not set its value", t => {
+    const fiber = new Fiber().
+        exec(K("ok")).
+        spawn(fiber => fiber.
+            delay(111).
+            either(({ error }, scheduler) => {
+                t.same(error.message, "cancelled", "fiber was cancelled");
+                t.same(scheduler.now, 0, "delay was skipped");
+            })
+        ).
+        spawn(fiber => fiber.exec(K("ko"))).
+        join(First(false));
+    run(fiber);
+    t.equal(fiber.value, "ok", "did not change the fiber value");
+});
+
+test("Cancel pending children when joining", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.
+                delay(1111).
+                effect(() => { t.fail("child of cancelled fiber should be cancelled"); })
+            ).
+            join()
+        ).
+        spawn(nop).
+        join(First());
+    run(fiber);
+    t.pass();
+});
+
+test("Do not cancel child when not joining", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.
+                delay(1111).
+                effect(() => { t.pass("child of cancelled fiber was not cancelled"); })
+            )
+        ).
+        spawn(nop).
+        join(First());
+    run(fiber);
+    t.atleast(t.expectations, 1, "child fiber kept running");
 });
