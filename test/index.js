@@ -1,5 +1,5 @@
 import test from "./test.js";
-import { nop, K, Queue, message, on, off } from "../lib/util.js";
+import { nop, remove, K, Queue, message, on, off } from "../lib/util.js";
 import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
@@ -10,6 +10,12 @@ function run(fiber, scheduler, until = Infinity) {
     scheduler.clock.now = until;
     return scheduler;
 }
+
+test("remove(xs, x)", t => {
+    const xs = [1, 2, 3, 4, 5, 2, 2, 2];
+    t.same(remove(xs, 2), 2, "the removed element is removed");
+    t.equal(xs, [1, 3, 4, 5, 2, 2, 2], "only the first occurrence is removed");
+});
 
 // 4E0A	Priority queue
 
