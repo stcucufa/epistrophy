@@ -32,6 +32,7 @@ class Test {
     }
 
     static DefaultMessage = "expectation was met";
+    static FailDefaultMessage = "unconditional failure";
 
     report(message, expected) {
         if (expected) {
@@ -44,15 +45,31 @@ class Test {
         this.expectations += 1;
     }
 
+    fail(message) {
+        this.passes = false;
+        this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.FailDefaultMessage}`;
+        this.li.scrollIntoView({ block: "end" });
+        this.expectations += 1;
+    }
+
     run(li) {
         this.li = li;
         li.innerHTML = `<span>${this.title}</span>`;
         this.passes = true;
+        const assert = console.assert;
+        console.assert = (...args) => {
+            assert.apply(console, args);
+            if (!args[0]) {
+                this.fail("assertion failed");
+            }
+        }
         try {
             this.f(this);
         } catch (error) {
             this.report("error running test", `no exception but got: <em>${error.message}</em>`);
             this.passes = false;
+        } finally {
+            console.assert = assert;
         }
     }
 
@@ -72,10 +89,6 @@ class Test {
 
     equal(x, y, message) {
         this.report(message, !(equal(x, y)) && `${x} and ${y} to be equal`);
-    }
-
-    fail(message) {
-        this.report(message, "not to fail");
     }
 
     pass(message) {
