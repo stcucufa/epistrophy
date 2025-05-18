@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Counter example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import Scheduler from "../lib/scheduler.js";
+import { First } from "../lib/fiber.js";
+
+const span = document.querySelector("span");
+const buttons = document.querySelectorAll("button");
+
+Scheduler.run().
+    exec(() => parseInt(span.textContent)).
+    repeat(fiber => fiber.
+        effect(({ value }) => span.textContent = value.toString()).
+        spawn(fiber => fiber.
+            event(buttons[0], "click").
+            exec(({ value }) => value += 1)
+        ).
+        spawn(fiber => fiber.
+            event(buttons[1], "click").
+            exec(({ value }) => value -= 1)
+        ).
+        join(First())
+    );
+
+        </script>
+    </head>
+    <body>
+        <p>
+            <button type="button">Increment</button>
+            <button type="button">Decrement</button>
+            <span>17</span>
+        </p>
+    </body>
+</html>
