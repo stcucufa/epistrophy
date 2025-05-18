@@ -132,7 +132,8 @@ export default function test(title, f) {
 }
 
 function run() {
-    const ol = document.body.appendChild(document.createElement("ol"));
+    const parent = document.querySelector("div.tests") ?? document.body;
+    const ol = parent.appendChild(document.createElement("ol"));
     let fail = 0;
     for (const test of tests) {
         test.run(ol.appendChild(document.createElement("li")));
@@ -140,7 +141,7 @@ function run() {
             fail += 1;
         }
     }
-    const p = document.body.appendChild(document.createElement("p"));
+    const p = parent.appendChild(document.createElement("p"));
     p.classList.add("report");
     p.innerHTML = fail === 0 ? `<span class="ok">ok</span> All tests pass (${tests.length})` :
         `<span class="ko">ko</span> Test failures: ${fail}/${tests.length} (${(100 * fail / tests.length).toFixed(2)}%)`;
