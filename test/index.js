@@ -775,6 +775,21 @@ test("Fiber.join(Last): children and grand-children", t => {
     t.equal(fiber.value, [["A", "B"], "C", ["D", "E"]], "all values are gathered in depth-first order");
 });
 
+test("Repeated spawning", t => {
+    const fiber = new Fiber().
+        exec(K(0)).
+        repeat(fiber => fiber.
+            spawn(fiber => fiber.delay(111)).
+            join().
+            exec(({ value }) => value + 1)
+        );
+    const scheduler = new Scheduler();
+    run(fiber, scheduler, 200);
+    t.same(fiber.value, 1, "first iteration");
+    scheduler.clock.now = 500;
+    t.same(fiber.value, 4, "more iterations");
+});
+
 // 4E0F Cancel error
 
 test("Cancel the current event listener", t => {
