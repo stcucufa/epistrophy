@@ -1,8 +1,14 @@
-html, body {
-    height: 100%;
+:root {
+    --picotron-dark-orange: #ff6c24;
 }
 
 body {
     font-family: system-ui, sans-serif;
     margin: 2em;
+}
+
+a {
+    text-decoration: none;
+    font-weight: bold;
+    color: var(--picotron-dark-orange);
 }
