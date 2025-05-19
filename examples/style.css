@@ -1,14 +1,25 @@
 :root {
+    --picotron-dark-blue: #1d2b53;
+    --picotron-white: #fff1e8;
     --picotron-dark-orange: #ff6c24;
 }
 
 body {
     font-family: system-ui, sans-serif;
     margin: 2em;
+    background-color: var(--picotron-white);
+    color: var(--picotron-dark-blue);
+    text-align: justify;
+    max-width: 48em;
 }
 
 a {
     text-decoration: none;
     font-weight: bold;
     color: var(--picotron-dark-orange);
+}
+
+p.example {
+    border: dashed thin var(--picotron-dark-blue);
+    padding: 2em;
 }
