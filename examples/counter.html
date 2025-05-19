@@ -13,6 +13,7 @@ import { K } from "../lib/util.js";
 const span = document.querySelector("span");
 const buttons = document.querySelectorAll("button");
 
+// FIXME 4F0C Idle clock
 Scheduler.run().
     exec(K(17)).
     repeat(fiber => fiber.
