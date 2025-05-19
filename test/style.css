@@ -3,26 +3,33 @@
     --picotron-dark-blue: #1d2b53;
     --picotron-green: #00e436;
     --picotron-red: #ff004d;
-}
-
-html, body {
-    height: 100%;
+    --picotron-dark-orange: #ff6c24;
 }
 
 body {
     font-family: system-ui, sans-serif;
     margin: 2em;
-    max-width: 48em;
     background-color: var(--picotron-white);
     color: var(--picotron-dark-blue);
     text-align: justify;
 }
 
-li span:first-child {
+a {
+    text-decoration: none;
+    font-weight: bold;
+    color: var(--picotron-dark-orange);
+}
+
+div.tests {
+    max-width: 48em;
+    margin-bottom: -4em;
+}
+
+div.tests li span:first-child {
     font-weight: bold;
 }
 
-span.ok, span.ko {
+div.tests span.ok, div.tests span.ko {
     font-weight: bold;
     font-size: smaller;
     font-variant: small-caps;
@@ -30,19 +37,19 @@ span.ok, span.ko {
     border-radius: 0.5em;
 }
 
-span.ok {
+div.tests span.ok {
     background-color: var(--picotron-green);
 }
 
-span.ko {
+div.tests span.ko {
     background-color: var(--picotron-red);
     color: var(--picotron-white);
 }
 
-li.todo {
+div.tests li.todo {
     opacity: 0.5;
 }
 
-p.report {
-    padding-bottom: 2em;
+div.tests p.report {
+    padding-bottom: 4em;
 }

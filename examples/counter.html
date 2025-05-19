@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Counter example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+import Scheduler from "../lib/scheduler.js";
+import { First } from "../lib/fiber.js";
+import { K } from "../lib/util.js";
+
+const span = document.querySelector("span");
+const buttons = document.querySelectorAll("button");
+
+// FIXME 4F0C Idle clock
+Scheduler.run().
+    exec(K(17)).
+    repeat(fiber => fiber.
+        effect(({ value }) => span.textContent = value.toString()).
+        spawn(fiber => fiber.
+            event(buttons[0], "click").
+            exec(({ value }) => value -= 1)
+        ).
+        spawn(fiber => fiber.
+            event(buttons[1], "click").
+            exec(({ value }) => value += 1)
+        ).
+        join(First())
+    );
+        </script>
+    </head>
+    <body>
+        <h1>Counter example</h1>
+        <p class="example">
+            <button type="button">◀</button>
+            <span style="display: inline-block; width: 3em; text-align: center; background-color:">---</span>
+            <button type="button">▶</button>
+        </p>
+        <p>
+            Increment (▶) and decrement (◀) the counter by clicking on the corresponding button.
+        </p>
+        <p>
+            The core functionality of the counter is to initialize a fiber with the starting value, then repeat the
+            sequence of showing the current counter value, waiting on a click on the increment or decrement button, and
+            adding or subtracting 1 from the current fiber value. Here there are two counters, so the main fiber is
+            initialized with the starting value of the counter and a fiber is spawned for each button, then the main fiber
+            joins on the first fiber to finish and gets its updated value, while the other fiber is cancelled. Note that
+            no new state variable to keep track of the counter value needs to be introduced.
+        </p>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>
