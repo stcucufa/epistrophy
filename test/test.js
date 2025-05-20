@@ -119,6 +119,10 @@ class Test {
         this.li.classList.add("todo");
     }
 
+    true(x, message) {
+        this.report(message, x !== true, `${x} to be true`);
+    }
+
     undefined(x, message) {
         this.report(message, !(x === void 0) && `${x} to be undefined`);
     }
