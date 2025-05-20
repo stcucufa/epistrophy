@@ -865,3 +865,29 @@ test("Fiber.either(f) recovers from errors", t => {
     t.true(fiber.value, "error was handled");
     t.undefined(fiber.error, "no more error");
 });
+
+test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(
+            fiber => fiber.effect(() => { t.fail("value branch should not run"); }),
+            fiber => fiber.exec(({ error }) => error.message === "AUGH")
+        );
+    run(fiber);
+    t.same(t.expectations, 0, "value branch did not run");
+    t.true(fiber.value, "error was handled");
+    t.undefined(fiber.error, "no more error");
+});
+
+test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
+    const fiber = new Fiber().
+        exec(K(17)).
+        either(
+            fiber => fiber.exec(({ value }) => value * 3),
+            fiber => fiber.effect(() => { t.fail("error branch should not run"); })
+        );
+    run(fiber);
+    t.same(t.expectations, 0, "error branch did not run");
+    t.same(fiber.value, 51, "value branch did run");
+    t.undefined(fiber.error, "no more error");
+});
