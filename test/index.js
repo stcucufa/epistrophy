@@ -902,3 +902,20 @@ test("Normal execution resumes after either", t => {
     t.same(fiber.error.message, "AUGH", "error was actually not handled");
     t.undefined(fiber.value, "the fiber has no value");
 });
+
+test("Nesting either(f)", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            effect(({ error }) => { t.same(error.message, "AUGH", "first time to see the error"); }).
+            either(fiber => fiber.
+                effect(({ error }) => { t.same(error.message, "AUGH", "second time to see the error"); })
+            ).
+            effect(({ error }) => { t.same(error.message, "AUGH", "third time to see the error"); })
+        ).
+        effect(() => { t.fail("the error cannot be seen anymore"); });
+    run(fiber);
+    t.same(t.expectations, 3, "error was seen at every step");
+    t.same(fiber.error.message, "AUGH", "error was not handled");
+    t.undefined(fiber.value, "the fiber has no value");
+});
