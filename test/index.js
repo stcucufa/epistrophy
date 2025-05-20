@@ -919,3 +919,27 @@ test("Nesting either(f)", t => {
     t.same(fiber.error.message, "AUGH", "error was not handled");
     t.undefined(fiber.value, "the fiber has no value");
 });
+
+test("Nesting either(f, g)", t => {
+    const fiber = new Fiber().
+        exec(K("...")).
+        either(fiber => fiber.
+            repeat(fiber => fiber.
+                either(nop, fiber => fiber.delay(555)).
+                exec((fiber, scheduler) => {
+                    const now = scheduler.now;
+                    if (now === 0) {
+                        t.same(fiber.value, "...", "first try");
+                    } else {
+                        t.same(fiber.error.message, "AUGH", "last try failed, keep trying");
+                    }
+                    if (now < 1111) {
+                        throw Error("AUGH");
+                    }
+                    return `ok@${now}`;
+                }), { repeatShouldEnd: n => n > 3 }
+            )
+        );
+    run(fiber);
+    t.same(fiber.value, "ok@1665", "retried twice");
+});
