@@ -891,3 +891,14 @@ test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
     t.same(fiber.value, 51, "value branch did run");
     t.undefined(fiber.error, "no more error");
 });
+
+test("Normal execution resumes after either", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.effect(({ error }) => { t.same(error.message, "AUGH", "error is being handled"); })).
+        exec(K(23));
+    run(fiber);
+    t.atleast(t.expectations, 1, "was error handled?");
+    t.same(fiber.error.message, "AUGH", "error was actually not handled");
+    t.undefined(fiber.value, "the fiber has no value");
+});
