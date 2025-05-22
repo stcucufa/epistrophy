@@ -511,7 +511,7 @@ test("Fiber.delay(dur)", t => {
     const fiber = new Fiber().
         delay(-777).
         delay(0).
-        delay("for a while").
+        delay(true).
         exec((_, scheduler) => scheduler.currentTime);
     run(fiber);
     t.same(fiber.value, 0, "no delay when dur is not > 0");
@@ -1013,4 +1013,65 @@ test("Nesting either(f, g)", t => {
         );
     run(fiber);
     t.same(fiber.value, "ok@1665", "retried twice");
+});
+
+// 4G05 SMIL timing specifiers
+
+import { parseOffsetValue } from "../lib/util.js";
+
+test("parseOffsetValue(value) parses an offset value", t => {
+    t.same(parseOffsetValue("02:30:03"), 2 * 3600000 + 30 * 60000 + 3000, `"02:30:03" (full clock value)`);
+    t.same(parseOffsetValue("50:00:10.25"), 50 * 3600000 + 10250, `"50:00:10.25" (full clock value with fraction)`);
+    t.same(parseOffsetValue("02:33"), 2 * 60000 + 33000, `"02:33" (partial clock value)`);
+    t.same(parseOffsetValue("00:10.5"), 10500, `"00:10.5" (partial clock value with fraction)`);
+    t.same(parseOffsetValue("3.2h"), 3 * 3600000 + 12 * 60000, `"3.2h" (timecount value with fraction, hours)`);
+    t.same(parseOffsetValue("45min"), 45 * 60000, `"45min" (timecount value, minutes)`);
+    t.same(parseOffsetValue("30s"), 30000, `"30s" (timecount value, seconds)`);
+    t.same(parseOffsetValue("5ms"), 5, `"5ms" (timecount value, milliseconds)`);
+    t.same(parseOffsetValue("12.467"), 12467, `"12.467" (timecount value, seconds as default unit)`);
+    t.same(parseOffsetValue(`  -   2.   
+
+        4   
+
+
+    `), -2400, "ignore whitespace");
+    t.same(parseOffsetValue(" +2 Min "), 120000, "case independent matching");
+});
+
+test("Fiber.delay(dur) accepts a string as input", t => {
+    const fiber = new Fiber().
+        delay("23s").
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 23000, "duration was parsed correctly");
+        });
+    run(fiber);
+});
+
+test("Fiber.delay(dur) accepts a function returning a string as input", t => {
+    const fiber = new Fiber().
+        exec(K(17)).
+        delay(({ value }) => `01:${value}`).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 77000, "duration was parsed correctly");
+        });
+    run(fiber);
+});
+
+test("Fiber.delay(dur) has no effect with a negative offset ", t => {
+    const fiber = new Fiber().
+        delay("-1h").
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 0, "no delay");
+        });
+    run(fiber);
+});
+
+// FIXME 4G08 Tests should fail on unexpected warnings
+test("Fiber.delay(dur) has no effect when the duration cannot be parsed", t => {
+    const fiber = new Fiber().
+        delay("for a while").
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 0, "no delay");
+        });
+    run(fiber);
 });
