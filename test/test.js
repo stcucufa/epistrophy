@@ -62,7 +62,17 @@ class Test {
             if (!args[0]) {
                 this.fail("assertion failed");
             }
-        }
+        };
+        const warn = console.warn;
+        this.warnings = 0;
+        console.warn = (...args) => {
+            warn.apply(console, args);
+            if (!this.expectsWarning) {
+                this.fail("unexpected warning");
+            } else {
+                this.warnings += 1;
+            }
+        };
         try {
             this.f(this);
         } catch (error) {
@@ -72,7 +82,11 @@ class Test {
             if (this.expectations === 0) {
                 this.fail("no expectations in test");
             }
+            if (this.expectsWarning && this.warnings === 0) {
+                this.fail("no warnings during test");
+            }
             console.assert = assert;
+            console.warn = warn;
         }
     }
 
