@@ -892,6 +892,19 @@ test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
     t.undefined(fiber.error, "no more error");
 });
 
+test("Error within value of branch of either", t => {
+    const fiber = new Fiber().
+        either(
+            fiber => fiber.
+                effect(() => { throw Error("AUGH"); }).
+                effect(() => { t.fail("error should not be handled here"); }),
+            nop
+        ).
+        either(fiber => fiber.exec(K("ok")));
+    run(fiber);
+    t.same(fiber.value, "ok", "error was handled in second either");
+});
+
 test("Normal execution resumes after either", t => {
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
