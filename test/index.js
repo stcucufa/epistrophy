@@ -903,6 +903,64 @@ test("Normal execution resumes after either", t => {
     t.undefined(fiber.value, "the fiber has no value");
 });
 
+test("Either and delay", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        delay(2222).
+        either(fiber => fiber.delay(777).exec(K("ok"))).
+        effect((fiber, scheduler) => {
+            t.same(fiber.value, "ok", "error was eventually handled");
+            t.same(scheduler.now, 777, "first delay did not apply");
+        });
+    run(fiber);
+});
+
+test("Either and event", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.event(window, "hello", {
+            eventWasHandled(_, fiber) {
+                fiber.value = "ok";
+            }
+        }));
+    const scheduler = run(fiber, new Scheduler(), 1);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+    t.same(fiber.value, "ok", "event was handled despite error");
+});
+
+test("Either and repeat", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            repeat(fiber => fiber.nop, {
+                repeatShouldEnd: (n, fiber) => {
+                    t.same(fiber.error.message, "AUGH", `fiber is ${n > 0 ? "still" : ""} failing`);
+                    return n > 1;
+                }
+            })
+        ).
+        effect(() => { t.fail("error was not handled"); });
+    run(fiber);
+    t.atleast(t.expectations, 3, "repeat went through several iterations");
+});
+
+test("Either and spawn", t => {
+    const fiber = new Fiber().
+        exec(K(17)).
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            spawn(fiber => fiber.
+                effect(fiber => {
+                    t.same(fiber.error.message, "AUGH", "spawned child with error from the parent");
+                    t.undefined(fiber.value, "and no value");
+                })
+            )
+        );
+    run(fiber);
+    t.atleast(t.expectations, 2, "fiber was spawned");
+});
+
 test("Nesting either(f)", t => {
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
