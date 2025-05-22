@@ -1066,8 +1066,8 @@ test("Fiber.delay(dur) has no effect with a negative offset ", t => {
     run(fiber);
 });
 
-// FIXME 4G08 Tests should fail on unexpected warnings
 test("Fiber.delay(dur) has no effect when the duration cannot be parsed", t => {
+    t.expectsWarning = true;
     const fiber = new Fiber().
         delay("for a while").
         effect((_, scheduler) => {
