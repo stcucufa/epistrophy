@@ -511,7 +511,7 @@ test("Fiber.delay(dur)", t => {
     const fiber = new Fiber().
         delay(-777).
         delay(0).
-        delay("for a while").
+        delay(true).
         exec((_, scheduler) => scheduler.currentTime);
     run(fiber);
     t.same(fiber.value, 0, "no delay when dur is not > 0");
@@ -1013,4 +1013,44 @@ test("Nesting either(f, g)", t => {
         );
     run(fiber);
     t.same(fiber.value, "ok@1665", "retried twice");
+});
+
+// 4G05 SMIL timing specifiers
+
+test("Fiber.delay(dur) accepts a string as input", t => {
+    const fiber = new Fiber().
+        delay("23s").
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 23000, "duration was parsed correctly");
+        });
+    run(fiber);
+});
+
+test("Fiber.delay(dur) accepts a function returning a string as input", t => {
+    const fiber = new Fiber().
+        exec(K(17)).
+        delay(({ value }) => `01:${value}`).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 77000, "duration was parsed correctly");
+        });
+    run(fiber);
+});
+
+test("Fiber.delay(dur) has no effect with a negative offset ", t => {
+    const fiber = new Fiber().
+        delay("-1h").
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 0, "no delay");
+        });
+    run(fiber);
+});
+
+// FIXME 4G08 Tests should fail on unexpected warnings
+test("Fiber.delay(dur) has no effect when the duration cannot be parsed", t => {
+    const fiber = new Fiber().
+        delay("for a while").
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 0, "no delay");
+        });
+    run(fiber);
 });
