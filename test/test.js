@@ -69,6 +69,9 @@ class Test {
             this.report("error running test", `no exception but got: <em>${error.message}</em>`);
             this.passes = false;
         } finally {
+            if (this.expectations === 0) {
+                this.fail("no expectations in test");
+            }
             console.assert = assert;
         }
     }
@@ -117,6 +120,10 @@ class Test {
     todo() {
         this.report("TODO");
         this.li.classList.add("todo");
+    }
+
+    true(x, message) {
+        this.report(message, x !== true, `${x} to be true`);
     }
 
     undefined(x, message) {

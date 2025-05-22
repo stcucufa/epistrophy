@@ -141,7 +141,7 @@ test("message(from, type) sends a message; on(from, type, handler) listens to me
         A.handled = true;
     });
     t.undefined(message(A, "hello"), "return nothing");
-    t.same(A.handled, true, "message was handled");
+    t.true(A.handled, "message was handled");
 });
 
 test("message(from, type, message) adds additional arguments", t => {
@@ -274,7 +274,7 @@ test("Fiber.effect(f)", t => {
             return 17;
         });
     run(fiber, scheduler);
-    t.same(ran, true, "effect ran");
+    t.true(ran, "effect ran");
     t.same(fiber.value, 19, "but the fiber value is unchanged");
 });
 
@@ -295,42 +295,6 @@ test("Fiber.effect(f) does not run after an error", t => {
     run(fiber);
     t.same(ran, false, "the effect did not run");
     t.same(fiber.error.message, "AUGH", "the error was caught");
-});
-
-test("Fiber.either(f)", t => {
-    const scheduler = new Scheduler();
-    const fiber = new Fiber().
-        either(function(...args) {
-            t.same(args.length, 2, "f is called with two arguments");
-            t.same(args[0], fiber, "f is called with `fiber` as the first argument");
-            t.same(args[1], scheduler, "f is called with `scheduler` as the second argument");
-            return 23;
-        });
-    run(fiber, scheduler);
-    t.same(fiber.value, 23, "the fiber has a value");
-    t.undefined(fiber.error, "the fiber has no error");
-});
-
-test("Fiber.either(f) catches error", t => {
-    const fiber = new Fiber().
-        exec(K(17)).
-        either(() => { throw Error("AUGH"); });
-    run(fiber);
-    t.undefined(fiber.value, "the fiber has no value");
-    t.same(fiber.error.message, "AUGH", "the error was caught");
-});
-
-test("Fiber.either(f) recovers from errors", t => {
-    const fiber = new Fiber().
-        effect(() => { throw Error("AUGH"); }).
-        either(fiber => {
-            if (fiber.error) {
-                return 29;
-            }
-        });
-    run(fiber);
-    t.same(fiber.value, 29, "the fiber has a value");
-    t.undefined(fiber.error, "the error was cleared");
 });
 
 // 4D0D Event
@@ -374,7 +338,7 @@ test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
             if (this.count === 0) {
                 t.same(args.length, 3, "called with three arguments");
                 t.same(this, delegate, "`this` is the delegate object");
-                t.same(event.target === window && event.type === "hello", true, "`event` is the first argument");
+                t.true(event.target === window && event.type === "hello", "`event` is the first argument");
                 t.same(args[1], fiber, "`fiber` is the second argument");
                 t.same(args[2], scheduler, "`scheduler` is the third argument");
             }
@@ -407,7 +371,7 @@ test("Event delegate: eventShouldBeIgnored(event, fiber, scheduler)", t => {
             if (this.count === 0) {
                 t.same(args.length, 3, "called with three arguments");
                 t.same(this, delegate, "`this` is the delegate object");
-                t.same(event.from === A && event.type === "hello", true, "`event` is the first argument");
+                t.true(event.from === A && event.type === "hello", "`event` is the first argument");
                 t.same(args[1], fiber, "`fiber` is the second argument");
                 t.same(args[2], scheduler, "`scheduler` is the third argument");
             }
@@ -439,7 +403,7 @@ test("Event delegate: eventWasHandled(event, fiber, scheduler)", t => {
             const event = args[0];
             t.same(args.length, 3, "called with three arguments");
             t.same(this, delegate, "`this` is the delegate object");
-            t.same(event.target === window && event.type === "hello", true, "`event` is the first argument");
+            t.true(event.target === window && event.type === "hello", "`event` is the first argument");
             t.same(args[1], fiber, "`fiber` is the second argument");
             t.same(args[2], scheduler, "`scheduler` is the third argument");
             fiber.value = event.detail.whom;
@@ -459,7 +423,7 @@ test("Event delegate: eventWasHandled(event, fiber, scheduler)", t => {
             const event = args[0];
             t.same(args.length, 3, "called with three arguments");
             t.same(this, delegate, "`this` is the delegate object");
-            t.same(event.from === A && event.type === "hello", true, "`event` is the first argument");
+            t.true(event.from === A && event.type === "hello", "`event` is the first argument");
             t.same(args[1], fiber, "`fiber` is the second argument");
             t.same(args[2], scheduler, "`scheduler` is the third argument");
             fiber.value = event.whom;
@@ -513,7 +477,7 @@ test("Fiber.repeat does not begin if the fiber is failing", t => {
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         repeat(fiber => fiber.effect(() => { t.fail("repeat should not begin"); })).
-        either(({ error }) => error.message === "AUGH");
+        either(fiber => fiber.exec(({ error }) => error.message === "AUGH"));
     run(fiber);
     t.same(fiber.value, true, "repeat did not begin");
 });
@@ -569,7 +533,7 @@ test("Fiber delay fails if `dur` is a function that fails", t => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         delay(() => { throw Error("AUGH"); }).
-        either((_, scheduler) => scheduler.currentTime);
+        either(fiber => fiber.exec((_, scheduler) => scheduler.currentTime));
     run(fiber);
     t.same(fiber.value, 0, "no delay");
 });
@@ -578,7 +542,7 @@ test("Fiber.delay is skipped when the fiber is failing", t => {
     const fiber = new Fiber().
         exec(() => { throw "AUGH"; }).
         delay(999).
-        either((_, scheduler) => scheduler.currentTime);
+        either(fiber => fiber.exec((_, scheduler) => scheduler.currentTime));
     run(fiber);
     t.same(fiber.value, 0, "no delay");
 });
@@ -818,10 +782,12 @@ test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t =>
     const fiber = new Fiber().
         spawn(fiber => fiber.
             delay(111).
-            either(({ error }, scheduler) => {
-                t.same(error.message, "cancelled", "fiber was cancelled");
-                t.same(scheduler.now, 0, "delay was skipped");
-            })
+            either(fiber => fiber.
+                effect(({ error }, scheduler) => {
+                    t.same(error.message, "cancelled", "fiber was cancelled");
+                    t.same(scheduler.now, 0, "delay was skipped");
+                })
+            )
         ).
         spawn(fiber => fiber.exec(K("ok"))).
         join(First());
@@ -833,27 +799,13 @@ test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t =>
     const fiber = new Fiber().
         spawn(fiber => fiber.exec(K("ok"))).
         spawn(fiber => fiber.
-            either(({ error }, scheduler) => { t.same(error.message, "cancelled", "fiber was cancelled"); })
+            either(fiber => fiber.
+                effect(({ error }, scheduler) => { t.same(error.message, "cancelled", "fiber was cancelled"); })
+            )
         ).
         join(First());
     run(fiber);
     t.equal(fiber.value, "ok", "first value won (sync)");
-});
-
-test("Fiber.join(First(false)) cancels sibling fibers and does not set its value", t => {
-    const fiber = new Fiber().
-        exec(K("ok")).
-        spawn(fiber => fiber.
-            delay(111).
-            either(({ error }, scheduler) => {
-                t.same(error.message, "cancelled", "fiber was cancelled");
-                t.same(scheduler.now, 0, "delay was skipped");
-            })
-        ).
-        spawn(fiber => fiber.exec(K("ko"))).
-        join(First(false));
-    run(fiber);
-    t.equal(fiber.value, "ok", "did not change the fiber value");
 });
 
 test("Cancel pending children when joining", t => {
@@ -871,6 +823,24 @@ test("Cancel pending children when joining", t => {
     t.pass();
 });
 
+test("Fiber.join(First(false)) cancels sibling fibers and does not set its value", t => {
+    const fiber = new Fiber().
+        exec(K("ok")).
+        spawn(fiber => fiber.
+            delay(111).
+            either(fiber => fiber.
+                effect(({ error }, scheduler) => {
+                    t.same(error.message, "cancelled", "fiber was cancelled");
+                    t.same(scheduler.now, 0, "delay was skipped");
+                })
+            )
+        ).
+        spawn(fiber => fiber.exec(K("ko"))).
+        join(First(false));
+    run(fiber);
+    t.equal(fiber.value, "ok", "did not change the fiber value");
+});
+
 test("Do not cancel child when not joining", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.
@@ -883,4 +853,164 @@ test("Do not cancel child when not joining", t => {
         join(First());
     run(fiber);
     t.atleast(t.expectations, 1, "child fiber kept running");
+});
+
+// 4E0G Retry
+
+test("Fiber.either(f) recovers from errors", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.exec(({ error }) => error.message === "AUGH"));
+    run(fiber);
+    t.true(fiber.value, "error was handled");
+    t.undefined(fiber.error, "no more error");
+});
+
+test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(
+            fiber => fiber.effect(() => { t.fail("value branch should not run"); }),
+            fiber => fiber.exec(({ error }) => error.message === "AUGH")
+        );
+    run(fiber);
+    t.same(t.expectations, 0, "value branch did not run");
+    t.true(fiber.value, "error was handled");
+    t.undefined(fiber.error, "no more error");
+});
+
+test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
+    const fiber = new Fiber().
+        exec(K(17)).
+        either(
+            fiber => fiber.exec(({ value }) => value * 3),
+            fiber => fiber.effect(() => { t.fail("error branch should not run"); })
+        );
+    run(fiber);
+    t.same(t.expectations, 0, "error branch did not run");
+    t.same(fiber.value, 51, "value branch did run");
+    t.undefined(fiber.error, "no more error");
+});
+
+test("Error within value of branch of either", t => {
+    const fiber = new Fiber().
+        either(
+            fiber => fiber.
+                effect(() => { throw Error("AUGH"); }).
+                effect(() => { t.fail("error should not be handled here"); }),
+            nop
+        ).
+        either(fiber => fiber.exec(K("ok")));
+    run(fiber);
+    t.same(fiber.value, "ok", "error was handled in second either");
+});
+
+test("Normal execution resumes after either", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.effect(({ error }) => { t.same(error.message, "AUGH", "error is being handled"); })).
+        exec(K(23));
+    run(fiber);
+    t.atleast(t.expectations, 1, "was error handled?");
+    t.same(fiber.error.message, "AUGH", "error was actually not handled");
+    t.undefined(fiber.value, "the fiber has no value");
+});
+
+test("Either and delay", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        delay(2222).
+        either(fiber => fiber.delay(777).exec(K("ok"))).
+        effect((fiber, scheduler) => {
+            t.same(fiber.value, "ok", "error was eventually handled");
+            t.same(scheduler.now, 777, "first delay did not apply");
+        });
+    run(fiber);
+});
+
+test("Either and event", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.event(window, "hello", {
+            eventWasHandled(_, fiber) {
+                fiber.value = "ok";
+            }
+        }));
+    const scheduler = run(fiber, new Scheduler(), 1);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+    t.same(fiber.value, "ok", "event was handled despite error");
+});
+
+test("Either and repeat", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            repeat(fiber => fiber.nop, {
+                repeatShouldEnd: (n, fiber) => {
+                    t.same(fiber.error.message, "AUGH", `fiber is ${n > 0 ? "still" : ""} failing`);
+                    return n > 1;
+                }
+            })
+        ).
+        effect(() => { t.fail("error was not handled"); });
+    run(fiber);
+    t.atleast(t.expectations, 3, "repeat went through several iterations");
+});
+
+test("Either and spawn", t => {
+    const fiber = new Fiber().
+        exec(K(17)).
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            spawn(fiber => fiber.
+                effect(fiber => {
+                    t.same(fiber.error.message, "AUGH", "spawned child with error from the parent");
+                    t.undefined(fiber.value, "and no value");
+                })
+            )
+        );
+    run(fiber);
+    t.atleast(t.expectations, 2, "fiber was spawned");
+});
+
+test("Nesting either(f)", t => {
+    const fiber = new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            effect(({ error }) => { t.same(error.message, "AUGH", "first time to see the error"); }).
+            either(fiber => fiber.
+                effect(({ error }) => { t.same(error.message, "AUGH", "second time to see the error"); })
+            ).
+            effect(({ error }) => { t.same(error.message, "AUGH", "third time to see the error"); })
+        ).
+        effect(() => { t.fail("the error cannot be seen anymore"); });
+    run(fiber);
+    t.same(t.expectations, 3, "error was seen at every step");
+    t.same(fiber.error.message, "AUGH", "error was not handled");
+    t.undefined(fiber.value, "the fiber has no value");
+});
+
+test("Nesting either(f, g)", t => {
+    const fiber = new Fiber().
+        exec(K("...")).
+        either(fiber => fiber.
+            repeat(fiber => fiber.
+                either(nop, fiber => fiber.delay(555)).
+                exec((fiber, scheduler) => {
+                    const now = scheduler.now;
+                    if (now === 0) {
+                        t.same(fiber.value, "...", "first try");
+                    } else {
+                        t.same(fiber.error.message, "AUGH", "last try failed, keep trying");
+                    }
+                    if (now < 1111) {
+                        throw Error("AUGH");
+                    }
+                    return `ok@${now}`;
+                }), { repeatShouldEnd: n => n > 3 }
+            )
+        );
+    run(fiber);
+    t.same(fiber.value, "ok@1665", "retried twice");
 });
