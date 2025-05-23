@@ -1075,3 +1075,22 @@ test("Fiber.delay(dur) has no effect when the duration cannot be parsed", t => {
         });
     run(fiber);
 });
+
+// 4G0C Cutting off a repeat
+
+test("Cutting off a repeat", async t => new Promise(resolve => {
+    let trace = "";
+    const fiber = new Fiber().
+        spawn(fiber => fiber.delay(333)).
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
+                delay(111).
+                either(fiber => fiber.effect(() => { trace += "*"; }))
+            )
+        ).
+        join(First()).
+        // FIXME can this be avoided?
+        delay(1).
+        effect(() => { t.same(trace, "***", "went through three iterations"); });
+    run(fiber);
+}));
