@@ -19,7 +19,7 @@ a {
     color: var(--picotron-dark-orange);
 }
 
-p.example {
+.example {
     border: dashed thin var(--picotron-dark-blue);
     padding: 2em;
 }

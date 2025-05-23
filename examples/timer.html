@@ -7,18 +7,59 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
+import { First } from "../lib/fiber.js";
 import { K } from "../lib/util.js";
 
+const [timer, elapsed] = document.querySelectorAll("span");
+const range = document.querySelector("input");
+const button = document.querySelector("button");
+const progress = document.querySelector("progress");
+
 Scheduler.run().
-    delay(3333).
-    effect(() => { alert("Ping"); });
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            effect(() => { timer.textContent = `${range.value}s`; }).
+            event(range, "input")
+        )
+    ).
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            event(button, "click").
+            effect(() => {
+                progress.max = range.value;
+                button.disabled = true;
+            }).
+            spawn(fiber => fiber.
+                repeat(fiber => fiber.
+                    effect((fiber, scheduler) => {
+                        const p = (scheduler.now - fiber.beginTime) / 1000;
+                        progress.value = p;
+                        elapsed.textContent = `${p.toFixed(1)}s`;
+                    }).
+                    delay(100)
+                )
+            ).
+            spawn(fiber => fiber.delay(() => timer.textContent)).
+            join(First()).
+            effect(() => { button.disabled = false; })
+        )
+    );
 
         </script>
     </head>
     <body>
         <h1>Timer example</h1>
-        <p class="example">
-        </p>
+        <div class="example">
+            <p>Timer:
+                <input type="range" min="0" max="60" value="30"/>
+                <span></span>
+            </p>
+            <p>
+                <button type="button">Start</button>
+                <progress value="0"></progress>
+                <span></span>
+            </p>
+        </div>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
