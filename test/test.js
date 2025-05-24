@@ -108,6 +108,10 @@ class Test {
         this.report(message, !(equal(x, y)) && `${x} and ${y} to be equal`);
     }
 
+    match(x, pattern, message) {
+        this.report(message, !pattern.test(x) && `${x} to match /${pattern}/`);
+    }
+
     pass(message) {
         this.report(message);
     }

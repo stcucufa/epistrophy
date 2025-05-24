@@ -230,6 +230,13 @@ test("Fiber with no op", t => {
     t.same(fiber.endTime, 0, "ended at t=0");
 });
 
+test("Fiber.name(name)", t => {
+    const fiber = new Fiber();
+    t.same(fiber.name("foo"), fiber, "returns the fiber");
+    t.match(fiber.id, /\bfoo\b/, `is part of the fiber id (${fiber.id})`);
+    t.same(Fiber.byName.get("foo"), fiber, "allows finding the fiber by its name");
+});
+
 test("Fiber.exec(f)", t => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().exec(function(...args) {
@@ -1074,4 +1081,39 @@ test("Fiber.delay(dur) has no effect when the duration cannot be parsed", t => {
             t.same(scheduler.now, 0, "no delay");
         });
     run(fiber);
+});
+
+// 4G0G Dynamic delay duration
+
+test("Scheduler.updateDelay(fiber) can set a new (longer) duration for an ongoing delay", t => {
+    const fiber = new Fiber().
+        delay(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 999, "delay was lenghtened");
+        });
+    const scheduler = run(fiber, new Scheduler(), 666);
+    scheduler.updateDelay(fiber, 999);
+    scheduler.clock.now = Infinity;
+});
+
+test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing delay", t => {
+    const fiber = new Fiber().
+        delay(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 444, "delay was shortened");
+        });
+    const scheduler = run(fiber, new Scheduler(), 200);
+    scheduler.updateDelay(fiber, 444);
+    scheduler.clock.now = Infinity;
+});
+
+test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing delay", t => {
+    const fiber = new Fiber().
+        delay(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 200, "delay ended now");
+        });
+    const scheduler = run(fiber, new Scheduler(), 200);
+    scheduler.updateDelay(fiber, 111);
+    scheduler.clock.now = Infinity;
 });
