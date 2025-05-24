@@ -144,6 +144,10 @@ class Test {
         this.report(message, x !== true, `${x} to be true`);
     }
 
+    typeof(x, type, message) {
+        this.report(message, typeOf(x) !== type, `${x} to be of type ${type}`);
+    }
+
     undefined(x, message) {
         this.report(message, !(x === void 0) && `${x} to be undefined`);
     }
