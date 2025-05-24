@@ -13,7 +13,6 @@ import { K } from "../lib/util.js";
 const span = document.querySelector("span");
 const buttons = document.querySelectorAll("button");
 
-// FIXME 4F0C Idle clock
 Scheduler.run().
     exec(K(17)).
     repeat(fiber => fiber.
@@ -47,6 +46,10 @@ Scheduler.run().
             initialized with the starting value of the counter and a fiber is spawned for each button, then the main fiber
             joins on the first fiber to finish and gets its updated value, while the other fiber is cancelled. Note that
             no new state variable to keep track of the counter value needs to be introduced.
+        </p>
+        <p>
+            This example is inspired by <a href="https://eugenkiss.github.io/7guis/tasks/#counter">7GUIs: A GUI Programming
+            Benchmark</a>.
         </p>
         <h2>Source</h2>
         <pre></pre>
