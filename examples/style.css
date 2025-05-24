@@ -1,6 +1,7 @@
 :root {
     --picotron-dark-blue: #1d2b53;
     --picotron-white: #fff1e8;
+    --picotron-yellow: #ffec27;
     --picotron-dark-orange: #ff6c24;
 }
 
@@ -22,4 +23,8 @@ a {
 .example {
     border: dashed thin var(--picotron-dark-blue);
     padding: 2em;
+}
+
+span.todo {
+    background-color: var(--picotron-yellow);
 }

@@ -31,7 +31,6 @@ Scheduler.run().
             event(button, "click").
             effect(() => {
                 button.disabled = true;
-                console.info(progress.max);
             }).
             spawn(fiber => fiber.
                 exec(K(0)).
@@ -46,7 +45,12 @@ Scheduler.run().
                 )
             ).
             join().
-            effect(() => { button.disabled = false; })
+            delay(1000).
+            effect(() => {
+                button.disabled = false;
+                progress.value = 0;
+                elapsed.textContent = "";
+            })
         )
     );
 
@@ -65,6 +69,20 @@ Scheduler.run().
                 <span></span>
             </p>
         </div>
+        <p>
+            Set a timer with the range input, and start it with the “Start” button. The timer can be set while it is
+            running and will stop when it runs its course or gets set to a shorter time than currently elapsed. It
+            resets one seconds after finishing.
+        </p>
+        <p>
+            <span class="todo">TODO</span> Smooth animation with ramp.
+        </p>
+        <p>
+            <span class="todo">TODO</span> Analog timer (with second hand).
+        </p>
+        <p>
+            <span class="todo">TODO</span> Use an actual delay instead of checking the elapsed time in the repeat.
+        </p>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
