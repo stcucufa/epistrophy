@@ -554,6 +554,16 @@ test("Fiber.delay is skipped when the fiber is failing", t => {
     t.same(fiber.value, 0, "no delay");
 });
 
+test("Fiber.delay(dur): dur function may be evaluated several times", t => {
+    const delays = [111, 222, 333];
+    const fiber = new Fiber().
+        repeat(fiber => fiber.delay(() => delays.shift()), {
+            repeatShouldEnd: () => delays.length === 0
+        });
+    run(fiber);
+    t.same(fiber.endTime, 666, "three different delays");
+});
+
 // 4E0C Spawn
 
 test("Fiber.spawn() creates a new fiber immediately", t => {

@@ -39,7 +39,7 @@ Scheduler.run().
             spawn(fiber => fiber.name("delay").delay(() => progress.max)).
             spawn(fiber => fiber.
                 repeat(fiber => fiber.
-                    delay(200).
+                    delay(100).
                     either(fiber => fiber.
                         effect((fiber, scheduler) => {
                             const d = scheduler.now - fiber.beginTime;
