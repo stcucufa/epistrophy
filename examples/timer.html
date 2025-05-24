@@ -18,7 +18,11 @@ const progress = document.querySelector("progress");
 Scheduler.run().
     spawn(fiber => fiber.
         repeat(fiber => fiber.
-            effect(() => { timer.textContent = `${range.value}s`; }).
+            exec(() => range.value).
+            effect(({ value }) => {
+                timer.textContent = `${value}s`;
+                progress.max = value * 1000;
+            }).
             event(range, "input")
         )
     ).
@@ -26,21 +30,22 @@ Scheduler.run().
         repeat(fiber => fiber.
             event(button, "click").
             effect(() => {
-                progress.max = range.value;
                 button.disabled = true;
+                console.info(progress.max);
             }).
             spawn(fiber => fiber.
+                exec(K(0)).
                 repeat(fiber => fiber.
-                    effect((fiber, scheduler) => {
-                        const p = (scheduler.now - fiber.beginTime) / 1000;
-                        progress.value = p;
-                        elapsed.textContent = `${p.toFixed(1)}s`;
+                    effect(({ value }) => {
+                        progress.value = value;
+                        elapsed.textContent = `${(value / 1000).toFixed(1)}s`;
                     }).
-                    delay(100)
+                    delay(100).
+                    exec((fiber, scheduler) => scheduler.now - fiber.beginTime),
+                    { repeatShouldEnd: (_, { value }) => value > progress.max }
                 )
             ).
-            spawn(fiber => fiber.delay(() => timer.textContent)).
-            join(First()).
+            join().
             effect(() => { button.disabled = false; })
         )
     );
@@ -51,7 +56,7 @@ Scheduler.run().
         <h1>Timer example</h1>
         <div class="example">
             <p>Timer:
-                <input type="range" min="0" max="60" value="30"/>
+                <input type="range" min="1" max="60" value="30"/>
                 <span></span>
             </p>
             <p>
