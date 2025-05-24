@@ -7,7 +7,7 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import { First } from "../lib/fiber.js";
+import Fiber, { First } from "../lib/fiber.js";
 import { K } from "../lib/util.js";
 
 const [timer, elapsed] = document.querySelectorAll("span");
@@ -19,9 +19,13 @@ Scheduler.run().
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             exec(() => range.value).
-            effect(({ value }) => {
+            effect(({ value }, scheduler) => {
                 timer.textContent = `${value}s`;
                 progress.max = value * 1000;
+                const f = Fiber.byName.get("delay");
+                if (scheduler.hasDelay(f)) {
+                    scheduler.updateDelay(f, progress.max);
+                }
             }).
             event(range, "input")
         )
@@ -32,19 +36,20 @@ Scheduler.run().
             effect(() => {
                 button.disabled = true;
             }).
+            spawn(fiber => fiber.name("delay").delay(() => progress.max)).
             spawn(fiber => fiber.
-                exec(K(0)).
                 repeat(fiber => fiber.
-                    effect(({ value }) => {
-                        progress.value = value;
-                        elapsed.textContent = `${(value / 1000).toFixed(1)}s`;
-                    }).
-                    delay(100).
-                    exec((fiber, scheduler) => scheduler.now - fiber.beginTime),
-                    { repeatShouldEnd: (_, { value }) => value > progress.max }
+                    delay(200).
+                    either(fiber => fiber.
+                        effect((fiber, scheduler) => {
+                            const d = scheduler.now - fiber.beginTime;
+                            progress.value = d;
+                            elapsed.textContent = `${(d / 1000).toFixed(1)}s`;
+                        })
+                    )
                 )
             ).
-            join().
+            join(First()).
             delay(1000).
             effect(() => {
                 button.disabled = false;
