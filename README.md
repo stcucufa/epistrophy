@@ -43,10 +43,10 @@ you can also [run the test suite](http://localhost:7890/test/).
 
 This project is an effort to build a synchronous programming environment in a
 bottom up manner, starting from basic primitives and building layers of
-powerful and expressive abstractions on top. Here is a simple example of using
-these low-level primitives to implement a counter given two HTML elements: a
+powerful and expressive abstractions on top. Here is a short example of using
+these low-level primitives to implement a counter, given two HTML elements: a
 `span` that displays the counter value, and a `button` that can be clicked to
-increment it.
+increment it. The complete example is:
 
 ```js
 Scheduler.run().
@@ -58,7 +58,7 @@ Scheduler.run().
     );
 ```
 
-Let’s go through this example line by line to explain how this works.
+Let’s go through it line by line to explain how it works.
 
 ```js
 Scheduler.run().
@@ -66,7 +66,7 @@ Scheduler.run().
 
 initializes the runtime by creating a `Scheduler` object that starts running
 immediately, and an initial `Fiber` object. These are the two most important
-objects in Epistrophy: fibers carry values and computations, and the scheduler
+objects of Epistrophy: fibers carry values and computations, and the scheduler
 schedules the execution of the fibers in time. `Scheduler.run` returns the fiber
 that it created, and new instructions are added to that fiber.
 
@@ -85,7 +85,7 @@ instructions can be added to it.
     repeat(fiber => fiber.
 ```
 
-creates an infinite loop (there are ways to break out of the loop based on
+creates an infinite loop (there are ways to break out of a loop based on
 duration, number of iterations, or some condition being met, but here the
 program will run until the page is closed). The body of the loop is described by
 a function of the fiber that adds more instructions.
@@ -96,7 +96,7 @@ a function of the fiber that adds more instructions.
 
 is the first instruction in the loop. It is almost identical to `exec`, with the
 difference that it does not affect the value of the fiber. As its name implies,
-it is only used for the effects of the wrapped function. That function gets
+it is only used for the effect(s) of the wrapped function. That function gets
 called with two parameters: the fiber object itself, and the scheduler that is
 running it. Here only the `value` property of the fiber is of interest; the
 effect is to set the text content of the `span` element to that value,
@@ -106,7 +106,7 @@ displaying the value of the counter on the page.
         event(button, "click").
 ```
 
-is next, which suspends execution until a specific event is received. Here, the
+is next, and suspends execution until a specific event is received. Here, the
 intent is to wait for a `click` event from `button`. Once this event happens,
 execution resumes with the next instruction,
 
@@ -123,7 +123,7 @@ instruction, which sets the content of the `span` to the value of the fiber,
 which is now `0`: this initializes the display of the counter to its initial
 value. Then we wait for a click event from the button.
 
-Waiting here means the scheduler suspends the execution of the fiber, and only
+Waiting means that the scheduler suspends the execution of the fiber, and only
 resumes it once the event happens. Other fibers can get their turn executing
 once a fiber is suspended, but here there is no other fiber so nothing happens
 until the user clicks the button.
@@ -196,12 +196,13 @@ In general, we also want to be able to do something with the values of the child
 fibers, so `join()` accepts a delegate object as its parameter, with a
 `childFiberDidEnd()` method that gets called when a child fiber ends. We see
 a first abstraction built on top of the primitives of the runtime here with the
-call to `First()`, which gives a delegate for `join()` that allows the fiber to
-resume as soon as the first child fiber ends, and cancels all the other
-siblings, and setting the value of the fiber to the end value of its child.
+call to `First()`, which provides a delegate for `join()` that allows the fiber
+to resume as soon as the first of its child fiber ends execution, and cancels
+all the other siblings, and setting the value of the fiber to the end value of
+its child.
 
 When this example runs, the main fiber gets an initial value of 0 as in the
-first example, then spawns its two child fibers. These two fibers do not begin
+first example, then spawns two child fibers. These two fibers do not begin
 their execution until the parent yields, which it does when calling `join()`
 (it is thus possible for the parent to *not* call `join()` and keep running,
 letting its children run independently when they get the chance).
