@@ -1169,6 +1169,17 @@ test("Fiber.ramp(dur, delegate) creates a ramp", t => {
     t.equal(expected, [], "ramp went through all expected values of p");
 });
 
+test("Fiber.ramp(Infinity, delegate) creates an infinite ramp", t => {
+    const fiber = new Fiber().
+        delay(222).
+        ramp(Infinity, {
+            rampDidProgress(p) { t.same(p, 0, "p is always 0 when duration is infinite"); }
+        });
+    const scheduler = run(fiber, new Scheduler(), 242);
+    scheduler.clock.now = 312;
+    scheduler.clock.now = 777;
+});
+
 test("Scheduler.updateDelay(fiber) can set a new (longer) duration for an ongoing ramp", t => {
     const fiber = new Fiber().
         ramp(777).
