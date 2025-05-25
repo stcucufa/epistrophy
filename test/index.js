@@ -1168,3 +1168,36 @@ test("Fiber.ramp(dur, delegate) creates a ramp", t => {
     scheduler.clock.now = 777;
     t.equal(expected, [], "ramp went through all expected values of p");
 });
+
+test("Scheduler.updateDelay(fiber) can set a new (longer) duration for an ongoing ramp", t => {
+    const fiber = new Fiber().
+        ramp(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 999, "ramp duration was lenghtened");
+        });
+    const scheduler = run(fiber, new Scheduler(), 666);
+    scheduler.updateDelay(fiber, 999);
+    scheduler.clock.now = Infinity;
+});
+
+test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
+    const fiber = new Fiber().
+        ramp(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 444, "ramp duration was shortened");
+        });
+    const scheduler = run(fiber, new Scheduler(), 200);
+    scheduler.updateDelay(fiber, 444);
+    scheduler.clock.now = Infinity;
+});
+
+test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
+    const fiber = new Fiber().
+        delay(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 200, "ramp ended now");
+        });
+    const scheduler = run(fiber, new Scheduler(), 200);
+    scheduler.updateDelay(fiber, 111);
+    scheduler.clock.now = Infinity;
+});
