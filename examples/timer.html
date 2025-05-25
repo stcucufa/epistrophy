@@ -7,8 +7,7 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import Fiber, { First } from "../lib/fiber.js";
-import { K } from "../lib/util.js";
+import Fiber from "../lib/fiber.js";
 
 const [timer, elapsed] = document.querySelectorAll("span");
 const range = document.querySelector("input");
@@ -22,7 +21,7 @@ Scheduler.run().
             effect(({ value }, scheduler) => {
                 timer.textContent = `${value}s`;
                 progress.max = value * 1000;
-                const f = Fiber.byName.get("delay");
+                const f = Fiber.byName.get("timer");
                 if (scheduler.hasDelay(f)) {
                     scheduler.updateDelay(f, progress.max);
                 }
@@ -31,25 +30,18 @@ Scheduler.run().
         )
     ).
     spawn(fiber => fiber.
-        repeat(fiber => fiber.
+        repeat(fiber => fiber.name("timer").
             event(button, "click").
             effect(() => {
                 button.disabled = true;
             }).
-            spawn(fiber => fiber.name("delay").delay(() => progress.max)).
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    delay(100).
-                    either(fiber => fiber.
-                        effect((fiber, scheduler) => {
-                            const d = scheduler.now - fiber.beginTime;
-                            progress.value = d;
-                            elapsed.textContent = `${(d / 1000).toFixed(1)}s`;
-                        })
-                    )
-                )
-            ).
-            join(First()).
+            ramp(() => progress.max, {
+                rampDidProgress(p) {
+                    const d = p * progress.max;
+                    progress.value = d;
+                    elapsed.textContent = `${Math.round(d / 1000)}s${p === 1 ? " (DONE)" : ""}`;
+                }
+            }).
             delay(1000).
             effect(() => {
                 button.disabled = false;
@@ -78,9 +70,6 @@ Scheduler.run().
             Set a timer with the range input, and start it with the “Start” button. The timer can be set while it is
             running and will stop when it runs its course or gets set to a shorter time than currently elapsed. It
             resets one seconds after finishing.
-        </p>
-        <p>
-            <span class="todo">TODO</span> Smooth animation with ramp.
         </p>
         <p>
             <span class="todo">TODO</span> Analog timer (with second hand).

@@ -1127,3 +1127,88 @@ test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoi
     scheduler.updateDelay(fiber, 111);
     scheduler.clock.now = Infinity;
 });
+
+// 4G0D Ramp
+
+test("Fiber.ramp(dur, delegate) creates a ramp", t => {
+    const dur = 1111;
+    const delegate = {
+        rampDidProgress(...args) {
+            const [p] = args;
+            if (fiber.beginTime === scheduler.now) {
+                t.same(args.length, 3, "the delegate `rampDidProgress` method is called with three arguments");
+                t.typeof(p, "number", "`p` is the first argument");
+                t.same(args[1], fiber, "`fiber` is the second argument");
+                t.same(args[2], scheduler, "`scheduler` is the third argument");
+                t.same(Object.getPrototypeOf(this), delegate, "and `this` is an instance of the delegate object");
+                t.same(p, 0, "begin the ramp with p=0");
+            } else {
+                t.same(p, 1, "end the ramp with p=1");
+                t.same(scheduler.now - fiber.beginTime, dur, "after the duration of the ramp");
+            }
+        }
+    };
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().ramp(dur, delegate);
+    run(fiber, scheduler);
+});
+
+test("Fiber.ramp(dur, delegate) creates a ramp", t => {
+    const expected = [0, 0.2, 0.9, 1];
+    const fiber = new Fiber().
+        delay(222).
+        ramp(100, {
+            rampDidProgress(p) {
+                t.same(p, expected[0], `p === ${expected[0]}`);
+                expected.shift();
+            }
+        });
+    const scheduler = run(fiber, new Scheduler(), 242);
+    scheduler.clock.now = 312;
+    scheduler.clock.now = 777;
+    t.equal(expected, [], "ramp went through all expected values of p");
+});
+
+test("Fiber.ramp(Infinity, delegate) creates an infinite ramp", t => {
+    const fiber = new Fiber().
+        delay(222).
+        ramp(Infinity, {
+            rampDidProgress(p) { t.same(p, 0, "p is always 0 when duration is infinite"); }
+        });
+    const scheduler = run(fiber, new Scheduler(), 242);
+    scheduler.clock.now = 312;
+    scheduler.clock.now = 777;
+});
+
+test("Scheduler.updateDelay(fiber) can set a new (longer) duration for an ongoing ramp", t => {
+    const fiber = new Fiber().
+        ramp(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 999, "ramp duration was lenghtened");
+        });
+    const scheduler = run(fiber, new Scheduler(), 666);
+    scheduler.updateDelay(fiber, 999);
+    scheduler.clock.now = Infinity;
+});
+
+test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
+    const fiber = new Fiber().
+        ramp(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 444, "ramp duration was shortened");
+        });
+    const scheduler = run(fiber, new Scheduler(), 200);
+    scheduler.updateDelay(fiber, 444);
+    scheduler.clock.now = Infinity;
+});
+
+test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
+    const fiber = new Fiber().
+        delay(777).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 200, "ramp ended now");
+        });
+    const scheduler = run(fiber, new Scheduler(), 200);
+    scheduler.updateDelay(fiber, 111);
+    scheduler.clock.now = Infinity;
+});
