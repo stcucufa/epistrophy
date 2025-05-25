@@ -40,7 +40,7 @@ Scheduler.run().
                 rampDidProgress(p) {
                     const d = p * progress.max;
                     progress.value = d;
-                    elapsed.textContent = `${Math.round(d / 1000)}s`;
+                    elapsed.textContent = `${Math.round(d / 1000)}s${p === 1 ? " (DONE)" : ""}`;
                 }
             }).
             delay(1000).
