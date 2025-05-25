@@ -1,5 +1,5 @@
 import test from "./test.js";
-import { nop, remove, K, Queue, message, on, off } from "../lib/util.js";
+import { nop, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
 import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
@@ -19,14 +19,14 @@ test("remove(xs, x)", t => {
 
 // 4E0A	Priority queue
 
-test("new Queue(cmp?)", t => {
-    const queue = new Queue();
+test("new PriorityQueue(cmp?)", t => {
+    const queue = new PriorityQueue();
     t.same(queue.length, 0, "empty queue");
     t.same(queue.cmp(17, 23), -6, "default comparison between items");
 });
 
-test("Queue.insert(x), min heap", t => {
-    const queue = new Queue();
+test("PriorityQueue.insert(x), min heap", t => {
+    const queue = new PriorityQueue();
     t.same(queue.insert(17), 17, "return the pushed value");
     t.equal(queue, [17], "item in the queue");
     queue.insert(23);
@@ -37,8 +37,8 @@ test("Queue.insert(x), min heap", t => {
     t.equal(queue, [7, 17, 13, 23, 31, 19], "items in the queue");
 });
 
-test("Queue.insert(x), max heap", t => {
-    const queue = new Queue((a, b) => b - a);
+test("PriorityQueue.insert(x), max heap", t => {
+    const queue = new PriorityQueue((a, b) => b - a);
     queue.insert(17);
     queue.insert(23);
     queue.insert(19);
@@ -48,8 +48,8 @@ test("Queue.insert(x), max heap", t => {
     t.equal(queue, [31, 23, 19, 7, 17, 13], "items in the queue");
 });
 
-test("Queue.remove(), min heap", t => {
-    const queue = new Queue();
+test("PriorityQueue.remove(), min heap", t => {
+    const queue = new PriorityQueue();
     queue.insert(17);
     queue.insert(23);
     queue.insert(19);
@@ -68,8 +68,8 @@ test("Queue.remove(), min heap", t => {
     t.undefined(queue.remove(), "empty queue");
 });
 
-test("Queue.remove(), max heap", t => {
-    const queue = new Queue((a, b) => b - a);
+test("PriorityQueue.remove(), max heap", t => {
+    const queue = new PriorityQueue((a, b) => b - a);
     const N = 7;
     const xs = [4, 0, 2, 5, 6, 4, 6];
     for (let i = 0; i < N; ++i) {
@@ -84,9 +84,9 @@ test("Queue.remove(), max heap", t => {
     t.equal(xs, dequeued, "items removed in order");
 });
 
-test("Queue.remove(), randomized", t => {
+test("PriorityQueue.remove(), randomized", t => {
     let ops = 0;
-    const queue = new Queue((a, b) => (++ops, a - b));
+    const queue = new PriorityQueue((a, b) => (++ops, a - b));
     const N = 77777;
     const xs = [];
     for (let i = 0; i < N; ++i) {
@@ -103,8 +103,8 @@ test("Queue.remove(), randomized", t => {
     t.atmost(ops, 3 * N * Math.log2(N), "O(log n) ops");
 });
 
-test("Queue.remove(at), min heap", t => {
-    const queue = new Queue();
+test("PriorityQueue.remove(at), min heap", t => {
+    const queue = new PriorityQueue();
     queue.insert(17);
     queue.insert(23);
     queue.insert(19);
@@ -122,8 +122,8 @@ test("Queue.remove(at), min heap", t => {
     t.undefined(queue.remove(), "empty queue");
 });
 
-test("Queue.remove(at), last element", t => {
-    const queue = new Queue();
+test("PriorityQueue.remove(at), last element", t => {
+    const queue = new PriorityQueue();
     queue.insert(17);
     queue.insert(23);
     t.equal(queue, [17, 23], "before");
