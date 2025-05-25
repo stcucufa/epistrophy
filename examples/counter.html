@@ -42,7 +42,7 @@ Scheduler.run().
         <p>
             The core functionality of the counter is to initialize a fiber with the starting value, then repeat the
             sequence of showing the current counter value, waiting on a click on the increment or decrement button, and
-            adding or subtracting 1 from the current fiber value. Here there are two counters, so the main fiber is
+            adding or subtracting 1 from the current fiber value. Here there are two buttons, so the main fiber is
             initialized with the starting value of the counter and a fiber is spawned for each button, then the main fiber
             joins on the first fiber to finish and gets its updated value, while the other fiber is cancelled. Note that
             no new state variable to keep track of the counter value needs to be introduced.
