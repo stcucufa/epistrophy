@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Animated turtle graphics example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+import Scheduler from "../lib/scheduler.js";
+import { Canvas, Turtle } from "./turtle.js";
+
+Scheduler.run().
+    effect(() => {
+        const canvas = new Canvas(document.querySelector("canvas"));
+        const turtle = new Turtle();
+        turtle.draw(canvas.element.getContext("2d"));
+    });
+
+        </script>
+    </head>
+    <body>
+        <h1>Animated turtle graphics example</h1>
+        <div class="example" style="padding: 0.5em">
+            <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
+        </div>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>
