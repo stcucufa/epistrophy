@@ -2,6 +2,7 @@ import test from "./test.js";
 import { nop, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
 import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
+import "../lib/smil.js";
 
 // Utility function to run a fiber synchronously.
 function run(fiber, scheduler, until = Infinity) {
@@ -1314,4 +1315,33 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber for ramps as well w
     scheduler.clock.now = 150;
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all steps");
+});
+
+// 4G0J SMIL Tiny: structure
+
+test("SMIL smil element", t => {
+    const smil = document.createElement("smil-smil");
+    t.true(smil instanceof HTMLElement, "is a custom HTML element");
+});
+
+test("SMIL head element", t => {
+    const head = document.createElement("smil-head");
+    t.true(head instanceof HTMLElement, "is a custom HTML element");
+    const smil = document.createElement("smil-smil");
+    // FIXME Adding the head after the smil element was connected is currently unsupported.
+    smil.appendChild(head);
+    document.body.appendChild(smil);
+    t.same(smil.head, head, "may appear as the head of a smil fragment");
+    smil.remove();
+});
+
+test("SMIL body element", t => {
+    const body = document.createElement("smil-body");
+    t.true(body instanceof HTMLElement, "is a custom HTML element");
+    const smil = document.createElement("smil-smil");
+    // FIXME Adding the head after the smil element was connected is currently unsupported.
+    smil.appendChild(body);
+    document.body.appendChild(smil);
+    t.same(smil.body, body, "may appear as the head of a smil fragment");
+    smil.remove();
 });
