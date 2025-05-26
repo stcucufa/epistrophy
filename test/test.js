@@ -63,6 +63,16 @@ class Test {
                 this.fail("assertion failed");
             }
         };
+        const error = console.error;
+        this.errors = 0;
+        console.error = (...args) => {
+            error.apply(console, args);
+            if (!this.expectsError) {
+                this.fail("unexpected error");
+            } else {
+                this.errors += 1;
+            }
+        };
         const warn = console.warn;
         this.warnings = 0;
         console.warn = (...args) => {
@@ -85,8 +95,12 @@ class Test {
             if (this.expectsWarning && this.warnings === 0) {
                 this.fail("no warnings during test");
             }
+            if (this.expectsError && this.errors === 0) {
+                this.fail("no errors during test");
+            }
             console.assert = assert;
             console.warn = warn;
+            console.error = error;
         }
     }
 
