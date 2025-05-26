@@ -12,8 +12,8 @@ import { Canvas, Turtle } from "./turtle.js";
 Scheduler.run().
     effect(() => {
         const canvas = new Canvas(document.querySelector("canvas"));
-        const turtle = new Turtle();
-        turtle.draw(canvas.element.getContext("2d"));
+        const turtle = new Turtle(canvas);
+        turtle.forward(100).drawSelf().left(90).drawSelf().penup().back(50).drawSelf();
     });
 
         </script>
