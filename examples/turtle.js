@@ -26,7 +26,8 @@ export class Canvas {
 }
 
 export class Turtle {
-    constructor(canvas, color = "#1d2b53") {
+    constructor(fiber, canvas, color = "#1d2b53") {
+        this.fiber = fiber;
         this.canvas = canvas;
         this.x = 0;
         this.y = 0;
@@ -34,15 +35,19 @@ export class Turtle {
         this.isPenDown = true;
         this.isVisible = true;
         this.color = color;
+        this.velocity = 1;
     }
 
     r = 24;
 
-    drawSelf() {
+    drawSelf(clear = false) {
         if (!this.isVisible) {
             return;
         }
         const context = this.canvas.context;
+        if (clear) {
+            context.putImageData(this.canvas.imageData, 0, 0);
+        }
         context.save();
         context.strokeStyle = this.color;
         context.lineWidth = 3;
@@ -65,7 +70,7 @@ export class Turtle {
         return this;
     }
 
-    drawLineFrom(x0, y0) {
+    drawLineFrom(x, y) {
         const context = this.canvas.context;
         context.putImageData(this.canvas.imageData, 0, 0);
         if (!this.isPenDown) {
@@ -76,7 +81,7 @@ export class Turtle {
         context.lineWidth = 3;
         context.translate(this.canvas.width / 2, this.canvas.height / 2);
         context.beginPath();
-        context.moveTo(x0, y0);
+        context.moveTo(x, y);
         context.lineTo(this.x, this.y);
         context.stroke();
         context.restore();
@@ -87,10 +92,19 @@ export class Turtle {
             return;
         }
         const { x, y } = this;
-        this.x += d * Math.cos(this.heading);
-        this.y += d * Math.sin(this.heading);
-        this.drawLineFrom(x, y);
-        this.canvas.save();
+        const dx = d * Math.cos(this.heading);
+        const dy = d * Math.sin(this.heading);
+        this.fiber.ramp(() => Math.abs(d) / this.velocity, {
+            rampDidProgress: p => {
+                this.x = x + p * dx;
+                this.y = y + p * dy;
+                this.drawLineFrom(x, y);
+                this.drawSelf();
+                if (p === 1) {
+                    this.canvas.save();
+                }
+            }
+        });
         return this;
     }
 
@@ -102,8 +116,14 @@ export class Turtle {
         if (a === 0) {
             return this;
         }
+        const { heading } = this;
         const Δ = π * a / 180;
-        this.heading += Δ;
+        this.fiber.ramp(() => Math.abs(a) / this.velocity, {
+            rampDidProgress: p => {
+                this.heading = heading + p * Δ;
+                this.drawSelf(true);
+            }
+        })
         return this;
     }
 
@@ -112,22 +132,22 @@ export class Turtle {
     }
 
     penup() {
-        this.isPenDown = false;
+        this.fiber.effect(() => { this.isPenDown = false; });
         return this;
     }
 
     pendown() {
-        this.isPenDown = true;
+        this.fiber.effect(() => { this.isPenDown = true; });
         return this;
     }
 
     hide() {
-        this.isVisible = false;
+        this.fiber.effect(() => { this.isVisible = false; });
         return this;
     }
 
     show() {
-        this.isVisible = true;
+        this.fiber.effect(() => { this.isVisible = true; });
         return this;
     }
 }

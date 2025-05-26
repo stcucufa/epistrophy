@@ -10,11 +10,15 @@ import Scheduler from "../lib/scheduler.js";
 import { Canvas, Turtle } from "./turtle.js";
 
 Scheduler.run().
-    effect(() => {
-        const canvas = new Canvas(document.querySelector("canvas"));
-        const turtle = new Turtle(canvas);
-        turtle.forward(100).drawSelf().left(90).drawSelf().penup().back(50).drawSelf();
-    });
+    exec(() => new Canvas(document.querySelector("canvas"))).
+    spawn(fiber => fiber.
+        exec(fiber => new Turtle(fiber, fiber.value).
+            forward(200).
+            left(90).
+            back(100)
+        ).
+        delay(1000)
+    );
 
         </script>
     </head>
