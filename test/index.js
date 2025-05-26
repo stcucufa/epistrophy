@@ -2,6 +2,7 @@ import test from "./test.js";
 import { nop, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
 import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
+import "../lib/smil.js";
 
 // Utility function to run a fiber synchronously.
 function run(fiber, scheduler, until = Infinity) {
@@ -1465,4 +1466,45 @@ test("... unless all children fail", t => {
             effect(({ error }) => { t.same(error.message, "AUGH", "failed with final error"); })
         );
     run(fiber);
+});
+
+// 4G0J SMIL Tiny: structure
+
+test("SMIL smil element", t => {
+    const smil = document.createElement("smil-smil");
+    t.true(smil instanceof HTMLElement, "is a custom HTML element");
+});
+
+test("SMIL head element", t => {
+    const head = document.createElement("smil-head");
+    t.true(head instanceof HTMLElement, "is a custom HTML element");
+    const smil = document.createElement("smil-smil");
+    // FIXME Adding the head after the smil element was connected is currently unsupported.
+    smil.appendChild(head);
+    document.body.appendChild(smil);
+    t.same(smil.head, head, "may appear as the head of a smil fragment");
+    smil.remove();
+});
+
+test("SMIL layout element", t => {
+    const layout = document.createElement("smil-layout");
+    t.true(layout instanceof HTMLElement, "is a custom HTML element");
+    const head = document.createElement("smil-head");
+    // FIXME Adding the layout after the head element was connected is currently unsupported.
+    head.appendChild(layout);
+    document.body.appendChild(head);
+    t.same(head.layout, layout, "may appear as the layout of a smil head element");
+    t.same(layout.type, "text/smil-basic-layout", "has a `type` attribute defaulting to \"text/smil-basic-layout\"");
+    head.remove();
+});
+
+test("SMIL body element", t => {
+    const body = document.createElement("smil-body");
+    t.true(body instanceof HTMLElement, "is a custom HTML element");
+    const smil = document.createElement("smil-smil");
+    // FIXME Adding the head after the smil element was connected is currently unsupported.
+    smil.appendChild(body);
+    document.body.appendChild(smil);
+    t.same(smil.body, body, "may appear as the head of a smil fragment");
+    smil.remove();
 });

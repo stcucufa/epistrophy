@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>SMIL player | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+import "../lib/smil.js";
+
+const smil = document.querySelector("smil-smil");
+console.log(smil.title, smil.head, smil.body);
+
+        </script>
+    </head>
+    <body>
+        <h1>SMIL player</h1>
+        <div class="example" style="padding: 0.5em">
+
+<smil-smil title="SMIL example">
+    <smil-head>
+        <smil-layout>
+            <p>Hello, SMIL</p>
+        </smil-layout>
+    </smil-head>
+    <smil-body></smil-body>
+</smil-smil>
+
+        </div>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("div.example").innerHTML;</script>
+    </body>
+</html>
