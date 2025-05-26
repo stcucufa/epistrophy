@@ -251,6 +251,7 @@ test("Fiber.exec(f)", t => {
 });
 
 test("Fiber.exec(f) catches errors", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         exec(K(17)).
         exec(() => { throw Error("AUGH"); });
@@ -260,6 +261,7 @@ test("Fiber.exec(f) catches errors", t => {
 });
 
 test("Fiber.exec(f) does not run after an error", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         exec(() => { throw Error("AUGH"); }).
         effect(K(17));
@@ -286,6 +288,7 @@ test("Fiber.effect(f)", t => {
 });
 
 test("Fiber.effect(f) catches errors", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         exec(K(17)).
         effect(() => { throw Error("AUGH"); });
@@ -295,6 +298,7 @@ test("Fiber.effect(f) catches errors", t => {
 });
 
 test("Fiber.effect(f) does not run after an error", t => {
+    t.expectsError = true;
     let ran = false;
     const fiber = new Fiber().
         exec(() => { throw Error("AUGH"); }).
@@ -472,6 +476,7 @@ test("Fiber.repeat(f, delegate)", t => {
 });
 
 test("Fiber.repeat fails if it has zero duration and no delegate", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         exec(K(19)).
         repeat(fiber => fiber.exec(({ value }) => value + 1));
@@ -481,6 +486,7 @@ test("Fiber.repeat fails if it has zero duration and no delegate", t => {
 });
 
 test("Fiber.repeat does not begin if the fiber is failing", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         repeat(fiber => fiber.effect(() => { t.fail("repeat should not begin"); })).
@@ -490,6 +496,7 @@ test("Fiber.repeat does not begin if the fiber is failing", t => {
 });
 
 test("Fiber.repeat does not continue when the fiber is failing", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         repeat(fiber => fiber.effect(() => { throw Error("AUGH"); }), {
             repeatShouldEnd: count => {
@@ -537,6 +544,7 @@ test("Fiber.delay(dur)", t => {
 });
 
 test("Fiber delay fails if `dur` is a function that fails", t => {
+    t.expectsError = true;
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         delay(() => { throw Error("AUGH"); }).
@@ -546,6 +554,7 @@ test("Fiber delay fails if `dur` is a function that fails", t => {
 });
 
 test("Fiber.delay is skipped when the fiber is failing", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         exec(() => { throw "AUGH"; }).
         delay(999).
@@ -635,6 +644,7 @@ test("Fiber.spawn: children and grand-children (yielding)", t => {
 });
 
 test("Fiber.spawn: child does not begin when the parent is failing", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         spawn(fiber => fiber.
@@ -875,6 +885,7 @@ test("Do not cancel child when not joining", t => {
 // 4E0G Retry
 
 test("Fiber.either(f) recovers from errors", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         either(fiber => fiber.exec(({ error }) => error.message === "AUGH"));
@@ -884,6 +895,7 @@ test("Fiber.either(f) recovers from errors", t => {
 });
 
 test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         either(
@@ -910,6 +922,7 @@ test("Fiber.either(f, g) handles values (with f) or errors (with g)", t => {
 });
 
 test("Error within value of branch of either", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         either(
             fiber => fiber.
@@ -923,6 +936,7 @@ test("Error within value of branch of either", t => {
 });
 
 test("Normal execution resumes after either", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         either(fiber => fiber.effect(({ error }) => { t.same(error.message, "AUGH", "error is being handled"); })).
@@ -934,6 +948,7 @@ test("Normal execution resumes after either", t => {
 });
 
 test("Either and delay", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         delay(2222).
@@ -946,6 +961,7 @@ test("Either and delay", t => {
 });
 
 test("Either and event", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         either(fiber => fiber.event(window, "hello", {
@@ -960,6 +976,7 @@ test("Either and event", t => {
 });
 
 test("Either and repeat", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         either(fiber => fiber.
@@ -976,6 +993,7 @@ test("Either and repeat", t => {
 });
 
 test("Either and spawn", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         exec(K(17)).
         effect(() => { throw Error("AUGH"); }).
@@ -992,6 +1010,7 @@ test("Either and spawn", t => {
 });
 
 test("Nesting either(f)", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         effect(() => { throw Error("AUGH"); }).
         either(fiber => fiber.
@@ -1009,6 +1028,7 @@ test("Nesting either(f)", t => {
 });
 
 test("Nesting either(f, g)", t => {
+    t.expectsError = true;
     const fiber = new Fiber().
         exec(K("...")).
         either(fiber => fiber.
