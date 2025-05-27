@@ -1,5 +1,7 @@
 const π = Math.PI;
 
+const ease = p => p * p * (3 - 2 * p);
+
 export class Canvas {
     constructor(element) {
         this.element = element;
@@ -36,17 +38,19 @@ export class Turtle {
         this.isVisible = true;
         this.color = color;
         this.velocity = 1;
+        this.angularVelocity = 0.5;
+        fiber.effect(() => { this.drawSelf(); });
     }
 
     r = 24;
 
     drawSelf(clear = false) {
-        if (!this.isVisible) {
-            return;
-        }
         const context = this.canvas.context;
         if (clear) {
             context.putImageData(this.canvas.imageData, 0, 0);
+        }
+        if (!this.isVisible) {
+            return;
         }
         context.save();
         context.strokeStyle = this.color;
@@ -70,41 +74,38 @@ export class Turtle {
         return this;
     }
 
-    drawLineFrom(x, y) {
-        const context = this.canvas.context;
-        context.putImageData(this.canvas.imageData, 0, 0);
-        if (!this.isPenDown) {
-            return;
-        }
-        context.save();
-        context.strokeStyle = this.color;
-        context.lineWidth = 3;
-        context.translate(this.canvas.width / 2, this.canvas.height / 2);
-        context.beginPath();
-        context.moveTo(x, y);
-        context.lineTo(this.x, this.y);
-        context.stroke();
-        context.restore();
-    }
-
     forward(d) {
-        if (d === 0) {
-            return;
-        }
-        const { x, y } = this;
-        const dx = d * Math.cos(this.heading);
-        const dy = d * Math.sin(this.heading);
-        this.fiber.ramp(() => Math.abs(d) / this.velocity, {
-            rampDidProgress: p => {
-                this.x = x + p * dx;
-                this.y = y + p * dy;
-                this.drawLineFrom(x, y);
-                this.drawSelf();
-                if (p === 1) {
-                    this.canvas.save();
+        this.fiber.
+            exec(() => ({
+                x: this.x,
+                y: this.y,
+                dx: d * Math.cos(this.heading),
+                dy: d * Math.sin(this.heading)
+            })).
+            ramp(() => Math.abs(d) / this.velocity, {
+                rampDidProgress: (p, { value: { x, y, dx, dy } }) => {
+                    const t = ease(p);
+                    this.x = x + t * dx;
+                    this.y = y + t * dy;
+                    const context = this.canvas.context;
+                    context.putImageData(this.canvas.imageData, 0, 0);
+                    if (this.isPenDown) {
+                        context.save();
+                        context.strokeStyle = this.color;
+                        context.lineWidth = 3;
+                        context.translate(this.canvas.width / 2, this.canvas.height / 2);
+                        context.beginPath();
+                        context.moveTo(x, y);
+                        context.lineTo(this.x, this.y);
+                        context.stroke();
+                        context.restore();
+                        if (p === 1) {
+                            this.canvas.save();
+                        }
+                    }
+                    this.drawSelf();
                 }
-            }
-        });
+            });
         return this;
     }
 
@@ -113,15 +114,15 @@ export class Turtle {
     }
 
     right(a) {
-        if (a === 0) {
-            return this;
-        }
-        const { heading } = this;
-        const Δ = π * a / 180;
-        this.fiber.ramp(() => Math.abs(a) / this.velocity, {
-            rampDidProgress: p => {
-                this.heading = heading + p * Δ;
-                this.drawSelf(true);
+        const th = π * a / 180;
+        const turtle = this;
+        this.fiber.ramp(() => Math.abs(a) / this.angularVelocity, {
+            rampDidProgress(p) {
+                if (p === 0) {
+                    this.heading = turtle.heading;
+                }
+                turtle.heading = this.heading + ease(p) * th;
+                turtle.drawSelf(true);
             }
         })
         return this;
@@ -132,22 +133,60 @@ export class Turtle {
     }
 
     penup() {
-        this.fiber.effect(() => { this.isPenDown = false; });
+        this.fiber.effect(() => {
+            if (this.isPenDown) {
+                this.isPenDown = false;
+                this.drawSelf(true);
+            }
+        });
         return this;
     }
 
     pendown() {
-        this.fiber.effect(() => { this.isPenDown = true; });
+        this.fiber.effect(() => {
+            if (!this.isPenDown) {
+                this.isPenDown = true;
+                this.drawSelf(true);
+            }
+        });
         return this;
     }
 
     hide() {
-        this.fiber.effect(() => { this.isVisible = false; });
+        this.fiber.effect(() => {
+            if (this.isVisible) {
+                this.isVisible = false;
+                this.drawSelf(true);
+            }
+        });
         return this;
     }
 
     show() {
-        this.fiber.effect(() => { this.isVisible = true; });
+        this.fiber.effect(() => {
+            if (!this.isVisible) {
+                this.isVisible = true;
+                this.drawSelf(true);
+            }
+        });
+        return this;
+    }
+
+    wait(dur) {
+        this.fiber.delay(dur);
+        return this;
+    }
+
+    repeat(count, f) {
+        this.fiber.repeat(() => f(this), { repeatShouldEnd: i => i === count });
+        return this;
+    }
+
+    to(name, f) {
+        this[name] = function(...args) {
+            f(this, ...args);
+            return this;
+        };
         return this;
     }
 }
