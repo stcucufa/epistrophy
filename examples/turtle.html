@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Animated turtle graphics example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+import Scheduler from "../lib/scheduler.js";
+import { Canvas, Turtle } from "./turtle.js";
+
+const fiber = Scheduler.run();
+const canvas = new Canvas(document.querySelector("canvas"));
+const turtle = new Turtle(fiber, canvas).
+    to("triangle", (turtle, size) => turtle.
+        repeat(3, turtle => turtle.
+            forward(size).
+            right(120))
+    ).
+    to("square", (turtle, size) => turtle.
+        repeat(4, turtle => turtle.
+            forward(size).
+            right(90))
+    ).
+    to("circle", (turtle, step) => turtle.
+        repeat(360, turtle => turtle.
+            forward(step).
+            right(1))
+    ).
+    to("house", (turtle, side) => turtle.
+        square(side).
+        penup().
+        forward(side).
+        right(30).
+        pendown().
+        triangle(side)
+    ).
+    to("thing", (turtle, size) => turtle.
+        forward(size).
+        right(90).
+        forward(size).
+        right(90).
+        forward(size / 2).
+        right(90).
+        forward(size / 2).
+        right(90).
+        forward(size).
+        right(90).
+        forward(size / 4).
+        right(90).
+        forward(size / 4).
+        right(90).
+        forward(size / 2)
+    );
+
+turtle.
+    penup().
+    right(90).
+    forward(200).
+    right(90).
+    forward(120).
+    right(180).
+    wait(500).
+    pendown().
+    repeat(9, turtle => turtle.
+        thing(250).
+        right(10).
+        forward(125)
+    ).
+    penup().
+    repeat(Infinity, turtle => turtle.
+        thing(250).
+        right(10).
+        forward(125)
+    );
+
+        </script>
+    </head>
+    <body>
+        <h1>Animated turtle graphics example</h1>
+        <div class="example" style="padding: 0.5em">
+            <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
+        </div>
+        <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
+        Computer as a Medium for Exploring Mathematics</a>, by Harold Abelson and Andrea diSessa, MIT Press, 1981 (chapter
+        1, page 9). Implementing <a href="https://en.wikipedia.org/wiki/Turtle_graphics">turtle graphics</a> in JS is
+        relatively straightforward with the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API">HTML
+        canvas element.</a> However, one of the main features of the turtle, either as a virtual object on a computer
+        screen or as a physical object drawing on a sheet of paper, is that it moves as the program executes. The drawing
+        appears as the turtle is going through its instructions (forward, left, pen up, &amp;c.) so that the step it
+        follows can become more apparent than if the drawing were appearing at once.</p>
+        <p>The <a href="turtle.js">turtle drawing primitives</a> are animated by wrapping them in Epistrophy effects (for
+        immediate effects like <code>penup</code>/<code>pendown</code> or <code>show</code>/<code>hide</code>) and ramps
+        (for <code>forward</code> or <code>right</code>). The duration of the ramp is inversely proportional to the
+        velocity of the turtle, and each call to the <code>rampDidProgress</code> delegate updates the position or heading
+        of the turtle by small increments. All of this is achieved by associating a turtle with its own fiber, so that
+        successive instructions are added to the fiber, ensuring the correct scheduling of their execution. This also
+        allows additional effects like <code>wait</code>ing, which is simply a call to the fiber <code>delay</code>
+        instruction.</p>
+        <p><span class="todo">TODO</span> Multiple turtles.</p>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>
