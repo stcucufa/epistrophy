@@ -22,9 +22,7 @@ Scheduler.run().
                 timer.textContent = `${value}s`;
                 progress.max = value * 1000;
                 const f = Fiber.byName.get("timer");
-                if (scheduler.hasDelay(f)) {
-                    scheduler.updateDelay(f, progress.max);
-                }
+                scheduler.updateDelayForFiber(f, progress.max);
             }).
             event(range, "input")
         )

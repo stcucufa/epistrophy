@@ -92,6 +92,8 @@ export class Turtle {
                     if (this.isPenDown) {
                         context.save();
                         context.strokeStyle = this.color;
+                        context.lineJoin = "round";
+                        context.lineCap = "round";
                         context.lineWidth = 3;
                         context.translate(this.canvas.width / 2, this.canvas.height / 2);
                         context.beginPath();
