@@ -53,14 +53,16 @@ const turtle = new Turtle(fiber, canvas).
         forward(size / 2)
     );
 
+const x = 200;
+const y = 120;
+const a = 90 + Math.atan2(y, x) * 180 / Math.PI;
+
 turtle.
     speed(4).
     penup().
-    right(90).
-    forward(200).
-    right(90).
-    forward(120).
-    right(180).
+    right(a).
+    forward(Math.sqrt(x * x + y * y)).
+    left(a).
     speed(1).
     wait(500).
     speed(0.5).
