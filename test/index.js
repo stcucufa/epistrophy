@@ -1248,29 +1248,13 @@ test("Scheduler.updateDelayForFiber(fiber) has no effect when the fiber is not b
 
 // 4C08 Fiber rate > 0
 
-test("Fiber.rate() sets the base rate of the fiber", t => {
+test("Scheduler.setRateForFiber() sets the rate of the fiber", t => {
     const fiber = new Fiber().
+        effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, 2)).
         delay(888).
-        rate(2).
         effect((_, scheduler) => {
             t.same(scheduler.now, 444, "delay was halved as rate was set to 2");
-        });
-    run(fiber);
-});
-
-test("Fiber.rate() fails when the fiber is not at rest", t => {
-    t.expectsError = true;
-    const fiber = new Fiber().
-        spawn(fiber => fiber.name("delay").
-            delay(888).
-            effect((_, scheduler) => {
-                t.same(scheduler.now, 888, "delay was not halved");
-            })
-        ).
-        spawn(fiber => fiber.
-            delay(333).
-            effect(() => { Fiber.byName.get("delay").rate(2); })
-        );
+        })
     run(fiber);
 });
 
@@ -1290,6 +1274,8 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber when running", t =>
 });
 
 test("Fiber.rate() affects ramps as well as delays", t => {
+    t.todo();
+    /*
     const ps = [0, 0.1, 0.5, 1];
     const fiber = new Fiber().
         ramp(400, {
@@ -1305,6 +1291,7 @@ test("Fiber.rate() affects ramps as well as delays", t => {
     scheduler.clock.now = 400;
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all steps");
+*/
 });
 
 test("Scheduler.setRateForFiber() affects ramps", t => {
