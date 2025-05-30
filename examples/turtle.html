@@ -7,11 +7,25 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
+import Fiber from "../lib/fiber.js";
 import { Canvas, Turtle } from "./turtle.js";
 
-const fiber = Scheduler.run();
+const range = document.querySelector("input");
+const span = document.querySelector("span");
+
+const fiber = Scheduler.run().
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            effect((_, scheduler) => {
+                const rate = 1.26 ** range.value;
+                span.textContent = rate.toFixed(2);
+                scheduler.setRateForFiber(Fiber.byName("turtle"), rate);
+            }).
+            event(range, "input"), { repeatShouldEnd: () => false }
+        )
+    );
 const canvas = new Canvas(document.querySelector("canvas"));
-const turtle = new Turtle(fiber, canvas).
+const turtle = new Turtle(fiber.spawn().name("turtle"), canvas).
     to("triangle", (turtle, size) => turtle.
         repeat(3, turtle => turtle.
             forward(size).
@@ -53,13 +67,15 @@ const turtle = new Turtle(fiber, canvas).
         forward(size / 2)
     );
 
+const x = 200;
+const y = 120;
+const a = 90 + Math.atan2(y, x) * 180 / Math.PI;
+
 turtle.
     penup().
-    right(90).
-    forward(200).
-    right(90).
-    forward(120).
-    right(180).
+    right(a).
+    forward(Math.sqrt(x * x + y * y)).
+    left(a).
     wait(500).
     pendown().
     repeat(9, turtle => turtle.
@@ -67,12 +83,8 @@ turtle.
         right(10).
         forward(125)
     ).
-    penup().
-    repeat(Infinity, turtle => turtle.
-        thing(250).
-        right(10).
-        forward(125)
-    );
+    wait(700).
+    hide();
 
         </script>
     </head>
@@ -80,6 +92,17 @@ turtle.
         <h1>Animated turtle graphics example</h1>
         <div class="example" style="padding: 0.5em">
             <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
+            <p>
+                <label for="speed">Turtle speed:</label>
+                <input type="range" name="speed" list="markers" min="-6" max="6" step="any"></input> <span>---</span>
+                <datalist id="markers">
+                    <option value="-6"></option>
+                    <option value="-3"></option>
+                    <option value="0"></option>
+                    <option value="3"></option>
+                    <option value="6"></option>
+                </datalist>
+            </p>
         </div>
         <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
         Computer as a Medium for Exploring Mathematics</a>, by Harold Abelson and Andrea diSessa, MIT Press, 1981 (chapter
@@ -97,6 +120,10 @@ turtle.
         successive instructions are added to the fiber, ensuring the correct scheduling of their execution. This also
         allows additional effects like <code>wait</code>ing, which is simply a call to the fiber <code>delay</code>
         instruction.</p>
+        <p>The speed of the turtle can be controlled either by giving it a <code>speed()</code> instruction, or by setting
+        the rate of the fiber itself. The latter approach is implemented thanks to another fiber that listens to
+        <code>input</code> events from an <code>&lt;input type="range"&gt;</code> element and setting the rate of the
+        turtle fiber accordingly.</p>
         <p><span class="todo">TODO</span> Multiple turtles.</p>
         <h2>Source</h2>
         <pre></pre>

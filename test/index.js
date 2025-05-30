@@ -234,7 +234,7 @@ test("Fiber.name(name)", t => {
     const fiber = new Fiber();
     t.same(fiber.name("foo"), fiber, "returns the fiber");
     t.match(fiber.id, /\bfoo\b/, `is part of the fiber id (${fiber.id})`);
-    t.same(Fiber.byName.get("foo"), fiber, "allows finding the fiber by its name");
+    t.same(Fiber.byName("foo"), fiber, "allows finding the fiber by its name");
 });
 
 test("Fiber.exec(f)", t => {
@@ -1115,36 +1115,36 @@ test("Fiber.delay(dur) has no effect when the duration cannot be parsed", t => {
 
 // 4G0G Dynamic delay duration
 
-test("Scheduler.updateDelay(fiber) can set a new (longer) duration for an ongoing delay", t => {
+test("Scheduler.updateDelayForFiber(fiber) can set a new (longer) duration for an ongoing delay", t => {
     const fiber = new Fiber().
         delay(777).
         effect((_, scheduler) => {
             t.same(scheduler.now, 999, "delay was lenghtened");
         });
     const scheduler = run(fiber, new Scheduler(), 666);
-    scheduler.updateDelay(fiber, 999);
+    scheduler.updateDelayForFiber(fiber, 999);
     scheduler.clock.now = Infinity;
 });
 
-test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing delay", t => {
+test("Scheduler.updateDelayForFiber(fiber) can set a new (shorter) duration for an ongoing delay", t => {
     const fiber = new Fiber().
         delay(777).
         effect((_, scheduler) => {
             t.same(scheduler.now, 444, "delay was shortened");
         });
     const scheduler = run(fiber, new Scheduler(), 200);
-    scheduler.updateDelay(fiber, 444);
+    scheduler.updateDelayForFiber(fiber, 444);
     scheduler.clock.now = Infinity;
 });
 
-test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing delay", t => {
+test("Scheduler.updateDelayForFiber(fiber) can set a new (shorter) duration for an ongoing delay", t => {
     const fiber = new Fiber().
         delay(777).
         effect((_, scheduler) => {
             t.same(scheduler.now, 200, "delay ended now");
         });
     const scheduler = run(fiber, new Scheduler(), 200);
-    scheduler.updateDelay(fiber, 111);
+    scheduler.updateDelayForFiber(fiber, 111);
     scheduler.clock.now = Infinity;
 });
 
@@ -1200,35 +1200,118 @@ test("Fiber.ramp(Infinity, delegate) creates an infinite ramp", t => {
     scheduler.clock.now = 777;
 });
 
-test("Scheduler.updateDelay(fiber) can set a new (longer) duration for an ongoing ramp", t => {
+test("Scheduler.updateDelayForFiber(fiber) can set a new (longer) duration for an ongoing ramp", t => {
     const fiber = new Fiber().
         ramp(777).
         effect((_, scheduler) => {
             t.same(scheduler.now, 999, "ramp duration was lenghtened");
         });
     const scheduler = run(fiber, new Scheduler(), 666);
-    scheduler.updateDelay(fiber, 999);
+    scheduler.updateDelayForFiber(fiber, 999);
     scheduler.clock.now = Infinity;
 });
 
-test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
+test("Scheduler.updateDelayForFiber(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
     const fiber = new Fiber().
         ramp(777).
         effect((_, scheduler) => {
             t.same(scheduler.now, 444, "ramp duration was shortened");
         });
     const scheduler = run(fiber, new Scheduler(), 200);
-    scheduler.updateDelay(fiber, 444);
+    scheduler.updateDelayForFiber(fiber, 444);
     scheduler.clock.now = Infinity;
 });
 
-test("Scheduler.updateDelay(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
+test("Scheduler.updateDelayForFiber(fiber) can set a new (shorter) duration for an ongoing ramp", t => {
     const fiber = new Fiber().
         delay(777).
         effect((_, scheduler) => {
             t.same(scheduler.now, 200, "ramp ended now");
         });
     const scheduler = run(fiber, new Scheduler(), 200);
-    scheduler.updateDelay(fiber, 111);
+    scheduler.updateDelayForFiber(fiber, 111);
     scheduler.clock.now = Infinity;
+});
+
+test("Scheduler.updateDelayForFiber(fiber) has no effect when the fiber is not being delayed", t => {
+    const fiber = new Fiber().
+        event(window, "hello").
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 1111, "fiber ended at the expected time");
+        });
+    const scheduler = run(fiber, new Scheduler(), 200);
+    scheduler.updateDelayForFiber(fiber, 111);
+    scheduler.clock.now = 1111;
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+// 4C08 Fiber rate > 0
+
+test("Scheduler.setRateForFiber() sets the rate of the fiber", t => {
+    const fiber = new Fiber().
+        effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, 2)).
+        delay(888).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 444, "delay was halved as rate was set to 2");
+        })
+    run(fiber);
+});
+
+test("Scheduler.setRateForFiber() sets the rate of the fiber when running", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.name("delay").
+            delay(888).
+            effect((_, scheduler) => {
+                t.same(scheduler.now, 333, "delay was shortened as rate was set to 2");
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(222).
+            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("delay"), 2); })
+        );
+    run(fiber);
+});
+
+test("Scheduler.setRateForFiber() affects ramps as well as delays", t => {
+    const ps = [0, 0.1, 0.5, 1];
+    const fiber = new Fiber().
+        effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0.5); }).
+        ramp(400, {
+            rampDidProgress(p) {
+                t.same(p, ps.shift(), `ramp did progress (${p})`);
+            }
+        }).
+        effect((_, scheduler) => {
+            t.same(scheduler.now, 800, "ramp duration was doubled as rate was set to 0.5");
+        });
+    const scheduler = run(fiber, new Scheduler(), 80);
+    scheduler.clock.now = 400;
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all steps");
+});
+
+test("Scheduler.setRateForFiber() sets the rate of the fiber for ramps as well when running", t => {
+    const ps = [0, 0.2, 0.625, 1];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.name("ramp").
+            ramp(400, {
+                rampDidProgress(p) {
+                    t.same(p, ps.shift(), `ramp did progress (${p})`)
+                }
+            }).
+            effect((_, scheduler) => {
+                t.same(scheduler.now, 200, "ramp duration was halved as rate was set to 3 at p=0.25");
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(100).
+            effect((_, scheduler) => {
+                scheduler.setRateForFiber(Fiber.byName("ramp"), 3);
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 80);
+    scheduler.clock.now = 150;
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all steps");
 });

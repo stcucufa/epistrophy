@@ -21,10 +21,8 @@ Scheduler.run().
             effect(({ value }, scheduler) => {
                 timer.textContent = `${value}s`;
                 progress.max = value * 1000;
-                const f = Fiber.byName.get("timer");
-                if (scheduler.hasDelay(f)) {
-                    scheduler.updateDelay(f, progress.max);
-                }
+                const f = Fiber.byName("timer");
+                scheduler.updateDelayForFiber(f, progress.max);
             }).
             event(range, "input")
         )
