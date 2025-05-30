@@ -54,19 +54,27 @@ const turtle = new Turtle(fiber, canvas).
     );
 
 turtle.
+    speed(4).
     penup().
     right(90).
     forward(200).
     right(90).
     forward(120).
     right(180).
+    speed(1).
     wait(500).
+    speed(0.5).
     pendown().
-    repeat(9, turtle => turtle.
+    thing(250).
+    right(10).
+    forward(125).
+    speed(4).
+    repeat(8, turtle => turtle.
         thing(250).
         right(10).
         forward(125)
     ).
+    speed(1).
     wait(700).
     hide();
 

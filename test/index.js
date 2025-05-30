@@ -1273,17 +1273,15 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber when running", t =>
     run(fiber);
 });
 
-test("Fiber.rate() affects ramps as well as delays", t => {
-    t.todo();
-    /*
+test("Scheduler.setRateForFiber() affects ramps as well as delays", t => {
     const ps = [0, 0.1, 0.5, 1];
     const fiber = new Fiber().
+        effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0.5); }).
         ramp(400, {
             rampDidProgress(p) {
                 t.same(p, ps.shift(), `ramp did progress (${p})`);
             }
         }).
-        rate(0.5).
         effect((_, scheduler) => {
             t.same(scheduler.now, 800, "ramp duration was doubled as rate was set to 0.5");
         });
@@ -1291,9 +1289,8 @@ test("Fiber.rate() affects ramps as well as delays", t => {
     scheduler.clock.now = 400;
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all steps");
-*/
 });
 
-test("Scheduler.setRateForFiber() affects ramps", t => {
+test("Scheduler.setRateForFiber() sets the rate of the fiber for ramps as well when running", t => {
     t.todo();
 });

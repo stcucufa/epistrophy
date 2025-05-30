@@ -74,6 +74,11 @@ export class Turtle {
         return this;
     }
 
+    speed(s) {
+        this.fiber.effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, s); });
+        return this;
+    }
+
     forward(d) {
         this.fiber.
             exec(() => ({
