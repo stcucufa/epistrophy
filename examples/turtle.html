@@ -17,7 +17,7 @@ const fiber = Scheduler.run().
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             effect((_, scheduler) => {
-                const rate = 1.25 ** range.value;
+                const rate = 1.26 ** range.value;
                 span.textContent = rate.toFixed(2);
                 scheduler.setRateForFiber(Fiber.byName("turtle"), rate);
             }).
@@ -93,7 +93,15 @@ turtle.
         <div class="example" style="padding: 0.5em">
             <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
             <p>
-                Turtle speed: <input type="range" min="-6" max="6" step="any"></input> <span>---</span>
+                <label for="speed">Turtle speed:</label>
+                <input type="range" name="speed" list="markers" min="-6" max="6" step="any"></input> <span>---</span>
+                <datalist id="markers">
+                    <option value="-6"></option>
+                    <option value="-3"></option>
+                    <option value="0"></option>
+                    <option value="3"></option>
+                    <option value="6"></option>
+                </datalist>
             </p>
         </div>
         <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
