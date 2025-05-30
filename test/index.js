@@ -234,7 +234,7 @@ test("Fiber.name(name)", t => {
     const fiber = new Fiber();
     t.same(fiber.name("foo"), fiber, "returns the fiber");
     t.match(fiber.id, /\bfoo\b/, `is part of the fiber id (${fiber.id})`);
-    t.same(Fiber.byName.get("foo"), fiber, "allows finding the fiber by its name");
+    t.same(Fiber.byName("foo"), fiber, "allows finding the fiber by its name");
 });
 
 test("Fiber.exec(f)", t => {
@@ -1268,7 +1268,7 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber when running", t =>
         ).
         spawn(fiber => fiber.
             delay(222).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName.get("delay"), 2); })
+            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("delay"), 2); })
         );
     run(fiber);
 });
@@ -1307,7 +1307,7 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber for ramps as well w
         spawn(fiber => fiber.
             delay(100).
             effect((_, scheduler) => {
-                scheduler.setRateForFiber(Fiber.byName.get("ramp"), 3);
+                scheduler.setRateForFiber(Fiber.byName("ramp"), 3);
             })
         );
     const scheduler = run(fiber, new Scheduler(), 80);

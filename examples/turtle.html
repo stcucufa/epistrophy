@@ -7,11 +7,25 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
+import Fiber from "../lib/fiber.js";
 import { Canvas, Turtle } from "./turtle.js";
 
-const fiber = Scheduler.run();
+const range = document.querySelector("input");
+const span = document.querySelector("span");
+
+const fiber = Scheduler.run().
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            effect((_, scheduler) => {
+                const rate = 1.25 ** range.value;
+                span.textContent = rate.toFixed(2);
+                scheduler.setRateForFiber(Fiber.byName("turtle"), rate);
+            }).
+            event(range, "input"), { repeatShouldEnd: () => false }
+        )
+    );
 const canvas = new Canvas(document.querySelector("canvas"));
-const turtle = new Turtle(fiber, canvas).
+const turtle = new Turtle(fiber.spawn().name("turtle"), canvas).
     to("triangle", (turtle, size) => turtle.
         repeat(3, turtle => turtle.
             forward(size).
@@ -58,25 +72,17 @@ const y = 120;
 const a = 90 + Math.atan2(y, x) * 180 / Math.PI;
 
 turtle.
-    speed(4).
     penup().
     right(a).
     forward(Math.sqrt(x * x + y * y)).
     left(a).
-    speed(1).
     wait(500).
-    speed(0.5).
     pendown().
-    thing(250).
-    right(10).
-    forward(125).
-    speed(4).
-    repeat(8, turtle => turtle.
+    repeat(9, turtle => turtle.
         thing(250).
         right(10).
         forward(125)
     ).
-    speed(1).
     wait(700).
     hide();
 
@@ -86,6 +92,9 @@ turtle.
         <h1>Animated turtle graphics example</h1>
         <div class="example" style="padding: 0.5em">
             <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
+            <p>
+                Turtle speed: <input type="range" min="-6" max="6" step="any"></input> <span>---</span>
+            </p>
         </div>
         <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
         Computer as a Medium for Exploring Mathematics</a>, by Harold Abelson and Andrea diSessa, MIT Press, 1981 (chapter
