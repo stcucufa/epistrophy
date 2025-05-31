@@ -201,16 +201,18 @@ test("new Scheduler()", t => {
 
 test("Scheduler.now", t => {
     const scheduler = new Scheduler();
-    scheduler.clock.now = 444;
-    t.same(scheduler.now, scheduler.clock.now, "is the same as Scheduler.clock.now");
+    t.same(scheduler.now, 0, "begins at 0");
     const fiber = new Fiber().
-        delay(111).
-        effect((_, scheduler) => {
-            t.same(scheduler.now, 555, "except when updating");
-            t.same(scheduler.clock.now, 1111, "the clock is ahead");
-        });
-    run(fiber, scheduler, 1111);
-    t.same(scheduler.now, scheduler.clock.now, "is the same as Scheduler.clock.now after update");
+        spawn(fiber => fiber.
+            delay(37).
+            effect((_, scheduler) => { t.same(scheduler.now, 37, "is set when a fiber runs (37)"); })
+        ).
+        spawn(fiber => fiber.
+            delay(23).
+            effect((_, scheduler) => { t.same(scheduler.now, 23, "is set when a fiber runs (23)"); })
+        )
+    run(fiber, scheduler, 97);
+    t.same(scheduler.now, 97, "is set after all updates complete");
 });
 
 // 4D07 Fiber class
@@ -513,10 +515,10 @@ test("Fiber.repeat does not continue when the fiber is failing", t => {
 test("Fiber.delay(dur)", t => {
     const fiber = new Fiber().
         effect((_, scheduler) => {
-            t.same(scheduler.currentTime, 0, "time before delay");
+            t.same(scheduler.now, 0, "time before delay");
         }).
         delay(777).
-        exec((_, scheduler) => scheduler.currentTime);
+        exec((_, scheduler) => scheduler.now);
     run(fiber);
     t.same(fiber.value, 777, "fiber resumed after the delay");
 });
@@ -526,7 +528,7 @@ test("Fiber.delay(dur)", t => {
         delay(-777).
         delay(0).
         delay(true).
-        exec((_, scheduler) => scheduler.currentTime);
+        exec((_, scheduler) => scheduler.now);
     run(fiber);
     t.same(fiber.value, 0, "no delay when dur is not > 0");
 });
@@ -538,7 +540,7 @@ test("Fiber.delay(dur)", t => {
             t.equal(args, [fiber, scheduler], "`dur` may be a function called with `fiber` and `scheduler` as arguments");
             return 333;
         }).
-        exec((_, scheduler) => scheduler.currentTime);
+        exec((_, scheduler) => scheduler.now);
     run(fiber, scheduler);
     t.same(fiber.value, 333, "fiber resumed after the delay returned by the `dur` function");
 });
@@ -548,7 +550,7 @@ test("Fiber delay fails if `dur` is a function that fails", t => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         delay(() => { throw Error("AUGH"); }).
-        either(fiber => fiber.exec((_, scheduler) => scheduler.currentTime));
+        either(fiber => fiber.exec((_, scheduler) => scheduler.now));
     run(fiber);
     t.same(fiber.value, 0, "no delay");
 });
@@ -558,7 +560,7 @@ test("Fiber.delay is skipped when the fiber is failing", t => {
     const fiber = new Fiber().
         exec(() => { throw "AUGH"; }).
         delay(999).
-        either(fiber => fiber.exec((_, scheduler) => scheduler.currentTime));
+        either(fiber => fiber.exec((_, scheduler) => scheduler.now));
     run(fiber);
     t.same(fiber.value, 0, "no delay");
 });
