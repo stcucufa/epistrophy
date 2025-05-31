@@ -199,6 +199,22 @@ test("new Scheduler()", t => {
     t.same(scheduler.clock.now, 0, "creates a scheduler with a clock");
 });
 
+test("Scheduler.now", t => {
+    const scheduler = new Scheduler();
+    t.same(scheduler.now, 0, "begins at 0");
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(37).
+            effect((_, scheduler) => { t.same(scheduler.now, 37, "is set when a fiber runs (37)"); })
+        ).
+        spawn(fiber => fiber.
+            delay(23).
+            effect((_, scheduler) => { t.same(scheduler.now, 23, "is set when a fiber runs (23)"); })
+        )
+    run(fiber, scheduler, 97);
+    t.same(scheduler.now, 97, "is set after all updates complete");
+});
+
 // 4D07 Fiber class
 
 test("new Fiber()", t => {
