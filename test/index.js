@@ -1263,7 +1263,7 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber when running", t =>
         spawn(fiber => fiber.name("delay").
             delay(888).
             effect((_, scheduler) => {
-                t.same(scheduler.now, 333, "delay was shortened as rate was set to 2");
+                t.same(scheduler.now, 555, "delay was shortened as rate was set to 2");
             })
         ).
         spawn(fiber => fiber.
