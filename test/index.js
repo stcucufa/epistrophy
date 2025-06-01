@@ -699,8 +699,8 @@ test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fi
         childFiberDidEnd(...args) {
             t.equal(
                 args,
-                [child, scheduler, 0],
-                "`fiberWillJoin` is called with `fiber` (the child fiber), `scheduler` and `index` (of the child fiber) as arguments"
+                [child, scheduler],
+                "`fiberWillJoin` is called with `fiber` (the child fiber) and `scheduler` as arguments"
             );
             t.same(Object.getPrototypeOf(this), delegate, "and `this` is the delegate object");
         }
