@@ -682,7 +682,7 @@ test("Fiber.join() is a noop if there are no child fibers", t => {
 test("Fiber.join(delegate) calls the `fiberWillJoin` delegate method before yielding", t => {
     const delegate = {
         fiberWillJoin(...args) {
-            t.equal(args, [fiber, scheduler], "`fiberWillJoin` is called with `fiber`, `scheduler` as arguments");
+            t.equal(args, [fiber, scheduler], "`fiberWillJoin` is called with `fiber` and `scheduler` as arguments");
             t.same(Object.getPrototypeOf(this), delegate, "and `this` is a copy of the delegate object");
         }
     };
