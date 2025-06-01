@@ -13,10 +13,17 @@ canvas {
     border: solid thin var(--picotron-dark-blue);
 }
 
+progress {
+    width: 100%;
+}
+
         </style>
     </head>
     <body>
-        <canvas></canvas>
+        <div class="game">
+            <canvas></canvas>
+            <progress>
+        </div>
         <p>This example is a 5-second racing microgame. The red car is
         controlled by the player using the up and down arrow keys and must
         avoid the other cars that it is passing.</p>

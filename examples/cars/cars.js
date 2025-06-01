@@ -22,6 +22,7 @@ const loadImage = async (src) => new Promise((resolve, reject) => {
 const fiber = Scheduler.run().
     exec(() => ({
         canvas: document.querySelector("canvas"),
+        progress: document.querySelector("progress"),
         lanes: [50, 200, 350],
         cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }],
     }));
@@ -61,6 +62,20 @@ fiber.
     // Press a key to begin
 
     spawn(fiber => fiber.
+        effect(({ value: game }) => {
+            game.progress.value = 0;
+            game.progress.max = DUR;
+            game.canvas.width = WIDTH;
+            game.canvas.height = HEIGHT;
+            const context = game.canvas.getContext("2d");
+            context.save();
+            context.fillStyle = "#1d2b53";
+            context.font = "96px system-ui, sans-serif";
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            context.fillText("RACE!", WIDTH / 2, HEIGHT / 2);
+            context.restore();
+        }).
         event(window, "keydown")
     ).
     join().
@@ -146,7 +161,8 @@ fiber.
     // Draw loop
     spawn(fiber => fiber.
         ramp(Infinity, {
-            rampDidProgress(_, { value: game }) {
+            rampDidProgress(_, { value: game, beginTime }, scheduler) {
+                game.progress.value = scheduler.now - beginTime;
                 // FIXME 4H0F Ramps for cancelled fibers
                 if (!game) {
                     return;
@@ -172,10 +188,3 @@ fiber.
             delay(100)
         )
     );
-
-    // Time limit
-    // spawn(fiber => fiber.delay(DUR)).
-    // join(First()).
-
-    // Game over
-    // effect(({ value: game }) => { console.info(game); });
