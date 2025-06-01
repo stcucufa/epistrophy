@@ -4,6 +4,8 @@ import { K } from "../../lib/util.js";
 
 const WIDTH = 800;
 const HEIGHT = 600;
+const DANGER = [-100, 250];
+const DUR = 5000;
 
 const loadImage = async (src) => new Promise((resolve, reject) => {
     const image = new Image();
@@ -20,11 +22,11 @@ const fiber = Scheduler.run().
     exec(() => ({
         canvas: document.querySelector("canvas"),
         lanes: [50, 200, 350],
-        cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1 }],
+        cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }],
     }));
 
 // Load all resources before continuing
-const images = ["red1.png", "red2.png"];
+const images = ["red1.png", "red2.png", "gray1.png", "gray2.png", "crash1.png", "crash2.png"];
 for (const image of images) {
     fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
 }
@@ -53,6 +55,43 @@ fiber.
                 }
             }
         }
+    }).
+
+    // Setup other cars
+    spawn(fiber => {
+        // FIXME Randomize
+        const delays = [222, 777, 1333, 1888, 2111, 2555, 2999, 3333, 3888, 4444, 4777];
+        for (const delay of delays) {
+            fiber.spawn(fiber => fiber.
+                delay(delay).
+                exec(({ value: game }) => {
+                    const car = {
+                        images: ["gray1.png", "gray2.png"],
+                        lane: Math.floor(Math.random() * game.lanes.length),
+                        frame: 0,
+                        x: WIDTH,
+                        v: -50
+                    };
+                    game.cars.push(car);
+                    return car;
+                }).
+                repeat(fiber => fiber.
+                    delay(50).
+                    effect(({ parent, value: car }) => {
+                        car.x += car.v;
+                    }),
+                    {
+                        repeatShouldEnd: (_, { parent, value: car }) => car.x > DANGER[0] && car.x < DANGER[1] && car.lane === parent.value.cars[0].lane
+                    }
+                )
+            );
+        }
+        fiber.
+            join(First(false)).
+            effect(({ value: game }) => {
+                game.cars.length = 1;
+                game.cars[0].images = ["crash1.png", "crash2.png"];
+            })
     }).
 
     // Draw loop
@@ -103,7 +142,7 @@ fiber.
     ).
 
     // Time limit
-    // spawn(fiber => fiber.delay("5s")).
+    spawn(fiber => fiber.delay(DUR)).
     join(First()).
 
     // Game over
