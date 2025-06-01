@@ -7,15 +7,23 @@ const HEIGHT = 600;
 
 const loadImage = async (src) => new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => { resolve(image); };
+    image.onload = () => { resolve([src, image]); };
     image.onerror = () => reject(`Could not load image ${src}`);
     image.src = src;
     if (image.complete) {
-        resolve(image);
+        resolve([src, image]);
     }
 });
 
-const fiber = Scheduler.run();
+// Create the main fiber with the game object.
+const fiber = Scheduler.run().
+    exec(() => ({
+        canvas: document.querySelector("canvas"),
+        lanes: [50, 200, 350],
+        cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1 }],
+    }));
+
+// Load all resources before continuing
 const images = ["red1.png", "red2.png"];
 for (const image of images) {
     fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
@@ -24,7 +32,7 @@ for (const image of images) {
 fiber.
     join({
         fiberWillJoin(fiber) {
-            this.values = new Array(fiber.children.length);
+            this.values = {};
         },
 
         childFiberDidEnd(child, scheduler) {
@@ -39,15 +47,33 @@ fiber.
                 }
                 fiber.result.error = Error("Child fiber did fail", { cause: child.error });
             } else {
-                const index = fiber.children.indexOf(child);
-                this.values[index] = child.value;
+                const [src, image] = child.value;
+                this.values[src] = image;
                 if (this.pending.size === 0) {
-                    fiber.value = this.values;
+                    fiber.value.images = this.values;
                 }
             }
         }
     }).
-    either(
-        fiber => fiber.effect(({ value: images }) => { console.info(images); }),
-        fiber => fiber.effect(({ error }) => { console.error(error.message); })
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            effect(({ value: game }) => {
+                for (const car of game.cars) {
+                    car.frame = 1 - car.frame;
+                }
+            }).
+            delay(100)
+        )
+    ).
+    spawn(fiber => fiber.
+        ramp(Infinity, {
+            rampDidProgress(_, { value: game }) {
+                game.canvas.width = WIDTH;
+                game.canvas.height = HEIGHT;
+                const context = game.canvas.getContext("2d");
+                for (const car of game.cars) {
+                    context.drawImage(game.images[car.images[car.frame]], car.x, game.lanes[car.lane]);
+                }
+            }
+        })
     );
