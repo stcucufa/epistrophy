@@ -6,6 +6,7 @@ const WIDTH = 800;
 const HEIGHT = 600;
 const DANGER = [-100, 250];
 const DUR = 5000;
+const N = [7, 12];
 
 const loadImage = async (src) => new Promise((resolve, reject) => {
     const image = new Image();
@@ -26,7 +27,7 @@ const fiber = Scheduler.run().
     }));
 
 // Load all resources before continuing
-const images = ["red1.png", "red2.png", "gray1.png", "gray2.png", "crash1.png", "crash2.png"];
+const images = ["red1.png", "red2.png", "gray1.png", "gray2.png", "crash1.png", "crash2.png", "flag1.png", "flag2.png"];
 for (const image of images) {
     fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
 }
@@ -57,42 +58,90 @@ fiber.
         }
     }).
 
-    // Setup other cars
-    spawn(fiber => {
-        // FIXME Randomize
-        const delays = [222, 777, 1333, 1888, 2111, 2555, 2999, 3333, 3888, 4444, 4777];
-        for (const delay of delays) {
-            fiber.spawn(fiber => fiber.
-                delay(delay).
-                exec(({ value: game }) => {
-                    const car = {
-                        images: ["gray1.png", "gray2.png"],
-                        lane: Math.floor(Math.random() * game.lanes.length),
-                        frame: 0,
-                        x: WIDTH,
-                        v: -50
-                    };
-                    game.cars.push(car);
-                    return car;
-                }).
+    // Press a key to begin
+
+    spawn(fiber => fiber.
+        event(window, "keydown")
+    ).
+    join().
+
+    // Game loop
+    
+    spawn(fiber => fiber.
+
+        // Setup other cars: introduce a car after its delay, and setup its
+        // update loop to update position and check for collision with the
+        // player car every 50ms. End when a collision occurs.
+        spawn(fiber => {
+            // FIXME Randomize
+            const n = Math.floor(Math.random() * (N[1] - N[0])) + N[0]
+            for (let i = 0; i < n; ++i) {
+                fiber.spawn(fiber => fiber.
+                    delay(Math.random() * DUR).
+                    exec(({ value: game }) => {
+                        const car = {
+                            images: ["gray1.png", "gray2.png"],
+                            lane: Math.floor(Math.random() * game.lanes.length),
+                            frame: 0,
+                            x: WIDTH,
+                            v: -50
+                        };
+                        game.cars.push(car);
+                        return car;
+                    }).
+                    repeat(fiber => fiber.
+                        delay(50).
+                        effect(({ parent, value: car }) => {
+                            car.x += car.v;
+                        }), {
+                            repeatShouldEnd: (_, { parent, value: car }) => car.x > DANGER[0] &&
+                                car.x < DANGER[1] && car.lane === parent.value.cars[0].lane
+                        }
+                    )
+                );
+            }
+            fiber.
+                join(First(false)).
+                effect(({ value: game }) => {
+                    // If a car fiber ended, then there was a crash.
+                    game.cars.length = 1;
+                    game.cars[0].images = ["crash1.png", "crash2.png"];
+                    game.cars[0].x = 200;
+                })
+        }).
+
+        // Controls run for the duration of the game and ends with the
+        // checkered flag since the player survived to the end.
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.
                 repeat(fiber => fiber.
-                    delay(50).
-                    effect(({ parent, value: car }) => {
-                        car.x += car.v;
-                    }),
-                    {
-                        repeatShouldEnd: (_, { parent, value: car }) => car.x > DANGER[0] && car.x < DANGER[1] && car.lane === parent.value.cars[0].lane
-                    }
+                    event(window, "keydown", {
+                        eventWasHandled(event, { value: game }) {
+                            if (event.key === "ArrowUp") {
+                                game.cars[0].lane = Math.max(0, game.cars[0].lane - 1);
+                                event.preventDefault();
+                            } else if (event.key === "ArrowDown") {
+                                game.cars[0].lane = Math.min(game.lanes.length - 1, game.cars[0].lane + 1);
+                                event.preventDefault();
+                            }
+                        }
+                    })
                 )
-            );
-        }
-        fiber.
-            join(First(false)).
-            effect(({ value: game }) => {
-                game.cars.length = 1;
-                game.cars[0].images = ["crash1.png", "crash2.png"];
-            })
-    }).
+            ).
+            spawn(fiber => fiber.
+                delay(DUR).
+                effect(({ value: game }) => {
+                    game.cars.length = 1;
+                    game.cars[0].images = ["flag1.png", "flag2.png"];
+                    game.cars[0].x = 200;
+                    game.cars[0].lane = 1;
+                })
+            ).
+            join(First())
+        ).
+
+        join(First(false))
+    ).
 
     // Draw loop
     spawn(fiber => fiber.
@@ -122,28 +171,11 @@ fiber.
             }).
             delay(100)
         )
-    ).
-
-    // Controls
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            event(window, "keydown", {
-                eventWasHandled(event, { value: game }) {
-                    if (event.key === "ArrowUp") {
-                        game.cars[0].lane = Math.max(0, game.cars[0].lane - 1);
-                        event.preventDefault();
-                    } else if (event.key === "ArrowDown") {
-                        game.cars[0].lane = Math.min(game.lanes.length - 1, game.cars[0].lane + 1);
-                        event.preventDefault();
-                    }
-                }
-            })
-        )
-    ).
+    );
 
     // Time limit
-    spawn(fiber => fiber.delay(DUR)).
-    join(First()).
+    // spawn(fiber => fiber.delay(DUR)).
+    // join(First()).
 
     // Game over
-    effect(({ value: game }) => { console.info(game); });
+    // effect(({ value: game }) => { console.info(game); });
