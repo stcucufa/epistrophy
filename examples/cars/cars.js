@@ -1,5 +1,5 @@
 import Scheduler from "../../lib/scheduler.js";
-import Fiber from "../../lib/fiber.js";
+import Fiber, { First } from "../../lib/fiber.js";
 import { K } from "../../lib/util.js";
 
 const WIDTH = 800;
@@ -34,7 +34,6 @@ fiber.
         fiberWillJoin(fiber) {
             this.values = {};
         },
-
         childFiberDidEnd(child, scheduler) {
             // FIXME cancelSiblings to make writing delegates easier
             // FIXME 4F04 Handle errors when joining
@@ -55,6 +54,26 @@ fiber.
             }
         }
     }).
+
+    // Draw loop
+    spawn(fiber => fiber.
+        ramp(Infinity, {
+            rampDidProgress(_, { value: game }) {
+                // FIXME 4H0F Ramps for cancelled fibers
+                if (!game) {
+                    return;
+                }
+                game.canvas.width = WIDTH;
+                game.canvas.height = HEIGHT;
+                const context = game.canvas.getContext("2d");
+                for (const car of game.cars) {
+                    context.drawImage(game.images[car.images[car.frame]], car.x, game.lanes[car.lane]);
+                }
+            }
+        })
+    ).
+
+    // Animation loop: switch frame every at 10 FPS (every 100ms).
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             effect(({ value: game }) => {
@@ -65,15 +84,27 @@ fiber.
             delay(100)
         )
     ).
+
+    // Controls
     spawn(fiber => fiber.
-        ramp(Infinity, {
-            rampDidProgress(_, { value: game }) {
-                game.canvas.width = WIDTH;
-                game.canvas.height = HEIGHT;
-                const context = game.canvas.getContext("2d");
-                for (const car of game.cars) {
-                    context.drawImage(game.images[car.images[car.frame]], car.x, game.lanes[car.lane]);
+        repeat(fiber => fiber.
+            event(window, "keydown", {
+                eventWasHandled(event, { value: game }) {
+                    if (event.key === "ArrowUp") {
+                        game.cars[0].lane = Math.max(0, game.cars[0].lane - 1);
+                        event.preventDefault();
+                    } else if (event.key === "ArrowDown") {
+                        game.cars[0].lane = Math.min(game.lanes.length - 1, game.cars[0].lane + 1);
+                        event.preventDefault();
+                    }
                 }
-            }
-        })
-    );
+            })
+        )
+    ).
+
+    // Time limit
+    // spawn(fiber => fiber.delay("5s")).
+    join(First()).
+
+    // Game over
+    effect(({ value: game }) => { console.info(game); });
