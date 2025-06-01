@@ -162,11 +162,11 @@ fiber.
     spawn(fiber => fiber.
         ramp(Infinity, {
             rampDidProgress(_, { value: game, beginTime }, scheduler) {
-                game.progress.value = scheduler.now - beginTime;
                 // FIXME 4H0F Ramps for cancelled fibers
                 if (!game) {
                     return;
                 }
+                game.progress.value = scheduler.now - beginTime;
                 game.canvas.width = WIDTH;
                 game.canvas.height = HEIGHT;
                 const context = game.canvas.getContext("2d");
