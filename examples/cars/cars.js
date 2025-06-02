@@ -1,5 +1,5 @@
 import Scheduler from "../../lib/scheduler.js";
-import Fiber, { First, cancelSiblings } from "../../lib/fiber.js";
+import Fiber, { Last, First, cancelSiblings } from "../../lib/fiber.js";
 
 const Width = 800;
 const Height = 600;
@@ -37,19 +37,15 @@ const fiber = Scheduler.run().
             fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
         }
         fiber.
-            join({
-                childFiberDidEndInError(child, scheduler) {
-                    cancelSiblings(this, scheduler);
-                    return child.error;
-                },
-                childFiberDidEnd(child, scheduler) {
-                    const fiber = child.parent;
-                    const [src, image] = child.value;
-                    fiber.value.images[src] = image;
+            join(Last).
+            exec(({ parent: { value: game }, value: pairs }) => {
+                for (const [src, image] of pairs) {
+                    game.images[src] = image;
                 }
+                return game;
             })
     }).
-    join().
+    join(First).
 
     // Press a key to begin
 
