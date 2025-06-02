@@ -1357,3 +1357,39 @@ test("Ramp inside either does begin if a fiber is cancelled", t => {
         join(First());
     run(fiber);
 });
+
+test("Ramp ends when the fiber is cancelled", t => {
+    const ps = [0, 0.25];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            ramp(888, {
+                rampDidProgress(p) {
+                    t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
+                }
+            })
+        ).
+        spawn(fiber => fiber.delay(777)).
+        join(First());
+    const scheduler = run(fiber, new Scheduler(), 222);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "the ramp was cancelled");
+});
+
+test("Ramp in either continues when the fiber is cancelled", t => {
+    const ps = [0, 0.25, 1];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            either(fiber => fiber.
+                ramp(888, {
+                    rampDidProgress(p) {
+                        t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
+                    }
+                })
+            )
+        ).
+        spawn(fiber => fiber.delay(777)).
+        join(First());
+    const scheduler = run(fiber, new Scheduler(), 222);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "the ramp ended"); 
+});
