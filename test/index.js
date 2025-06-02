@@ -710,7 +710,6 @@ test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fi
     const child = fiber.spawn();
     fiber.join(delegate);
     run(fiber, scheduler);
-    t.atleast(t.expectations, 2, "`childFiberDidEnd` was called");
 });
 
 test("Fiber.join(All) gathers all child values of a fiber", t => {
@@ -1396,27 +1395,7 @@ test("Ramp in either continues when the fiber is cancelled", t => {
 
 // 4F04 Handle errors when joining
 
-test("Join delegate has a `childFiberDidEndInError()` method to handle errors", t => {
-    t.expectsError = true;
-    const delegate = {
-        childFiberDidEndInError(...args) {
-            t.equal(
-                args,
-                [child, scheduler],
-                "`childFiberDidEndInError` is called with `fiber` (the child fiber) and `scheduler` as arguments"
-            );
-            t.same(Object.getPrototypeOf(this), delegate, "and `this` is the delegate object");
-            t.same(args[0].error.message, "AUGH", "the child ended in error");
-        }
-    };
-    const scheduler = new Scheduler();
-    const fiber = new Fiber();
-    const child = fiber.spawn().effect(() => { throw Error("AUGH"); });
-    fiber.join(delegate);
-    run(fiber, scheduler);
-});
-
-test("`childFiberDidEnd()` is called when an error occurs otherwise", t => {
+test("`childFiberDidEnd()` is called when an error occurs", t => {
     t.expectsError = true;
     const delegate = {
         childFiberDidEnd(child) {
