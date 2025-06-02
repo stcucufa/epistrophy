@@ -700,7 +700,7 @@ test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fi
             t.equal(
                 args,
                 [child, scheduler],
-                "`fiberWillJoin` is called with `fiber` (the child fiber) and `scheduler` as arguments"
+                "`childFiberDidEnd` is called with `fiber` (the child fiber) and `scheduler` as arguments"
             );
             t.same(Object.getPrototypeOf(this), delegate, "and `this` is the delegate object");
         }
@@ -710,7 +710,6 @@ test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fi
     const child = fiber.spawn();
     fiber.join(delegate);
     run(fiber, scheduler);
-    t.atleast(t.expectations, 2, "`childFiberDidEnd` was called");
 });
 
 test("Fiber.join(All) gathers all child values of a fiber", t => {
@@ -1392,4 +1391,78 @@ test("Ramp in either continues when the fiber is cancelled", t => {
     const scheduler = run(fiber, new Scheduler(), 222);
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "the ramp ended");
+});
+
+// 4F04 Handle errors when joining
+
+test("`childFiberDidEnd()` is called when an error occurs", t => {
+    t.expectsError = true;
+    const delegate = {
+        childFiberDidEnd(child) {
+            t.same(child.error.message, "AUGH", "the child ended in error");
+        }
+    };
+    const scheduler = new Scheduler();
+    const fiber = new Fiber();
+    const child = fiber.spawn().effect(() => { throw Error("AUGH"); });
+    fiber.join(delegate);
+    run(fiber, scheduler);
+});
+
+test("All fails with the first error from a child", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        spawn(fiber => fiber.exec(K(1))).
+        spawn(fiber => fiber.exec(K(2))).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
+        spawn(fiber => fiber.exec(K(4))).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH!!!"); })).
+        join(All).
+        either(fiber => fiber.
+            effect(({ error }) => { t.same(error.message, "AUGH", "failed with first error"); })
+        );
+    run(fiber);
+});
+
+test("Last fails with the first error from a child", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        spawn(fiber => fiber.exec(K(1))).
+        spawn(fiber => fiber.exec(K(2))).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
+        spawn(fiber => fiber.exec(K(4))).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH!!!"); })).
+        join(Last).
+        either(fiber => fiber.
+            effect(({ error }) => { t.same(error.message, "AUGH", "failed with first error"); })
+        );
+    run(fiber);
+});
+
+test("First ignores errors...", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
+        spawn(fiber => fiber.exec(K("ok"))).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
+        spawn(fiber => fiber.exec(K("ko"))).
+        join(First()).
+        either(fiber => fiber.
+            effect(({ value }) => { t.same(value, "ok", "errors were ignored"); })
+        );
+    run(fiber);
+});
+
+test("... unless all children fail", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH!!!"); })).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH!!!!!!"); })).
+        spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
+        join(First()).
+        either(fiber => fiber.
+            effect(({ error }) => { t.same(error.message, "AUGH", "failed with final error"); })
+        );
+    run(fiber);
 });

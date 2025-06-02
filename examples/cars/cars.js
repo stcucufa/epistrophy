@@ -1,12 +1,12 @@
 import Scheduler from "../../lib/scheduler.js";
-import Fiber, { First } from "../../lib/fiber.js";
-import { K } from "../../lib/util.js";
+import { Last, First } from "../../lib/fiber.js";
 
-const WIDTH = 800;
-const HEIGHT = 600;
-const DANGER = [-100, 250];
-const DUR = 5000;
+const Width = 800;
+const Height = 600;
+const Danger = [-100, 250];
+const GameDuration = 5000;
 const N = [7, 12];
+const Images = ["red1.png", "red2.png", "gray1.png", "gray2.png", "crash1.png", "crash2.png", "flag1.png", "flag2.png"];
 
 const loadImage = async (src) => new Promise((resolve, reject) => {
     const image = new Image();
@@ -18,62 +18,50 @@ const loadImage = async (src) => new Promise((resolve, reject) => {
     }
 });
 
-// Create the main fiber with the game object.
 const fiber = Scheduler.run().
+
+    // Create the game object
+
     exec(() => ({
         canvas: document.querySelector("canvas"),
         progress: document.querySelector("progress"),
         lanes: [50, 200, 350],
         cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }],
-    }));
+        images: {},
+    })).
 
-// Load all resources before continuing
-const images = ["red1.png", "red2.png", "gray1.png", "gray2.png", "crash1.png", "crash2.png", "flag1.png", "flag2.png"];
-for (const image of images) {
-    fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
-}
+    // Load all resources before continuing
 
-fiber.
-    join({
-        fiberWillJoin(fiber) {
-            this.values = {};
-        },
-        childFiberDidEnd(child, scheduler) {
-            // FIXME cancelSiblings to make writing delegates easier
-            // FIXME 4F04 Handle errors when joining
-            const fiber = child.parent;
-            if (child.error) {
-                const siblings = [...this.pending];
-                this.pending.clear();
-                for (const sibling of siblings) {
-                    sibling.cancel(scheduler);
-                }
-                fiber.result.error = Error("Child fiber did fail", { cause: child.error });
-            } else {
-                const [src, image] = child.value;
-                this.values[src] = image;
-                if (this.pending.size === 0) {
-                    fiber.value.images = this.values;
-                }
-            }
+    spawn(fiber => {
+        for (const image of Images) {
+            fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
         }
+        fiber.
+            join(Last).
+            exec(({ parent: { value: game }, value: pairs }) => {
+                for (const [src, image] of pairs) {
+                    game.images[src] = image;
+                }
+                return game;
+            })
     }).
+    join(First).
 
     // Press a key to begin
 
     spawn(fiber => fiber.
         effect(({ value: game }) => {
             game.progress.value = 0;
-            game.progress.max = DUR;
-            game.canvas.width = WIDTH;
-            game.canvas.height = HEIGHT;
+            game.progress.max = GameDuration;
+            game.canvas.width = Width;
+            game.canvas.height = Height;
             const context = game.canvas.getContext("2d");
             context.save();
             context.fillStyle = "#1d2b53";
             context.font = "96px system-ui, sans-serif";
             context.textAlign = "center";
             context.textBaseline = "middle";
-            context.fillText("RACE!", WIDTH / 2, HEIGHT / 2);
+            context.fillText("RACE!", Width / 2, Height / 2);
             context.restore();
         }).
         event(window, "keydown")
@@ -91,13 +79,13 @@ fiber.
             const n = Math.floor(Math.random() * (N[1] - N[0])) + N[0]
             for (let i = 0; i < n; ++i) {
                 fiber.spawn(fiber => fiber.
-                    delay(Math.random() * DUR).
+                    delay(Math.random() * GameDuration).
                     exec(({ value: game }) => {
                         const car = {
                             images: ["gray1.png", "gray2.png"],
                             lane: Math.floor(Math.random() * game.lanes.length),
                             frame: 0,
-                            x: WIDTH,
+                            x: Width,
                             v: -50
                         };
                         game.cars.push(car);
@@ -108,8 +96,8 @@ fiber.
                         effect(({ parent, value: car }) => {
                             car.x += car.v;
                         }), {
-                            repeatShouldEnd: (_, { parent, value: car }) => car.x > DANGER[0] &&
-                                car.x < DANGER[1] && car.lane === parent.value.cars[0].lane
+                            repeatShouldEnd: (_, { parent, value: car }) => car.x > Danger[0] &&
+                                car.x < Danger[1] && car.lane === parent.value.cars[0].lane
                         }
                     )
                 );
@@ -143,7 +131,7 @@ fiber.
                 )
             ).
             spawn(fiber => fiber.
-                delay(DUR).
+                delay(GameDuration).
                 effect(({ value: game }) => {
                     game.cars.length = 1;
                     game.cars[0].images = ["flag1.png", "flag2.png"];
@@ -161,8 +149,8 @@ fiber.
     spawn(fiber => fiber.
         ramp(Infinity, {
             rampDidProgress(_, { value: game }) {
-                game.canvas.width = WIDTH;
-                game.canvas.height = HEIGHT;
+                game.canvas.width = Width;
+                game.canvas.height = Height;
                 const context = game.canvas.getContext("2d");
                 for (const car of game.cars) {
                     context.drawImage(game.images[car.images[car.frame]], car.x, game.lanes[car.lane]);
@@ -185,9 +173,9 @@ fiber.
             )
         ).
         spawn(fiber => fiber.
-            ramp(DUR, {
+            ramp(GameDuration, {
                 rampDidProgress(p, { value: game }) {
-                    game.progress.value = p * DUR;
+                    game.progress.value = p * GameDuration;
                 }
             })
         ).
