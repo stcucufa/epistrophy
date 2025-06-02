@@ -1,5 +1,5 @@
 import Scheduler from "../../lib/scheduler.js";
-import Fiber, { Last, First, cancelSiblings } from "../../lib/fiber.js";
+import { Last, First } from "../../lib/fiber.js";
 
 const Width = 800;
 const Height = 600;
