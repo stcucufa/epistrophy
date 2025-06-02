@@ -18,9 +18,9 @@ Scheduler.run().
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             exec(() => range.value).
-            effect(({ value }, scheduler) => {
-                timer.textContent = `${value}s`;
-                progress.max = value * 1000;
+            effect(({ value: seconds }, scheduler) => {
+                timer.textContent = `${seconds}s`;
+                progress.max = seconds * 1000;
                 const f = Fiber.byName("timer");
                 scheduler.updateDelayForFiber(f, progress.max);
             }).

@@ -52,9 +52,9 @@ increment it. The complete example is:
 Scheduler.run().
     exec(() => 0).
     repeat(fiber => fiber.
-        effect(({ value }) => { span.textContent = value.toString(); }).
+        effect(({ value: count }) => { span.textContent = count.toString(); }).
         event(button, "click").
-        exec(({ value }) => value + 1)
+        exec(({ value: count }) => count + 1)
     );
 ```
 
@@ -91,16 +91,17 @@ program will run until the page is closed). The body of the loop is described by
 a function of the fiber that adds more instructions.
 
 ```js
-        effect(({ value }) => { span.textContent = value.toString(); }).
+        effect(({ value: count }) => { span.textContent = count.toString(); }).
 ```
 
 is the first instruction in the loop. It is almost identical to `exec`, with the
-difference that it does not affect the value of the fiber. As its name implies,
+difference that it does not affect the value of the fiber; as its name implies,
 it is only used for the effect(s) of the wrapped function. That function gets
-called with two parameters: the fiber object itself, and the scheduler that is
-running it. Here only the `value` property of the fiber is of interest; the
-effect is to set the text content of the `span` element to that value,
-displaying the value of the counter on the page.
+called with two arguments: the fiber object itself, and the scheduler that is
+running it. Here only the `value` property of the fiber is of interest; as it
+is the value of the counter we give it a more specific name. The effect is to
+set the text content of the `span` element to display the current count on the
+page.
 
 ```js
         event(button, "click").
@@ -111,10 +112,11 @@ intent is to wait for a `click` event from `button`. Once this event happens,
 execution resumes with the next instruction,
 
 ```js
-        exec(({ value }) => value + 1)
+        exec(({ value: count }) => count + 1)
 ```
 
-another instance of `exec`, which increments the fiber’s value by one.
+another instance of `exec`, which increments the fiber’s value, _i.e._ the
+count, by one.
 
 Since the scheduler is running, it will start executing the fiber right away,
 starting from the first instruction. Executing the function wrapped by `exec`,
@@ -148,14 +150,14 @@ it by one.
 Scheduler.run().
     exec(() => 0).
     repeat(fiber => fiber.
-        effect(({ value }) => span.textContent = value.toString()).
+        effect(({ value: count }) => span.textContent = count.toString()).
         spawn(fiber => fiber.
             event(buttons[0], "click").
-            exec(({ value }) => value -= 1)
+            exec(({ value: count }) => count -= 1)
         ).
         spawn(fiber => fiber.
             event(buttons[1], "click").
-            exec(({ value }) => value += 1)
+            exec(({ value: count }) => count += 1)
         ).
         join(First())
     );
@@ -172,7 +174,7 @@ fiber runs are:
 
 ```js
             event(buttons[0], "click").
-            exec(({ value }) => value -= 1)
+            exec(({ value: count }) => count -= 1)
 ```
 
 which we now understand as waiting for a click from the first button, then

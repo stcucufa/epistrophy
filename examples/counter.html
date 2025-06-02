@@ -16,14 +16,14 @@ const buttons = document.querySelectorAll("button");
 Scheduler.run().
     exec(K(17)).
     repeat(fiber => fiber.
-        effect(({ value }) => span.textContent = value.toString()).
+        effect(({ value: count }) => span.textContent = count.toString()).
         spawn(fiber => fiber.
             event(buttons[0], "click").
-            exec(({ value }) => value -= 1)
+            exec(({ value: count }) => count -= 1)
         ).
         spawn(fiber => fiber.
             event(buttons[1], "click").
-            exec(({ value }) => value += 1)
+            exec(({ value: count }) => count += 1)
         ).
         join(First())
     );
@@ -40,7 +40,7 @@ Scheduler.run().
             Increment (▶) and decrement (◀) the counter by clicking on the corresponding button.
         </p>
         <p>
-            The core functionality of the counter is to initialize a fiber with the starting value, then repeat the
+            The core functionality of the counter is to initialize a fiber with the starting count, then repeat the
             sequence of showing the current counter value, waiting on a click on the increment or decrement button, and
             adding or subtracting 1 from the current fiber value. Here there are two buttons, so the main fiber is
             initialized with the starting value of the counter and a fiber is spawned for each button, then the main fiber
