@@ -18,40 +18,38 @@ const loadImage = async (src) => new Promise((resolve, reject) => {
     }
 });
 
-// Create the main fiber with the game object.
 const fiber = Scheduler.run().
+
+    // Create the game object
+
     exec(() => ({
         canvas: document.querySelector("canvas"),
         progress: document.querySelector("progress"),
         lanes: [50, 200, 350],
         cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }],
-    }));
+        images: {},
+    })).
 
-// Load all resources before continuing
-for (const image of Images) {
-    fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
-}
+    // Load all resources before continuing
 
-fiber.
-    join({
-        fiberWillJoin(fiber) {
-            this.values = {};
-        },
-
-        childFiberDidEndInError(child, scheduler) {
-            cancelSiblings(this, scheduler);
-            return child.error;
-        },
-
-        childFiberDidEnd(child, scheduler) {
-            const fiber = child.parent;
-            const [src, image] = child.value;
-            this.values[src] = image;
-            if (this.pending.size === 0) {
-                fiber.value.images = this.values;
-            }
+    spawn(fiber => {
+        for (const image of Images) {
+            fiber.spawn(fiber => fiber.exec(async () => loadImage(image)));
         }
+        fiber.
+            join({
+                childFiberDidEndInError(child, scheduler) {
+                    cancelSiblings(this, scheduler);
+                    return child.error;
+                },
+                childFiberDidEnd(child, scheduler) {
+                    const fiber = child.parent;
+                    const [src, image] = child.value;
+                    fiber.value.images[src] = image;
+                }
+            })
     }).
+    join().
 
     // Press a key to begin
 
