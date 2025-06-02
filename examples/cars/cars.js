@@ -88,7 +88,6 @@ fiber.
         // update loop to update position and check for collision with the
         // player car every 50ms. End when a collision occurs.
         spawn(fiber => {
-            // FIXME Randomize
             const n = Math.floor(Math.random() * (N[1] - N[0])) + N[0]
             for (let i = 0; i < n; ++i) {
                 fiber.spawn(fiber => fiber.
@@ -161,12 +160,7 @@ fiber.
     // Draw loop
     spawn(fiber => fiber.
         ramp(Infinity, {
-            rampDidProgress(_, { value: game, beginTime }, scheduler) {
-                // FIXME 4H0F Ramps for cancelled fibers
-                if (!game) {
-                    return;
-                }
-                game.progress.value = scheduler.now - beginTime;
+            rampDidProgress(_, { value: game }) {
                 game.canvas.width = WIDTH;
                 game.canvas.height = HEIGHT;
                 const context = game.canvas.getContext("2d");
@@ -177,14 +171,25 @@ fiber.
         })
     ).
 
-    // Animation loop: switch frame every at 10 FPS (every 100ms).
+    // Animation loop: switch frame every at 10 FPS (every 100ms) and update
+    // the progress bar for the duration of the game.
     spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            effect(({ value: game }) => {
-                for (const car of game.cars) {
-                    car.frame = 1 - car.frame;
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
+                effect(({ value: game }) => {
+                    for (const car of game.cars) {
+                        car.frame = 1 - car.frame;
+                    }
+                }).
+                delay(100)
+            )
+        ).
+        spawn(fiber => fiber.
+            ramp(DUR, {
+                rampDidProgress(p, { value: game }) {
+                    game.progress.value = p * DUR;
                 }
-            }).
-            delay(100)
-        )
+            })
+        ).
+        join()
     );
