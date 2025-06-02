@@ -1317,3 +1317,79 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber for ramps as well w
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all steps");
 });
+
+// 4H0F Ramps for cancelled fibers
+
+test("Ramp does not begin if a fiber is cancelled", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(1111).
+            ramp(Infinity, {
+                rampDidProgress() { t.fail("Ramp should not begin"); }
+            })
+        ).
+        spawn(fiber => fiber.delay(1110)).
+        join(First());
+    run(fiber);
+    t.undefined(fiber.error, "ramp did not begin");
+});
+
+test("Ramp inside either does begin if a fiber is cancelled", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            delay(1111).
+            either(fiber => fiber.
+                ramp(555, {
+                    rampDidProgress(p, { beginTime }, scheduler) {
+                        const localTime = scheduler.now - beginTime;
+                        if (p === 0) {
+                            t.same(localTime, 999, "ramp began early");
+                        } else if (p === 1) {
+                            t.same(localTime, 1554, "ramp ended normally")
+                        } else {
+                            t.fail(`Unexpected p=${p}`);
+                        }
+                    }
+                })
+            )
+        ).
+        spawn(fiber => fiber.delay(999)).
+        join(First());
+    run(fiber);
+});
+
+test("Ramp ends when the fiber is cancelled", t => {
+    const ps = [0, 0.25];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            ramp(888, {
+                rampDidProgress(p) {
+                    t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
+                }
+            })
+        ).
+        spawn(fiber => fiber.delay(777)).
+        join(First());
+    const scheduler = run(fiber, new Scheduler(), 222);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "the ramp was cancelled");
+});
+
+test("Ramp in either continues when the fiber is cancelled", t => {
+    const ps = [0, 0.25, 1];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            either(fiber => fiber.
+                ramp(888, {
+                    rampDidProgress(p) {
+                        t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
+                    }
+                })
+            )
+        ).
+        spawn(fiber => fiber.delay(777)).
+        join(First());
+    const scheduler = run(fiber, new Scheduler(), 222);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "the ramp ended");
+});
