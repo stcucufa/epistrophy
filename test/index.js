@@ -1391,5 +1391,5 @@ test("Ramp in either continues when the fiber is cancelled", t => {
         join(First());
     const scheduler = run(fiber, new Scheduler(), 222);
     scheduler.clock.now = Infinity;
-    t.equal(ps, [], "the ramp ended"); 
+    t.equal(ps, [], "the ramp ended");
 });
