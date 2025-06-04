@@ -7,37 +7,26 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import Fiber, { First } from "../lib/fiber.js";
+import { First } from "../lib/fiber.js";
 import { K } from "../lib/util.js";
 
 const span = document.querySelector("span");
 const buttons = document.querySelectorAll("button");
 
 Scheduler.run().
-    spawn(fiber => fiber.
-        exec(K(17)).
-        repeat(fiber => fiber.name("counter").
-            effect(({ value: count }) => span.textContent = count.toString()).
-            spawn(fiber => fiber.
-                event(buttons[0], "click").
-                exec(({ value: count }) => count -= 1)
-            ).
-            spawn(fiber => fiber.
-                event(buttons[1], "click").
-                exec(({ value: count }) => count += 1)
-            ).
-            join(First())
-        )
-    ).
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            event(window, "keydown", { eventShouldBeIgnored: event => event.key !== "p" }).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("counter"), 0); }).
-            event(window, "keydown", { eventShouldBeIgnored: event => event.key !== "p" }).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("counter"), 1); })
-        )
+    exec(K(17)).
+    repeat(fiber => fiber.
+        effect(({ value: count }) => span.textContent = count.toString()).
+        spawn(fiber => fiber.
+            event(buttons[0], "click").
+            exec(({ value: count }) => count -= 1)
+        ).
+        spawn(fiber => fiber.
+            event(buttons[1], "click").
+            exec(({ value: count }) => count += 1)
+        ).
+        join(First())
     );
-
         </script>
     </head>
     <body>

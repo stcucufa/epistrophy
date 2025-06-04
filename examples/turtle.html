@@ -12,6 +12,7 @@ import { Canvas, Turtle } from "./turtle.js";
 
 const range = document.querySelector("input");
 const span = document.querySelector("span");
+const pause = document.querySelector("button");
 
 const fiber = Scheduler.run().
     spawn(fiber => fiber.
@@ -23,7 +24,25 @@ const fiber = Scheduler.run().
             }).
             event(range, "input"), { repeatShouldEnd: () => false }
         )
+    ).
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            event(pause, "click").
+            exec((_, scheduler) => {
+                const turtle = Fiber.byName("turtle");
+                const rate = turtle.rate;
+                scheduler.setRateForFiber(turtle, 0);
+                range.disabled = true;
+                return rate;
+            }).
+            event(pause, "click").
+            effect(({ value: rate }, scheduler) => {
+                range.disabled = false;
+                scheduler.setRateForFiber(Fiber.byName("turtle"), rate);
+            })
+        )
     );
+
 const canvas = new Canvas(document.querySelector("canvas"));
 const turtle = new Turtle(fiber.spawn().name("turtle"), canvas).
     to("triangle", (turtle, size) => turtle.
@@ -94,7 +113,8 @@ turtle.
             <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
             <p>
                 <label for="speed">Turtle speed:</label>
-                <input type="range" name="speed" list="markers" min="-6" max="6" step="any"></input> <span>---</span>
+                <input type="range" name="speed" list="markers" min="-6" max="6" step="any"></input>
+                <span style="min-width: 2.2em; display: inline-block">---</span>
                 <datalist id="markers">
                     <option value="-6"></option>
                     <option value="-3"></option>
@@ -102,6 +122,7 @@ turtle.
                     <option value="3"></option>
                     <option value="6"></option>
                 </datalist>
+                <button type="button">Pause</button>
             </p>
         </div>
         <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
@@ -123,7 +144,7 @@ turtle.
         <p>The speed of the turtle can be controlled either by giving it a <code>speed()</code> instruction, or by setting
         the rate of the fiber itself. The latter approach is implemented thanks to another fiber that listens to
         <code>input</code> events from an <code>&lt;input type="range"&gt;</code> element and setting the rate of the
-        turtle fiber accordingly.</p>
+        turtle fiber accordingly. The turtle can also be paused or resume with the Pause button.</p>
         <p><span class="todo">TODO</span> Multiple turtles.</p>
         <h2>Source</h2>
         <pre></pre>

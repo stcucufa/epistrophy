@@ -1346,6 +1346,24 @@ test("Setting rate to 0 then resuming", t => {
     run(fiber);
 });
 
+test("Setting rate to 0 during a delay", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.name("paused").
+            delay(333).
+            effect((_, scheduler) => {
+                // FIXME 4A05 Fiber local time
+                t.same(scheduler.now, 999, "fiber eventually resumed");
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(111).
+            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 0); }).
+            delay(666).
+            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 1); })
+        );
+    run(fiber);
+});
+
 // 4H0F Ramps for cancelled fibers
 
 test("Ramp does not begin if a fiber is cancelled", t => {
