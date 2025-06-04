@@ -1345,7 +1345,7 @@ test("Setting rate to 0 then resuming", t => {
         );
     run(fiber);
 });
-
+ 
 test("Setting rate to 0 during a delay", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.name("paused").
@@ -1362,6 +1362,34 @@ test("Setting rate to 0 during a delay", t => {
             effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 1); })
         );
     run(fiber);
+});
+ 
+test("Setting rate to 0 during a ramp", t => {
+    const ps = [0, 0.25, 0.5, 1];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.name("paused").
+            ramp(400, {
+                rampDidProgress(p) {
+                    t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
+                }
+            }).
+            effect((_, scheduler) => {
+                // FIXME 4A05 Fiber local time
+                t.same(scheduler.now, 1400, "ramp ended as expected");
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(100).
+            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 0); }).
+            delay(1000).
+            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 1); })
+        );
+    const scheduler = run(fiber, new Scheduler(), 100);
+    scheduler.clock.now = 500;
+    scheduler.clock.now = 1200;
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all steps");
+
 });
 
 // 4H0F Ramps for cancelled fibers
