@@ -1389,7 +1389,6 @@ test("Setting rate to 0 during a ramp", t => {
     scheduler.clock.now = 1200;
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all steps");
-
 });
 
 // 4H0F Ramps for cancelled fibers
