@@ -1393,7 +1393,39 @@ test("Setting rate to 0 during a ramp", t => {
 
 // 4H06 Rate from parent
 
+test("Setting rate of parent fiber sets child rates as well", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0.5); }).
+            delay(2400).
+            effect((_, scheduler) => { t.same(scheduler.now, 1700, "first child ended later as expected"); })
+        ).
+        spawn(fiber => fiber.
+            effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 2); }).
+            delay(2400).
+            effect((_, scheduler) => { t.same(scheduler.now, 500, "second child ended earlier as expected"); })
+        ).
+        delay(150).
+        effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 3); });
+    run(fiber);
+});
 
+test("Pausing and resuming children", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            event(window, "hello").
+            effect((_, scheduler) => { t.same(scheduler.now, 777, "event happend after the fiber resumed"); })
+        );
+    const scheduler = run(fiber, new Scheduler(), 111);
+    scheduler.setRateForFiber(fiber, 0);
+    scheduler.clock.now = 222;
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = 333;
+    scheduler.setRateForFiber(fiber, 1);
+    scheduler.clock.now = 777;
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
 
 // 4H0F Ramps for cancelled fibers
 
