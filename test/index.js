@@ -1393,12 +1393,30 @@ test("Setting rate to 0 during a ramp", t => {
 
 // 4H04 Fiber rate = ∞
 
-test("Setting rate to ∞", t => {
+test("Setting rate to ∞ (zero-duration delay)", t => {
     const fiber = new Fiber().
         effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, Infinity)).
         delay(888).
-        effect((_, scheduler) => { t.same(scheduler.now, 0, "delay passed infinitely fast"); });
+        effect((_, scheduler) => {
+            // FIXME 4A05 Fiber local time
+            t.same(scheduler.now, 0, "delay passed infinitely fast");
+        });
     run(fiber);
+});
+
+test("Setting rate to ∞ (zero-duration ramp)", t => {
+    const ps = [0, 1];
+    const fiber = new Fiber().
+        effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, Infinity)).
+        ramp(888, {
+            rampDidProgress(p, _, scheduler) {
+                t.same(p, ps.shift(), "ramp goes through expected steps");
+                // FIXME 4A05 Fiber local time
+                t.same(scheduler.now, 0, "ramp has effectively zero duration");
+            }
+        });
+    run(fiber);
+    t.equal(ps, [], "ramp went through all steps");
 });
 
 // 4H06 Rate from parent
