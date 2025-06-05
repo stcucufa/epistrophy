@@ -1332,7 +1332,7 @@ test("Setting rate to 0", t => {
 test("Setting rate to 0 then resuming", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.name("paused").
-            effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, 0)).
+            effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0); }).
             delay(888).
             effect((_, scheduler) => {
                 // FIXME 4A05 Fiber local time
@@ -1345,7 +1345,7 @@ test("Setting rate to 0 then resuming", t => {
         );
     run(fiber);
 });
- 
+
 test("Setting rate to 0 during a delay", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.name("paused").
@@ -1390,6 +1390,10 @@ test("Setting rate to 0 during a ramp", t => {
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all steps");
 });
+
+// 4H06 Rate from parent
+
+
 
 // 4H0F Ramps for cancelled fibers
 
