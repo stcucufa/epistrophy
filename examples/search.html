@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Search and autocomplete example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+import Scheduler from "../lib/scheduler.js";
+import { First } from "../lib/fiber.js";
+
+const search = document.querySelector("input");
+const button = document.querySelector("button");
+const ul = document.querySelector("ul");
+
+Scheduler.run().
+    repeat(fiber => fiber.
+        spawn(fiber => fiber.event(button, "click")).
+        spawn(fiber => fiber.event(search, "keyup", { eventShouldBeIgnored: ({ key }) => key !== "Enter" })).
+        join(First()).
+        effect(() => { ul.innerHTML = ""; }).
+        exec(() => `https://api-adresse.data.gouv.fr/search/?q=${
+            encodeURIComponent(search.value.trim().replace(/\s+/g, " "))
+        }`).
+        exec(async ({ value: url }) => await fetch(url)).
+        exec(async ({ value: response }) => await response.json()).
+        effect(({ value: { features } }, scheduler) => {
+            for (const feature of features) {
+                const li = ul.appendChild(document.createElement("li"));
+                li.textContent = feature.properties.label;
+            }
+        })
+    );
+        </script>
+    </head>
+    <body>
+        <h1>Search and autocomplete example</h1>
+        <p class="example">
+            <input type="search" placeholder="Address"></input>
+            <button type="button">Search</button>
+            <ul>
+            </ul>
+        </p>
+        <p>This example uses the French public <a href="https://adresse.data.gouv.fr/outils/api-doc/adresse">Address
+        API</a>.</p>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>
