@@ -7,40 +7,63 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import { First } from "../lib/fiber.js";
+import Fiber, { First } from "../lib/fiber.js";
 
 const search = document.querySelector("input");
 const button = document.querySelector("button");
 const ul = document.querySelector("ul");
 
+Fiber.prototype.first = function(...fs) {
+    for (const f of fs) {
+        this.spawn(f);
+    }
+    return this.join(First());
+};
+
 Scheduler.run().
     repeat(fiber => fiber.
-        spawn(fiber => fiber.event(button, "click")).
-        spawn(fiber => fiber.event(search, "keyup", { eventShouldBeIgnored: ({ key }) => key !== "Enter" })).
-        join(First()).
+        first(
+            fiber => fiber.event(search, "change"),
+            fiber => fiber.event(button, "click"),
+        ).
         effect(() => { ul.innerHTML = ""; }).
         exec(() => `https://api-adresse.data.gouv.fr/search/?q=${
             encodeURIComponent(search.value.trim().replace(/\s+/g, " "))
         }`).
         exec(async ({ value: url }) => await fetch(url)).
-        exec(async ({ value: response }) => await response.json()).
-        effect(({ value: { features } }, scheduler) => {
-            for (const feature of features) {
-                const li = ul.appendChild(document.createElement("li"));
-                li.textContent = feature.properties.label;
+        exec(async ({ value: response }) => {
+            const json = await response.json();
+            if (!response.ok) {
+                throw json;
             }
-        })
+            return json;
+        }).
+        either(
+            fiber => fiber.effect(({ value: { features } }, scheduler) => {
+                for (const feature of features) {
+                    const li = ul.appendChild(document.createElement("li"));
+                    li.textContent = feature.properties.label;
+                }
+            }),
+            fiber => fiber.exec(({ error }) => {
+                const li = ul.appendChild(document.createElement("li"));
+                li.classList.add("error");
+                li.textContent = `${error.code} ${error.message}`;
+            })
+        )
     );
         </script>
     </head>
     <body>
         <h1>Search and autocomplete example</h1>
-        <p class="example">
-            <input type="search" placeholder="Address"></input>
-            <button type="button">Search</button>
+        <div class="example search-ac">
+            <p>
+                <input type="search" placeholder="Address" autofocus></input>
+                <button type="button">Search</button>
+            </p>
             <ul>
             </ul>
-        </p>
+        </div>
         <p>This example uses the French public <a href="https://adresse.data.gouv.fr/outils/api-doc/adresse">Address
         API</a>.</p>
         <h2>Source</h2>
