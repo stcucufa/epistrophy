@@ -1419,6 +1419,22 @@ test("Setting rate to ∞ (zero-duration ramp)", t => {
     t.equal(ps, [], "ramp went through all steps");
 });
 
+test("Events still take time at infinite rate", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, Infinity); }).
+            delay(888).
+            event(window, "hello").
+            delay(777).
+            // FIXME 4A05 Fiber local time
+            effect((_, scheduler) => { t.same(scheduler.now, 222, "event time"); })
+        );
+    const scheduler = run(fiber, new Scheduler(), 111);
+    scheduler.clock.now = 222;
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
 // 4H06 Rate from parent
 
 test("Setting rate of parent fiber sets child rates as well", t => {
@@ -1442,7 +1458,7 @@ test("Pausing and resuming children", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.
             event(window, "hello").
-            effect((_, scheduler) => { t.same(scheduler.now, 777, "event happend after the fiber resumed"); })
+            effect((_, scheduler) => { t.same(scheduler.now, 777, "event happened after the fiber resumed"); })
         );
     const scheduler = run(fiber, new Scheduler(), 111);
     scheduler.setRateForFiber(fiber, 0);
