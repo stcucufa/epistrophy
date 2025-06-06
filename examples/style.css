@@ -1,6 +1,7 @@
 :root {
     --picotron-dark-blue: #1d2b53;
     --picotron-white: #fff1e8;
+    --picotron-red: #ff004d;
     --picotron-yellow: #ffec27;
     --picotron-dark-orange: #ff6c24;
 }
@@ -27,4 +28,12 @@ a {
 
 span.todo {
     background-color: var(--picotron-yellow);
+}
+
+.search-ac input {
+    font-size: 1em;
+}
+
+.search-ac .error {
+    color: var(--picotron-red);
 }
