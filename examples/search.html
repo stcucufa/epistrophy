@@ -37,6 +37,10 @@ const query = async () => {
 
 const showError = ul => ({ error }) => {
     ul.innerHTML = "";
+    // FIXME 4H05 isCancelled property
+    if (error.message === "cancelled") {
+        return;
+    }
     const li = ul.appendChild(document.createElement("li"));
     li.classList.add("error");
     li.textContent = `${error.code} ${error.message}`;
