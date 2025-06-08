@@ -794,7 +794,7 @@ test("Cancel the current event listener", t => {
     const scheduler = new Scheduler();
     run(fiber, scheduler);
     fiber.cancel(scheduler);
-    t.equal(fiber.error.message, "cancelled", "fiber is cancelled");
+    t.true(fiber.isCancelled, "fiber is cancelled");
     window.dispatchEvent(new CustomEvent("hello"));
 });
 
@@ -803,7 +803,7 @@ test("Self cancellation", t => {
         exec(K("ko")).
         effect((fiber, scheduler) => fiber.cancel(scheduler));
     run(fiber);
-    t.equal(fiber.error.message, "cancelled", "fiber cancelled itself");
+    t.true(fiber.isCancelled, "fiber cancelled itself");
 });
 
 test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t => {
@@ -811,8 +811,8 @@ test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t =>
         spawn(fiber => fiber.
             delay(111).
             either(fiber => fiber.
-                effect(({ error }, scheduler) => {
-                    t.same(error.message, "cancelled", "fiber was cancelled");
+                effect((fiber, scheduler) => {
+                    t.true(fiber.isCancelled, "fiber is cancelled");
                     t.same(scheduler.now, 0, "delay was skipped");
                 })
             )
@@ -828,7 +828,7 @@ test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t =>
         spawn(fiber => fiber.exec(K("ok"))).
         spawn(fiber => fiber.
             either(fiber => fiber.
-                effect(({ error }, scheduler) => { t.same(error.message, "cancelled", "fiber was cancelled"); })
+                effect((fiber, scheduler) => { t.true(fiber.isCancelled, "fiber was cancelled"); })
             )
         ).
         join(First());
@@ -857,8 +857,8 @@ test("Fiber.join(First(false)) cancels sibling fibers and does not set its value
         spawn(fiber => fiber.
             delay(111).
             either(fiber => fiber.
-                effect(({ error }, scheduler) => {
-                    t.same(error.message, "cancelled", "fiber was cancelled");
+                effect((fiber, scheduler) => {
+                    t.true(fiber.isCancelled, "fiber was cancelled");
                     t.same(scheduler.now, 0, "delay was skipped");
                 })
             )
