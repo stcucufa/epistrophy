@@ -38,7 +38,7 @@ const query = async () => {
 const showError = ul => ({ error }) => {
     ul.innerHTML = "";
     const li = ul.appendChild(document.createElement("li"));
-    li.classList.add(error);
+    li.classList.add("error");
     li.textContent = `${error.code} ${error.message}`;
 };
 
@@ -46,7 +46,7 @@ Scheduler.run().
 
     // Autocomplete on input
     spawn(fiber => fiber.
-        repeat(fiber => fiber.
+        repeat(fiber => fiber.name("autocomplete").
             event(search, "input").
             delay(1000).
             exec(query).
@@ -66,9 +66,10 @@ Scheduler.run().
     // Search on change
     spawn(fiber => fiber.
         repeat(fiber => fiber.
-            spawn(fiber => fiber.event(search, "change")).
-            spawn(fiber => fiber.event(button, "click")).
-            join(First()).
+            first(fiber => fiber.event(search, "change"), fiber => fiber.event(button, "click")).
+            effect((_, scheduler) => {
+                Fiber.byName("autocomplete").cancel(scheduler);
+            }).
             exec(query).
             either(
                 fiber => fiber.effect(({ value: features }) => {
