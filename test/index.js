@@ -1053,6 +1053,22 @@ test("Nesting either(f, g)", t => {
     t.same(fiber.value, "ok@1665", "retried twice");
 });
 
+test("Either(f, g) should restore state correctly", t => {
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            exec(K("ok")).
+            either(
+                fiber => fiber.effect(() => t.pass("fiber has a value")),
+                fiber => fiber.effect(() => t.fail("fiber should have a value"))
+            ).
+            delay(777).
+            effect(() => { t.fail("fiber should be cancelled"); })
+        ).
+        spawn(fiber => fiber.delay(111)).
+        join(First());
+    run(fiber);
+});
+
 // 4G05 SMIL timing specifiers
 
 import { parseOffsetValue } from "../lib/util.js";
