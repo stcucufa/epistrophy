@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Search and autocomplete example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+import Scheduler from "../lib/scheduler.js";
+import Fiber, { First } from "../lib/fiber.js";
+
+const search = document.querySelector("input");
+const button = document.querySelector("button");
+const [suggestions, results] = [...document.querySelectorAll("ul")];
+
+const query = async () => {
+    const q = search.value.trim().replace(/\s+/g, " ");
+    if (q.length <= 3 || q.length > 200) {
+        return [];
+    }
+    const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(q)}`;
+    const response = await fetch(url);
+    const json = await response.json();
+    if (!response.ok) {
+        throw json;
+    }
+    return json.features;
+};
+
+const showError = ul => fiber => {
+    ul.innerHTML = "";
+    if (fiber.isCancelled) {
+        return;
+    }
+    const li = ul.appendChild(document.createElement("li"));
+    li.classList.add("error");
+    const { code, message } = fiber.error;
+    li.textContent = `${code} ${message}`;
+};
+
+Scheduler.run().
+
+    // Autocomplete on input, delayed by 1s for simple debouncing.
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.name("autocomplete").
+            event(search, "input").
+            delay(1000).
+            exec(query).
+            either(
+                fiber => fiber.effect(({ value: features }) => {
+                    suggestions.innerHTML = "";
+                    for (const feature of features) {
+                        const li = suggestions.appendChild(document.createElement("li"));
+                        li.textContent = feature.properties.label;
+                    }
+                }),
+                fiber => fiber.exec(showError(suggestions))
+            )
+        )
+    ).
+
+    // Search on change; cancel any autocomplete request.
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            spawn(fiber => fiber.event(search, "change")).
+            spawn(fiber => fiber.event(button, "click")).
+            join(First()).
+            effect((_, scheduler) => { Fiber.byName("autocomplete").cancel(scheduler); }).
+            exec(query).
+            either(
+                fiber => fiber.effect(({ value: features }) => {
+                    results.innerHTML = "";
+                    for (const feature of features) {
+                        const li = results.appendChild(document.createElement("li"));
+                        const [long, lat] = feature.geometry.coordinates;
+                        li.innerHTML = `${feature.properties.label} [<a href="https://www.openstreetmap.org/#map=17/${
+                            lat
+                        }/${
+                            long
+                        }/" target="_blank">OpenStreeMap</a>]`;
+                    }
+                }),
+                fiber => fiber.exec(showError(results))
+            )
+        )
+    );
+
+        </script>
+    </head>
+    <body>
+        <h1>Search and autocomplete example</h1>
+        <div class="example search-ac">
+            <p>
+                <input type="search" placeholder="Address" autofocus></input>
+                <button type="button">Search</button>
+            </p>
+            <ul class="suggestions">
+            </ul>
+            <ul class="results">
+            </ul>
+        </div>
+        <p>Implement a simple search and autocomplete example using the French public <a
+        href="https://adresse.data.gouv.fr/outils/api-doc/adresse">Address API</a>.</p>
+        <p><span class="todo">TODO</span> Dropdown menu for the autocomplete results</p>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>
