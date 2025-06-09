@@ -6,6 +6,7 @@ import Scheduler from "../lib/scheduler.js";
 // Utility function to run a fiber synchronously.
 function run(fiber, scheduler, until = Infinity) {
     scheduler ??= new Scheduler();
+    fiber.reset(scheduler.now);
     scheduler.resume(fiber);
     scheduler.clock.now = until;
     return scheduler;
@@ -654,6 +655,28 @@ test("Fiber.spawn: child does not begin when the parent is failing", t => {
         );
     run(fiber);
     t.same(t.expectations, 0, "parent is failing");
+});
+
+test("Fiber.spawn resets the child fiber immediately with the value of the parent", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        exec(K(17)).
+        spawn(fiber => fiber.effect(({ value }) => { t.same(value, 17, "first fiber got the current parent value"); })).
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            spawn(fiber => fiber.
+                either(
+                    fiber => fiber.effect(() => { t.fail("second fiber should begin with an error"); }),
+                    fiber => fiber.exec(({ error }) => {
+                        t.same(error.message, "AUGH", "second fiber has an error");
+                        return 23;
+                    })
+                )
+            ).
+            join(All)
+        ).
+        effect(({ value }) => { t.equal(value, [17, 23], "children ended with expected values"); });
+    run(fiber);
 });
 
 // 4E0D Join
