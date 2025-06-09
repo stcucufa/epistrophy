@@ -8,7 +8,6 @@
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
 import Fiber, { First } from "../lib/fiber.js";
-import { nop } from "../lib/util.js";
 
 const search = document.querySelector("input");
 const button = document.querySelector("button");
@@ -41,7 +40,7 @@ const showError = ul => fiber => {
 
 Scheduler.run().
 
-    // Autocomplete on input
+    // Autocomplete on input, delayed by 1s for simple debouncing.
     spawn(fiber => fiber.
         repeat(fiber => fiber.name("autocomplete").
             event(search, "input").
@@ -60,15 +59,13 @@ Scheduler.run().
         )
     ).
 
-    // Search on change
+    // Search on change; cancel any autocomplete request.
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             spawn(fiber => fiber.event(search, "change")).
             spawn(fiber => fiber.event(button, "click")).
             join(First()).
-            effect((_, scheduler) => {
-                Fiber.byName("autocomplete").cancel(scheduler);
-            }).
+            effect((_, scheduler) => { Fiber.byName("autocomplete").cancel(scheduler); }).
             exec(query).
             either(
                 fiber => fiber.effect(({ value: features }) => {
