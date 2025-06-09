@@ -663,8 +663,19 @@ test("Fiber.spawn resets the child fiber immediately with the value of the paren
         exec(K(17)).
         spawn(fiber => fiber.effect(({ value }) => { t.same(value, 17, "first fiber got the current parent value"); })).
         effect(() => { throw Error("AUGH"); }).
-        spawn(fiber => fiber.
-            either(fiber => fiber.effect(({ error }) => { t.same(error.message, "AUGH", "second fiber has an error"); })));
+        either(fiber => fiber.
+            spawn(fiber => fiber.
+                either(
+                    fiber => fiber.effect(() => { t.fail("second fiber should begin with an error"); }),
+                    fiber => fiber.exec(({ error }) => {
+                        t.same(error.message, "AUGH", "second fiber has an error");
+                        return 23;
+                    })
+                )
+            ).
+            join(All)
+        ).
+        effect(({ value }) => { t.equal(value, [17, 23], "children ended with expected values"); });
     run(fiber);
 });
 
