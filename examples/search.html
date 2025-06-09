@@ -35,15 +35,15 @@ const query = async () => {
     return json.features;
 };
 
-const showError = ul => ({ error }) => {
+const showError = ul => fiber => {
     ul.innerHTML = "";
-    // FIXME 4H05 isCancelled property
-    if (error.message === "cancelled") {
+    if (fiber.isCancelled) {
         return;
     }
     const li = ul.appendChild(document.createElement("li"));
     li.classList.add("error");
-    li.textContent = `${error.code} ${error.message}`;
+    const { code, message } = fiber.error;
+    li.textContent = `${code} ${message}`;
 };
 
 Scheduler.run().
