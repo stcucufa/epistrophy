@@ -7,52 +7,33 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import Fiber, { All } from "../lib/fiber.js";
-
-// FIXME 250A map/spawn
-Fiber.prototype.map = function(f) {
-    this.ops.push(scheduler => {
-        if (!this.handleResult) {
-            return;
-        }
-        if (!this.result.error && typeof this.result.value?.forEach === "function") {
-            this.result.value.forEach((value, index) => {
-                f(value, index, this.attach(scheduler), scheduler);
-            });
-        } else {
-            f(this.result.error ?? this.result.value, 0, this.attach(scheduler), scheduler);
-        }
-    });
-    return this;
-};
+import Fiber, { First, All } from "../lib/fiber.js";
+import { loadImage } from "../lib/util.js";
 
 const N = 18;
+const FPS = 9;
+
+const screen = document.querySelector(".screen");
 
 const fiber = Scheduler.run().
-    exec(() => new Array(N).fill().map((_, i) => `tomato/tomato${(i + 1).toString().padStart(2, "0")}.png`)).
-    map((src, _, fiber) => fiber.
-        exec(async () => new Promise((resolve, reject) => {
-            const image = new Image();
-            image.src = src;
-            if (image.complete) {
-                resolve(image);
-            } else {
-                image.addEventListener("load", () => { resolve(image); });
-                image.addEventListener("error", () => { reject(Error(`Cannot load image with src="${src}"`)); });
-            }
-        }))
-    ).
+    lift(fiber => {
+        for (const src of new Array(N).fill().map((_, i) => `tomato/tomato${(i + 1).toString().padStart(2, "0")}.png`)) {
+            fiber.spawn(fiber => fiber.exec(async () => loadImage(src)));
+        }
+    }).
     join(All).
-    exec(({ value: images }) => ({ images, index: 0, screen: document.querySelector(".screen") })).
     repeat(fiber => fiber.
-        effect(({ value }) => {
-            const { images, index, screen } = value;
-            screen.innerHTML = "";
-            screen.appendChild(images[index]);
-            value.index = (index + 1) % images.length;
-        }).
-        delay(111)
-    )
+        lift(fiber => {
+            for (let i = 0; i < N; ++i) {
+                fiber.
+                    effect(({ value: images }) => {
+                        screen.innerHTML = "";
+                        screen.appendChild(images[i]);
+                    }).
+                    delay(1000 / FPS);
+            }
+        })
+    );
 
         </script>
     </head>
