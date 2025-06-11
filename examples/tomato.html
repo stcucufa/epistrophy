@@ -43,17 +43,23 @@ const fiber = Scheduler.run().
         }))
     ).
     join(All).
-    effect(({ value: images }) => {
-        for (const image of images) {
-            document.querySelector(".example").appendChild(image);
-        }
-    });
+    exec(({ value: images }) => ({ images, index: 0, screen: document.querySelector(".screen") })).
+    repeat(fiber => fiber.
+        effect(({ value }) => {
+            const { images, index, screen } = value;
+            screen.innerHTML = "";
+            screen.appendChild(images[index]);
+            value.index = (index + 1) % images.length;
+        }).
+        delay(111)
+    )
 
         </script>
     </head>
     <body>
         <h1>Flipbook animation example (tomato)</h1>
         <div class="example">
+            <div class="screen"></div>
         </div>
         <h2>Source</h2>
         <pre></pre>
