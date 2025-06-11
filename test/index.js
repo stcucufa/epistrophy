@@ -1659,3 +1659,21 @@ test("... unless all children fail", t => {
         );
     run(fiber);
 });
+
+// 4D0B lift
+
+test("Fiber.lift(f) calls `f` with the fiber as a parameter and returns it for chaining", t => {
+    const delays = [17, 71, 23];
+    const fiber = new Fiber().
+        lift(fiber => {
+            for (const delay of delays) {
+                fiber.spawn(fiber => fiber.delay(delay).exec(K(delay)));
+            }
+        }).
+        join(All).
+        effect(({ value }, scheduler) => {
+            t.same(scheduler.now, Math.max(...delays), "delays were applied");
+            t.equal(value, delays, "expected values were produced");
+        });
+    run(fiber);
+});
