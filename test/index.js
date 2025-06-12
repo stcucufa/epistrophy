@@ -805,6 +805,22 @@ test("Repeated spawning", t => {
     t.same(fiber.value, 4, "more iterations");
 });
 
+// 4E0E Attach
+
+test("Fiber.attach()", t => {
+    run(new Fiber().
+        exec(K(3)).
+        effect((fiber, scheduler) => {
+            const n = fiber.value;
+            for (let i = 0; i < n; ++i) {
+                fiber.attach(scheduler);
+            }
+        }).
+        join(All).
+        effect(({ value }) => { t.equal(value, [3, 3, 3], "fibers were attached"); })
+    );
+});
+
 // 4E0F Cancel error
 
 test("Cancel the current event listener", t => {
