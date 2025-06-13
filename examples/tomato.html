@@ -8,7 +8,7 @@
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
 import { All } from "../lib/fiber.js";
-import { I, loadImage } from "../lib/util.js";
+import { loadImage } from "../lib/util.js";
 
 const FPS = 9;
 
@@ -23,7 +23,7 @@ const src = i => `tomato/tomato${i.toString().padStart(2, "0")}.png`;
 const screen = document.querySelector(".example .screen");
 
 const fiber = Scheduler.run().
-    exec(() => Object.values(Sequences).flatMap(I).map(src)).
+    exec(() => Object.values(Sequences).flat().map(src)).
     map(fiber => fiber.exec(async ({ value: src }) => loadImage(src))).
     join(All).
     repeat(fiber => fiber.
