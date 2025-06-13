@@ -7,32 +7,36 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import Fiber, { First, All } from "../lib/fiber.js";
-import { loadImage } from "../lib/util.js";
+import { All } from "../lib/fiber.js";
+import { I, loadImage } from "../lib/util.js";
 
-const N = 18;
 const FPS = 9;
 
-const screen = document.querySelector(".screen");
+const Sequences = {
+    Idle: [1, 2, 3, 4, 5],
+    Blink: [6, 7, 8, 9],
+    Speak: [10, 11, 12, 13, 14, 15, 16, 17, 18]
+};
+
+const src = i => `tomato/tomato${i.toString().padStart(2, "0")}.png`;
+
+const screen = document.querySelector(".example .screen");
 
 const fiber = Scheduler.run().
-    lift(fiber => {
-        for (const src of new Array(N).fill().map((_, i) => `tomato/tomato${(i + 1).toString().padStart(2, "0")}.png`)) {
-            fiber.spawn(fiber => fiber.exec(async () => loadImage(src)));
-        }
-    }).
+    exec(() => Object.values(Sequences).flatMap(I).map(src)).
+    map(fiber => fiber.exec(async ({ value: src }) => loadImage(src))).
     join(All).
     repeat(fiber => fiber.
-        lift(fiber => {
-            for (let i = 0; i < N; ++i) {
-                fiber.
-                    effect(({ value: images }) => {
-                        screen.innerHTML = "";
-                        screen.appendChild(images[i]);
-                    }).
-                    delay(1000 / FPS);
-            }
-        })
+        each(fiber => fiber.
+            effect(({ value: image }) => {
+                if (screen.firstChild) {
+                    screen.replaceChild(image, screen.firstChild);
+                } else {
+                    screen.appendChild(image);
+                }
+            }).
+            delay(1000 / FPS)
+        )
     );
 
         </script>
