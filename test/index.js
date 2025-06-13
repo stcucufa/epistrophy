@@ -1783,3 +1783,17 @@ test("Fiber.map(f) treats the error as a single value inside either", t => {
         effect(({ value }) => { t.equal(value, ["augh"], "fiber recovered"); })
     );
 });
+
+// 4A02 Each
+
+test("Fiber.each(f) loops over the itesm in the fiber value (array)", t => {
+    const iterations = [];
+    run(new Fiber().
+        exec(K([17, 31, 23])).
+        each(fiber => fiber.effect(({ value: x }) => { iterations.push(2 * x + 1); })).
+        effect(({ value }) => {
+            t.equal(value, [17, 31, 23], "original value is unchanged");
+            t.equal(iterations, [35, 63, 47], "all values were handled in order");
+        })
+    );
+});
