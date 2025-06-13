@@ -1,15 +1,7 @@
+import { typeOf } from "../lib/util.js";
+
 const tests = [];
 let request;
-
-// Finer-grained typeof for testing purposes; distinguishes between different types of objects.
-const typeOf = x => typeof x !== "object" ? typeof x :
-    x === null ? "null" :
-    Array.isArray(x) ? "array" :
-    x instanceof Function ? "object/function" :
-    x instanceof String ? "string" :
-    x instanceof RegExp ? "regex" :
-    x instanceof Map ? "map" :
-    x instanceof Set ? "set" : "object";
 
 // Deep equality test, using special comparisons by type.
 const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(x)]?.(x, y));

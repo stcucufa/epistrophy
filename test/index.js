@@ -1693,3 +1693,93 @@ test("Fiber.lift(f) calls `f` with the fiber as a parameter and returns it for c
         });
     run(fiber);
 });
+
+// 250A Map
+
+test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (array)", t => {
+    run(new Fiber().
+        exec(K([17, 31, 23])).
+        map(fiber => fiber.exec(({ value: x }) => 2 * x + 1)).
+        join(All).
+        effect(({ value: xs }) => { t.equal(xs, [35, 63, 47], "each value was computed"); })
+    );
+});
+
+test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (set)", t => {
+    run(new Fiber().
+        exec(K(new Set([17, 31, 23]))).
+        map(fiber => fiber.exec(({ value: x }) => x > 0)).
+        join(All).
+        effect(({ value: xs }) => { t.equal(xs, [true, true, true], "each value was computed"); })
+    );
+});
+
+test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (object)", t => {
+    run(new Fiber().
+        exec(K({ foo: 1, bar: 2, baz: 3 })).
+        map(fiber => fiber.
+            exec(fiber =>
+                (fiber.value === 1 && Fiber.byName("foo") === fiber) ||
+                (fiber.value === 2 && Fiber.byName("bar") === fiber) ||
+                (fiber.value === 3 && Fiber.byName("baz") === fiber)
+            )
+        ).
+        join(All).
+        effect(({ value: xs }) => { t.equal(xs, [true, true, true], "each value was computed"); })
+    );
+});
+
+test("Fiber.map(f) spawns a named fiber with f for every item in the fiber value (map)", t => {
+    run(new Fiber().
+        exec(K(new Map([["foo", 1], ["bar", 2], ["baz", 3]]))).
+        map(fiber => fiber.
+            exec(fiber =>
+                (fiber.value === 1 && Fiber.byName("foo") === fiber) ||
+                (fiber.value === 2 && Fiber.byName("bar") === fiber) ||
+                (fiber.value === 3 && Fiber.byName("baz") === fiber)
+            )
+        ).
+        join(All).
+        effect(({ value: xs }) => { t.equal(xs, [true, true, true], "each value was computed"); })
+    );
+});
+
+test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (empty array)", t => {
+    run(new Fiber().
+        exec(K([])).
+        map(fiber => fiber.exec(({ value: x }) => 2 * x + 1)).
+        join(All).
+        effect(({ value: xs }) => { t.equal(xs, [], "the result is still an empty array"); })
+    );
+});
+
+test("Fiber.map(f) spawns a single fiber when the value is not a collection", t => {
+    run(new Fiber().
+        exec(K(23)).
+        map(fiber => fiber.exec(({ value: x }) => 2 * x + 1)).
+        join(All).
+        effect(({ value: xs }) => { t.equal(xs, [47], "the single value was handled"); })
+    );
+});
+
+test("Fiber.map(f) does nothing if the fiber is failing", t => {
+    t.expectsError = true;
+    run(new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        map(fiber => fiber.exec(({ value: x }) => 2 * x + 1)).
+        join(All).
+        either(fiber => fiber.effect(({ error }) => { t.equal(error.message, "AUGH", "fiber is still failing"); }))
+    );
+});
+
+test("Fiber.map(f) treats the error as a single value inside either", t => {
+    t.expectsError = true;
+    run(new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            map(fiber => fiber.exec(({ error }) => error.message.toLowerCase())).
+            join(All)
+        ).
+        effect(({ value }) => { t.equal(value, ["augh"], "fiber recovered"); })
+    );
+});
