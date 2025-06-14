@@ -6,7 +6,7 @@ import Scheduler from "../lib/scheduler.js";
 // Utility function to run a fiber synchronously.
 function run(fiber, scheduler, until = Infinity) {
     scheduler ??= new Scheduler();
-    fiber.reset(scheduler.now);
+    fiber.reset(scheduler);
     scheduler.resume(fiber);
     scheduler.clock.now = until;
     return scheduler;
@@ -233,11 +233,11 @@ test("Fiber with no op", t => {
     t.same(fiber.endTime, 0, "ended at t=0");
 });
 
-test("Fiber.name(name)", t => {
+test("Fiber.named(name)", t => {
     const fiber = new Fiber();
-    t.same(fiber.name("foo"), fiber, "returns the fiber");
-    t.match(fiber.id, /\bfoo\b/, `is part of the fiber id (${fiber.id})`);
-    t.same(Fiber.byName("foo"), fiber, "allows finding the fiber by its name");
+    t.same(fiber.named("foo"), fiber, "returns the fiber");
+    t.same(fiber.name, "foo", "after setting its name");
+    t.match(fiber.id, /\bfoo\b/, `which becomes part of the fiber id (i.e., ${fiber.id})`);
 });
 
 test("Fiber.exec(f)", t => {
@@ -1316,7 +1316,7 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber", t => {
 
 test("Scheduler.setRateForFiber() sets the rate of the fiber when running", t => {
     const fiber = new Fiber().
-        spawn(fiber => fiber.name("delay").
+        spawn(fiber => fiber.named("delay").
             delay(888).
             effect((_, scheduler) => {
                 t.same(scheduler.now, 555, "delay was shortened as rate was set to 2");
@@ -1324,7 +1324,7 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber when running", t =>
         ).
         spawn(fiber => fiber.
             delay(222).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("delay"), 2); })
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("delay"), 2); })
         );
     run(fiber);
 });
@@ -1350,7 +1350,7 @@ test("Scheduler.setRateForFiber() affects ramps as well as delays", t => {
 test("Scheduler.setRateForFiber() sets the rate of the fiber for ramps as well when running", t => {
     const ps = [0, 0.2, 0.625, 1];
     const fiber = new Fiber().
-        spawn(fiber => fiber.name("ramp").
+        spawn(fiber => fiber.named("ramp").
             ramp(400, {
                 rampDidProgress(p) {
                     t.same(p, ps.shift(), `ramp did progress (${p})`)
@@ -1363,7 +1363,7 @@ test("Scheduler.setRateForFiber() sets the rate of the fiber for ramps as well w
         spawn(fiber => fiber.
             delay(100).
             effect((_, scheduler) => {
-                scheduler.setRateForFiber(Fiber.byName("ramp"), 3);
+                scheduler.setRateForFiber(scheduler.fiberNamed("ramp"), 3);
             })
         );
     const scheduler = run(fiber, new Scheduler(), 80);
@@ -1386,7 +1386,7 @@ test("Setting rate to 0", t => {
 
 test("Setting rate to 0 then resuming", t => {
     const fiber = new Fiber().
-        spawn(fiber => fiber.name("paused").
+        spawn(fiber => fiber.named("paused").
             effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0); }).
             delay(888).
             effect((_, scheduler) => {
@@ -1396,14 +1396,14 @@ test("Setting rate to 0 then resuming", t => {
         ).
         spawn(fiber => fiber.
             delay(111).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 1); })
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("paused"), 1); })
         );
     run(fiber);
 });
 
 test("Setting rate to 0 during a delay", t => {
     const fiber = new Fiber().
-        spawn(fiber => fiber.name("paused").
+        spawn(fiber => fiber.named("paused").
             delay(333).
             effect((_, scheduler) => {
                 // FIXME 4A05 Fiber local time
@@ -1412,9 +1412,9 @@ test("Setting rate to 0 during a delay", t => {
         ).
         spawn(fiber => fiber.
             delay(111).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 0); }).
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("paused"), 0); }).
             delay(666).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 1); })
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("paused"), 1); })
         );
     run(fiber);
 });
@@ -1422,7 +1422,7 @@ test("Setting rate to 0 during a delay", t => {
 test("Setting rate to 0 during a ramp", t => {
     const ps = [0, 0.25, 0.5, 1];
     const fiber = new Fiber().
-        spawn(fiber => fiber.name("paused").
+        spawn(fiber => fiber.named("paused").
             ramp(400, {
                 rampDidProgress(p) {
                     t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
@@ -1435,9 +1435,9 @@ test("Setting rate to 0 during a ramp", t => {
         ).
         spawn(fiber => fiber.
             delay(100).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 0); }).
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("paused"), 0); }).
             delay(1000).
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("paused"), 1); })
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("paused"), 1); })
         );
     const scheduler = run(fiber, new Scheduler(), 100);
     scheduler.clock.now = 500;
@@ -1719,9 +1719,9 @@ test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (obje
         exec(K({ foo: 1, bar: 2, baz: 3 })).
         map(fiber => fiber.
             exec(fiber =>
-                (fiber.value === 1 && Fiber.byName("foo") === fiber) ||
-                (fiber.value === 2 && Fiber.byName("bar") === fiber) ||
-                (fiber.value === 3 && Fiber.byName("baz") === fiber)
+                (fiber.value === 1 && fiber.name === "foo") ||
+                (fiber.value === 2 && fiber.name === "bar") ||
+                (fiber.value === 3 && fiber.name === "baz")
             )
         ).
         join(All).
@@ -1734,9 +1734,9 @@ test("Fiber.map(f) spawns a named fiber with f for every item in the fiber value
         exec(K(new Map([["foo", 1], ["bar", 2], ["baz", 3]]))).
         map(fiber => fiber.
             exec(fiber =>
-                (fiber.value === 1 && Fiber.byName("foo") === fiber) ||
-                (fiber.value === 2 && Fiber.byName("bar") === fiber) ||
-                (fiber.value === 3 && Fiber.byName("baz") === fiber)
+                (fiber.value === 1 && fiber.name === "foo") ||
+                (fiber.value === 2 && fiber.name === "bar") ||
+                (fiber.value === 3 && fiber.name === "baz")
             )
         ).
         join(All).
@@ -1879,5 +1879,43 @@ test("Fiber.each(f) treats the error as a single value inside either", t => {
             t.equal(iterations, ["augh"], "error was handled");
             t.equal(value, "ok", "fiber recovered");
         })
+    );
+});
+
+// 4I01 Fiber names are global
+
+test("Fiber.named() with a non-string name", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.named(Symbol.for("foo")).exec(K(23)).delay(Infinity)).
+        spawn(fiber => fiber.
+            effect((_, scheduler) => {
+                t.same(scheduler.fiberNamed(Symbol.for("foo")).value, 23, "found the fiber by its name");
+            })
+        )
+    );
+});
+
+test("Fiber.named() cannot rename a fiber", t => {
+    t.throws(() => { new Fiber().named("foo").named("bar") }, "an error is thrown");
+});
+
+test("A scheduler only accepts a single running fiber with a given name", t => {
+    t.throws(() => {
+        run(new Fiber().
+            spawn(fiber => fiber.named("foo")).
+            spawn(fiber => fiber.named("foo"))
+        );
+    }, "an error is thrown");
+});
+
+test("Names can be reused a different times", t => {
+    run(new Fiber().
+        exec(K([0, 1])).
+        repeat(fiber => fiber.
+            spawn(fiber => fiber.named("fib").exec(({ value: [x, y] }) => [y, x + y])).
+            join(First()),
+            { repeatShouldEnd: n => n > 7 }
+        ).
+        effect(({ value: [_, n] }) => { t.same(n, 34, "repeated fib to compute value"); })
     );
 });
