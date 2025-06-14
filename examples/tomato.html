@@ -7,31 +7,50 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import { All } from "../lib/fiber.js";
-import { loadImage } from "../lib/util.js";
+import { All, First } from "../lib/fiber.js";
+import { K, loadImage } from "../lib/util.js";
 
 const FPS = 9;
 
-// FIXME 4J08 Tomato sequences
-const Sequences = {
-    Idle: [1, 2, 3, 4, 5],
-    Blink: [6, 7, 8, 9],
-    Speak: [10, 11, 12, 13, 14, 15, 16, 17, 18]
-};
-
 const src = i => `tomato/tomato${i.toString().padStart(2, "0")}.png`;
 
+const p = document.querySelector(".example p");
 const screen = document.querySelector(".example .screen");
 
 const fiber = Scheduler.run().
-    exec(() => Object.values(Sequences).flat().map(src)).
-    map(fiber => fiber.exec(async ({ value: src }) => loadImage(src))).
-    join(All).
+    exec(K({
+        Idle: [1, 2, 3, 4, 5],
+        Blink: [6, 7, 8, 9],
+        Speak: [10, 11, 12, 13, 14, 15, 16, 17, 18]
+    })).
+    map(fiber => fiber.
+        map(fiber => fiber.exec(async ({ value: i }) => loadImage(src(i)))).
+        join(All).
+        effect(({ parent, name, value: images }) => {
+            const button = p.appendChild(document.createElement("button"));
+            button.setAttribute("type", "button");
+            button.textContent = name;
+            parent.value[name] = { images, button };
+        })
+    ).
+    join().
     repeat(fiber => fiber.
-        each(fiber => fiber.
-            effect(({ value: image }) => { screen.replaceChild(image, screen.firstChild); }).
-            delay(1000 / FPS)
-        )
+        spawn(fiber => fiber.
+            map(fiber => fiber.
+                event(fiber => fiber.value.button, "click").
+                exec(fiber => fiber.value.images)
+            ).
+            join(First()).
+            spawn(fiber => fiber.named("animation-loop").
+                repeat(fiber => fiber.
+                    each(fiber => fiber.
+                        effect(({ value: image }) => { screen.replaceChild(image, screen.firstChild); }).
+                        delay(1000 / FPS)
+                    )
+                )
+            )
+        ).
+        join()
     );
 
         </script>
@@ -39,13 +58,13 @@ const fiber = Scheduler.run().
     <body>
         <h1>Flipbook animation example (tomato)</h1>
         <div class="example">
+            <p></p>
             <div class="screen">...</div>
         </div>
         <p>A simple flipbook animation loop is at its core a loop showing an image for a small interval (<em>e.g.</em>,
         at a modest 9 frames per second, the interval is 1000 / 9, or around 111, milliseconds). The images are loaded
         first with <code>map</code>, and the loop runs through all frames using <code>each</code> (and is nested inside
         another <code>repeat</code> to run indefinitely).</p>
-        <p><span class="todo">TODO</span> Different sequences</p>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
