@@ -1913,8 +1913,7 @@ test("Names can be reused a different times", t => {
         exec(K([0, 1])).
         repeat(fiber => fiber.
             spawn(fiber => fiber.named("fib").exec(({ value: [x, y] }) => [y, x + y])).
-            join(First()).
-            effect(fiber => { console.info(`${fiber.name}=${fiber.value}`); }),
+            join(First()),
             { repeatShouldEnd: n => n > 7 }
         ).
         effect(({ value: [_, n] }) => { t.same(n, 34, "repeated fib to compute value"); })
