@@ -1783,3 +1783,101 @@ test("Fiber.map(f) treats the error as a single value inside either", t => {
         effect(({ value }) => { t.equal(value, ["augh"], "fiber recovered"); })
     );
 });
+
+// 4A02 Each
+
+test("Fiber.each(f) loops over the itesm in the fiber value (array)", t => {
+    const iterations = [];
+    run(new Fiber().
+        exec(K([17, 31, 23])).
+        each(fiber => fiber.effect(({ value: x }) => { iterations.push(2 * x + 1); })).
+        effect(({ value }) => {
+            t.equal(value, [17, 31, 23], "original value is unchanged");
+            t.equal(iterations, [35, 63, 47], "all values were handled in order");
+        })
+    );
+});
+
+test("Fiber.each(f) loops over the itesm in the fiber value (set)", t => {
+    const iterations = [];
+    run(new Fiber().
+        exec(K(new Set([17, 31, 23]))).
+        each(fiber => fiber.effect(({ value: x }) => { iterations.push(2 * x + 1); })).
+        effect(({ value }) => {
+            t.equal(value, new Set([17, 31, 23]), "original value is unchanged");
+            t.equal(iterations.sort(), [35, 47, 63], "all values were handled in order");
+        })
+    );
+});
+
+test("Fiber.each(f) loops over the itesm in the fiber value (object)", t => {
+    const iterations = [];
+    run(new Fiber().
+        exec(K({ foo: 1, bar: 2, baz: 3 })).
+        each(fiber => fiber.effect(({ value: [k, v] }) => {
+            for (let i = 0; i < v; ++i) {
+                iterations.push(k);
+            }
+        })).
+        effect(({ value }) => {
+            t.equal(value, { foo: 1, bar: 2, baz: 3 }, "original value is unchanged");
+            t.equal(iterations.sort(), ["bar", "bar", "baz", "baz", "baz", "foo"], "all values were handled in order");
+        })
+    );
+});
+
+test("Fiber.each(f) loops over the itesm in the fiber value (map)", t => {
+    const map = new Map([["foo", 1], ["bar", 2], ["baz", 3]]);
+    const iterations = [];
+    run(new Fiber().
+        exec(K(map)).
+        each(fiber => fiber.effect(({ value: [k, v] }) => {
+            for (let i = 0; i < v; ++i) {
+                iterations.push(k);
+            }
+        })).
+        effect(({ value }) => {
+            t.same(value, map, "original value is unchanged");
+            t.equal(iterations.sort(), ["bar", "bar", "baz", "baz", "baz", "foo"], "all values were handled in order");
+        })
+    );
+});
+
+test("Fiber.each(f) loops over the itesm in the fiber value (empty array)", t => {
+    const iterations = [];
+    run(new Fiber().
+        exec(K([])).
+        each(fiber => fiber.effect(({ value: x }) => { iterations.push(2 * x + 1); })).
+        effect(({ value }) => {
+            t.equal(value, [], "original value is unchanged");
+        })
+    );
+});
+
+test("Fiber.each(f) applies to a non-collection value", t => {
+    const iterations = [];
+    run(new Fiber().
+        exec(K(23)).
+        each(fiber => fiber.effect(({ value: x }) => { iterations.push(2 * x + 1); })).
+        effect(({ value }) => {
+            t.equal(value, 23, "original value is unchanged");
+            t.equal(iterations, [47], "ran through a single iteration");
+        })
+    );
+});
+
+test("Fiber.each(f) treats the error as a single value inside either", t => {
+    t.expectsError = true;
+    const iterations = [];
+    run(new Fiber().
+        effect(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            each(fiber => fiber.effect(({ error }) => { iterations.push(error.message.toLowerCase()); })).
+            exec(K("ok"))
+        ).
+        effect(({ value }) => {
+            t.equal(iterations, ["augh"], "error was handled");
+            t.equal(value, "ok", "fiber recovered");
+        })
+    );
+});
