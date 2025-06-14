@@ -7,7 +7,7 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import Fiber, { First } from "../lib/fiber.js";
+import { First } from "../lib/fiber.js";
 import { Canvas, Turtle } from "./turtle.js";
 
 const range = document.querySelector(`input[type="range"]`);
@@ -21,7 +21,7 @@ const fiber = Scheduler.run().
             effect((_, scheduler) => {
                 const rate = 1.26 ** range.value;
                 span.textContent = rate.toFixed(2);
-                scheduler.setRateForFiber(Fiber.byName("turtle"), rate);
+                scheduler.setRateForFiber(scheduler.fiberNamed("turtle"), rate);
             }).
             event(range, "input"), { repeatShouldEnd: () => false }
         )
@@ -29,29 +29,31 @@ const fiber = Scheduler.run().
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             event(infinity, "click").
-            effect((_, scheduler) => { scheduler.setRateForFiber(Fiber.byName("turtle"), Infinity); })
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("turtle"), Infinity); })
         )
     ).
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             event(pause, "change").
             exec((_, scheduler) => {
-                const turtle = Fiber.byName("turtle");
+                const turtle = scheduler.fiberNamed("turtle");
                 const rate = turtle.rate;
                 scheduler.setRateForFiber(turtle, 0);
                 range.disabled = true;
+                infinity.disabled = true;
                 return rate;
             }).
             event(pause, "change").
             effect(({ value: rate }, scheduler) => {
                 range.disabled = false;
-                scheduler.setRateForFiber(Fiber.byName("turtle"), rate);
+                infinity.disabled = false;
+                scheduler.setRateForFiber(scheduler.fiberNamed("turtle"), rate);
             })
         )
     );
 
 const canvas = new Canvas(document.querySelector("canvas"));
-const turtle = new Turtle(fiber.spawn().name("turtle"), canvas).
+const turtle = new Turtle(fiber.spawn().named("turtle"), canvas).
     to("triangle", (turtle, size) => turtle.
         repeat(3, turtle => turtle.
             forward(size).

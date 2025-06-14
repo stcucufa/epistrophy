@@ -7,7 +7,6 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import Fiber from "../lib/fiber.js";
 
 const [timer, elapsed] = document.querySelectorAll("span");
 const range = document.querySelector("input");
@@ -21,14 +20,14 @@ Scheduler.run().
             effect(({ value: seconds }, scheduler) => {
                 timer.textContent = `${seconds}s`;
                 progress.max = seconds * 1000;
-                const f = Fiber.byName("timer");
+                const f = scheduler.fiberNamed("timer");
                 scheduler.updateDelayForFiber(f, progress.max);
             }).
             event(range, "input")
         )
     ).
     spawn(fiber => fiber.
-        repeat(fiber => fiber.name("timer").
+        repeat(fiber => fiber.named("timer").
             event(button, "click").
             effect(() => {
                 button.disabled = true;
