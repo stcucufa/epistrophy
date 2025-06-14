@@ -9,11 +9,19 @@ const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(
 // Compare x and y depending on their type (despite x !== y).
 const Equal = {
     array: (x, y) => x.length === y.length && x.every((xi, i) => equal(xi, y[i])),
+    set: (x, y) => x.difference(y).size === 0,
     number: (x, y) => isNaN(x) && isNaN(y),
     object: (x, y) => {
         const keys = Object.keys(x);
         return keys.length === Object.keys(y).length && keys.every(key => key in y && equal(x[key], y[key]));
     },
+    map: (x, y) => {
+        if (x.size !== y.size) {
+            return false;
+        }
+        const keys = x.keys();
+        return keys.every(key => y.has(key) && equal(x.get(key), y.get(key)));
+    }
 };
 
 class Test {
