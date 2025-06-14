@@ -1884,6 +1884,17 @@ test("Fiber.each(f) treats the error as a single value inside either", t => {
 
 // 4I01 Fiber names are global
 
+test("Fiber.named() with a non-string name", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.named(Symbol.for("foo")).exec(K(23)).delay(Infinity)).
+        spawn(fiber => fiber.
+            effect((_, scheduler) => {
+                t.same(scheduler.fiberNamed(Symbol.for("foo")).value, 23, "found the fiber by its name");
+            })
+        )
+    );
+});
+
 test("Fiber.named() cannot rename a fiber", t => {
     t.throws(() => { new Fiber().named("foo").named("bar") }, "an error is thrown");
 });
