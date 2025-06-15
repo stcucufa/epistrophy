@@ -581,13 +581,14 @@ test("Fiber.delay(dur): dur function may be evaluated several times", t => {
 test("Fiber.spawn() creates a new fiber immediately", t => {
     const fiber = new Fiber();
     const child = fiber.spawn();
-    t.same(child.parent, fiber, "the new fiber has a parent");
+    t.true(child !== fiber && child instanceof Fiber, "the child fiber is returned");
 });
 
 test("Fiber.spawn(f) creates a new fiber immediately", t => {
     const fiber = new Fiber();
     t.same(fiber.spawn(child => {
-        t.same(child.parent, fiber, "the function parameter is called with the child fiber as argument")
+        t.true(child !== fiber && child instanceof Fiber,
+            "the function parameter is called with the child fiber as argument")
     }), fiber, "but the parent fiber is returned");
 });
 
@@ -1917,5 +1918,16 @@ test("Names can be reused a different times", t => {
             { repeatShouldEnd: n => n > 7 }
         ).
         effect(({ value: [_, n] }) => { t.same(n, 34, "repeated fib to compute value"); })
+    );
+});
+
+// 4J0A Delay setting fiber parent
+test("Fiber is attached to its parent dynamically", t => {
+    let sum = 0;
+    run(new Fiber().
+        exec(K([[1, 2, 3]])).
+        map(fiber => fiber.each(fiber => fiber.effect(({ value }) => { sum += value; }))).
+        join().
+        effect(() => { t.same(sum, 6, "nesting each within par attaches fibers correctly"); })
     );
 });
