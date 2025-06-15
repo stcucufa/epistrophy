@@ -1931,3 +1931,44 @@ test("Fiber is attached to its parent dynamically", t => {
         effect(() => { t.same(sum, 6, "nesting each within par attaches fibers correctly"); })
     );
 });
+
+// 2308 Variable Event
+
+test("Target of event may be a function", t => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        event((...args) => {
+            t.equal(args, [fiber, scheduler], "which gets called with fiber and scheduler as parameters");
+            return window;
+        }, "hello", {
+            eventWasHandled: event => { t.same(event.target, window, "event target was set correctly"); }
+        });
+    run(fiber, scheduler, 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Type of event may be a function", t => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        exec(K("hello")).
+        event(window, (...args) => {
+            t.equal(args, [fiber, scheduler], "which gets called with fiber and scheduler as parameters");
+            return args[0].value;
+        }, {
+            eventWasHandled: event => { t.same(event.target, window, "event target was set correctly"); }
+        });
+    run(fiber, scheduler, 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber fails if the function fails", t => {
+    t.expectsError = true;
+    run(new Fiber().
+        event(() => { throw Error("AUGH"); }, "foo").
+        either(fiber => fiber.
+            effect(({ error }) => { t.same(error.message, "AUGH", "error in target function was caught"); })
+        )
+    );
+});
