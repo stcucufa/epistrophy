@@ -23,6 +23,9 @@ const fiber = Scheduler.run().
         Blink: [6, 7, 8, 9],
         Speak: [10, 11, 12, 13, 14, 15, 16, 17, 18]
     })).
+
+    // Load images for every sequence and add a button to play that sequence.
+    // The image sources are replaced by the actual image elements.
     map(fiber => fiber.
         map(fiber => fiber.exec(async ({ value: i }) => loadImage(src(i)))).
         join(All).
@@ -35,6 +38,13 @@ const fiber = Scheduler.run().
     ).
     join().
 
+    // Main loop: when a button is pressed, start an animation loop with the
+    // images for that sequence and do not join, so that we can start listening
+    // to the next button while the animation loop keeps running. The custom
+    // join delegate has two purposes: first, start the Idle animation by
+    // default (bypassing listening to buttons when there is no animation loop),
+    // and second, “soft cancel” the siblings to let the inner animation to
+    // finish before moving to the next.
     repeat(fiber => fiber.
         spawn(fiber => fiber.
             map(fiber => fiber.
@@ -61,9 +71,16 @@ const fiber = Scheduler.run().
             }).
             spawn(fiber => fiber.named("animation-loop").
                 repeat(fiber => fiber.
+                    // The animation loop is protected with either so that it
+                    // keeps running even when cancelled (which is why it needs
+                    // to use either the value, or the error of the fiber).
+                    // The repeat itself is not protected from cancellation so
+                    // it will end after the sequence has played when cancelled.
                     either(fiber => fiber.
                         each(fiber => fiber.
-                            effect(({ value, error }) => { screen.replaceChild(value ?? error, screen.firstChild); }).
+                            effect(({ value, error }) => {
+                                screen.replaceChild(value ?? error, screen.firstChild);
+                            }).
                             delay(1000 / FPS)
                         )
                     )
@@ -72,6 +89,10 @@ const fiber = Scheduler.run().
         ).
         join(),
         {
+            // This is necessary because the first iteration will take 0 time,
+            // which is expected. To be safe, we should check that any further
+            // iteration should have a non-zero duration.
+            // FIXME 4J0F repeatShouldEnd should know the duration of the iteration
             repeatShouldEnd: K(false)
         }
     );
@@ -87,6 +108,11 @@ const fiber = Scheduler.run().
         at a modest 9 frames per second, the interval is 1000 / 9, or around 111, milliseconds). The images are loaded
         first with <code>map</code>, and the loop runs through all frames using <code>each</code> (and is nested inside
         another <code>repeat</code> to run indefinitely).</p>
+        <p>Different animation loops can be chosen by listening to buttons and choosing a corresponding animation loop
+        (which <code>map</code> enables by naming fibers by the keys of the object that it maps over). In order to make
+        transitions smoother, moving to the next loop only happens after a whole sequence has played, which is achieved
+        by wrapping the <code>each</code> instruction into <code>either</code>, enabling it to run even when the fiber
+        is cancelled.</p>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
