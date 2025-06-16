@@ -19,10 +19,13 @@ test("remove(xs, x)", t => {
 });
 
 // 4J0I Util: clamp
+
 test("clamp(x, min, max) clamps `x` between `min` and `max`", t => {
     t.equal(clamp(19, 17, 23), 19, "x ∈ [min, max]");
     t.equal(clamp(9, 17, 23), 17, "x < min");
     t.equal(clamp(91, 17, 23), 23, "x > max");
+    t.equal(clamp(17, 17, 23), 17, "x = min");
+    t.equal(clamp(23, 17, 23), 23, "x = max");
 });
 
 // 4E0A	Priority queue
