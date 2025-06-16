@@ -1,5 +1,5 @@
 import test from "./test.js";
-import { nop, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
+import { nop, clamp, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
 import Fiber, { All, Last, First } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
@@ -16,6 +16,13 @@ test("remove(xs, x)", t => {
     const xs = [1, 2, 3, 4, 5, 2, 2, 2];
     t.same(remove(xs, 2), 2, "the removed element is removed");
     t.equal(xs, [1, 3, 4, 5, 2, 2, 2], "only the first occurrence is removed");
+});
+
+// 4J0I Util: clamp
+test("clamp(x, min, max) clamps `x` between `min` and `max`", t => {
+    t.equal(clamp(19, 17, 23), 19, "x ∈ [min, max]");
+    t.equal(clamp(9, 17, 23), 17, "x < min");
+    t.equal(clamp(91, 17, 23), 23, "x > max");
 });
 
 // 4E0A	Priority queue
