@@ -7,7 +7,7 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import { All, First } from "../lib/fiber.js";
+import { All, cancelSiblings } from "../lib/fiber.js";
 import { K, loadImage } from "../lib/util.js";
 
 const FPS = 9;
@@ -35,18 +35,6 @@ const fiber = Scheduler.run().
     ).
     join().
 
-    spawn(fiber => fiber.named("default-loop").
-        exec(({ value: { Idle: { images } } }) => images).
-        repeat(fiber => fiber.
-            either(fiber => fiber.
-                each(fiber => fiber.
-                    effect(({ value, error }) => { screen.replaceChild(value ?? error, screen.firstChild); }).
-                    delay(1000 / FPS)
-                )
-            )
-        )
-    ).
-
     repeat(fiber => fiber.
         spawn(fiber => fiber.
             map(fiber => fiber.
@@ -55,22 +43,20 @@ const fiber = Scheduler.run().
             ).
             join({
                 fiberWillJoin(fiber, scheduler) {
-                    const adopted = scheduler.fiberNamed("default-loop");
-                    if (adopted) {
-                        this.pending.add(adopted);
-                        adopted.parent = fiber;
+                    if (!scheduler.fiberNamed("animation-loop")) {
+                        fiber.value = scheduler.fiberNamed("Idle").value.images;
+                        cancelSiblings(this, scheduler);
                     }
                 },
 
                 // FIXME 4J0C Cancel a fiber with handleError=true
                 childFiberDidEnd(child, scheduler) {
-                    if (child.isCancelled) {
-                        return;
+                    if (!child.isCancelled) {
+                        for (const sibling of this.pending) {
+                            sibling.cancel(scheduler);
+                        }
+                        child.parent.value = child.value;
                     }
-                    for (const sibling of this.pending) {
-                        sibling.cancel(scheduler);
-                    }
-                    child.parent.value = child.value;
                 }
             }).
             spawn(fiber => fiber.named("animation-loop").
@@ -84,7 +70,10 @@ const fiber = Scheduler.run().
                 )
             )
         ).
-        join()
+        join(),
+        {
+            repeatShouldEnd: K(false)
+        }
     );
         </script>
     </head>
@@ -92,7 +81,7 @@ const fiber = Scheduler.run().
         <h1>Flipbook animation example (tomato)</h1>
         <div class="example">
             <p></p>
-            <div class="screen">...</div>
+            <div class="screen">LOADING...</div>
         </div>
         <p>A simple flipbook animation loop is at its core a loop showing an image for a small interval (<em>e.g.</em>,
         at a modest 9 frames per second, the interval is 1000 / 9, or around 111, milliseconds). The images are loaded
