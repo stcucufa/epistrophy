@@ -40,12 +40,24 @@ const fiber = Scheduler.run().
                 event(fiber => fiber.value.button, "click").
                 exec(fiber => fiber.value.images)
             ).
-            join(First()).
+            join({
+                childFiberDidEnd(child, scheduler) {
+                    if (child.isCancelled) {
+                        return;
+                    }
+                    for (const sibling of this.pending) {
+                        sibling.cancel(scheduler);
+                    }
+                    child.parent.value = child.value;
+                }
+            }).
             spawn(fiber => fiber.named("animation-loop").
                 repeat(fiber => fiber.
-                    each(fiber => fiber.
-                        effect(({ value: image }) => { screen.replaceChild(image, screen.firstChild); }).
-                        delay(1000 / FPS)
+                    either(fiber => fiber.
+                        each(fiber => fiber.
+                            effect(({ value, error }) => { screen.replaceChild(value ?? error, screen.firstChild); }).
+                            delay(1000 / FPS)
+                        )
                     )
                 )
             )
