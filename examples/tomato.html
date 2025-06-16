@@ -34,6 +34,19 @@ const fiber = Scheduler.run().
         })
     ).
     join().
+
+    spawn(fiber => fiber.named("default-loop").
+        exec(({ value: { Idle: { images } } }) => images).
+        repeat(fiber => fiber.
+            either(fiber => fiber.
+                each(fiber => fiber.
+                    effect(({ value, error }) => { screen.replaceChild(value ?? error, screen.firstChild); }).
+                    delay(1000 / FPS)
+                )
+            )
+        )
+    ).
+
     repeat(fiber => fiber.
         spawn(fiber => fiber.
             map(fiber => fiber.
@@ -41,6 +54,15 @@ const fiber = Scheduler.run().
                 exec(fiber => fiber.value.images)
             ).
             join({
+                fiberWillJoin(fiber, scheduler) {
+                    const adopted = scheduler.fiberNamed("default-loop");
+                    if (adopted) {
+                        this.pending.add(adopted);
+                        adopted.parent = fiber;
+                    }
+                },
+
+                // FIXME 4J0C Cancel a fiber with handleError=true
                 childFiberDidEnd(child, scheduler) {
                     if (child.isCancelled) {
                         return;
@@ -64,7 +86,6 @@ const fiber = Scheduler.run().
         ).
         join()
     );
-
         </script>
     </head>
     <body>
