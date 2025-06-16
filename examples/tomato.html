@@ -7,45 +7,112 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import Scheduler from "../lib/scheduler.js";
-import { All } from "../lib/fiber.js";
-import { loadImage } from "../lib/util.js";
+import { All, cancelSiblings } from "../lib/fiber.js";
+import { K, loadImage } from "../lib/util.js";
 
 const FPS = 9;
 
-// FIXME 4J08 Tomato sequences
-const Sequences = {
-    Idle: [1, 2, 3, 4, 5],
-    Blink: [6, 7, 8, 9],
-    Speak: [10, 11, 12, 13, 14, 15, 16, 17, 18]
-};
-
 const src = i => `tomato/tomato${i.toString().padStart(2, "0")}.png`;
 
+const p = document.querySelector(".example p");
 const screen = document.querySelector(".example .screen");
 
 const fiber = Scheduler.run().
-    exec(() => Object.values(Sequences).flat().map(src)).
-    map(fiber => fiber.exec(async ({ value: src }) => loadImage(src))).
-    join(All).
-    repeat(fiber => fiber.
-        each(fiber => fiber.
-            effect(({ value: image }) => { screen.replaceChild(image, screen.firstChild); }).
-            delay(1000 / FPS)
-        )
-    );
+    exec(K({
+        Idle: [1, 2, 3, 4, 5],
+        Blink: [6, 7, 8, 9],
+        Speak: [10, 11, 12, 13, 14, 15, 16, 17, 18]
+    })).
 
+    // Load images for every sequence and add a button to play that sequence.
+    // The image sources are replaced by the actual image elements.
+    map(fiber => fiber.
+        map(fiber => fiber.exec(async ({ value: i }) => loadImage(src(i)))).
+        join(All).
+        effect(({ parent, name, value: images }) => {
+            const button = p.appendChild(document.createElement("button"));
+            button.setAttribute("type", "button");
+            button.textContent = name;
+            parent.value[name] = { images, button };
+        })
+    ).
+    join().
+
+    // Main loop: when a button is pressed, start an animation loop with the
+    // images for that sequence and do not join, so that we can start listening
+    // to the next button while the animation loop keeps running. The custom
+    // join delegate has two purposes: first, start the Idle animation by
+    // default (bypassing listening to buttons when there is no animation loop),
+    // and second, “soft cancel” the siblings to let the inner animation to
+    // finish before moving to the next.
+    repeat(fiber => fiber.
+        spawn(fiber => fiber.
+            map(fiber => fiber.
+                event(fiber => fiber.value.button, "click").
+                exec(fiber => fiber.value.images)
+            ).
+            join({
+                fiberWillJoin(fiber, scheduler) {
+                    if (!scheduler.fiberNamed("animation-loop")) {
+                        fiber.value = scheduler.fiberNamed("Idle").value.images;
+                        cancelSiblings(this, scheduler);
+                    }
+                },
+
+                // FIXME 4J0C Cancel a fiber with handleError=true
+                childFiberDidEnd(child, scheduler) {
+                    if (!child.isCancelled) {
+                        for (const sibling of this.pending) {
+                            sibling.cancel(scheduler);
+                        }
+                        child.parent.value = child.value;
+                    }
+                }
+            }).
+            spawn(fiber => fiber.named("animation-loop").
+                repeat(fiber => fiber.
+                    // The animation loop is protected with either so that it
+                    // keeps running even when cancelled (which is why it needs
+                    // to use either the value, or the error of the fiber).
+                    // The repeat itself is not protected from cancellation so
+                    // it will end after the sequence has played when cancelled.
+                    either(fiber => fiber.
+                        each(fiber => fiber.
+                            effect(({ value, error }) => {
+                                screen.replaceChild(value ?? error, screen.firstChild);
+                            }).
+                            delay(1000 / FPS)
+                        )
+                    )
+                )
+            )
+        ).
+        join(),
+        {
+            // This is necessary because the first iteration will take 0 time,
+            // which is expected. To be safe, we should check that any further
+            // iteration should have a non-zero duration.
+            // FIXME 4J0F repeatShouldEnd should know the duration of the iteration
+            repeatShouldEnd: K(false)
+        }
+    );
         </script>
     </head>
     <body>
         <h1>Flipbook animation example (tomato)</h1>
         <div class="example">
-            <div class="screen">...</div>
+            <p></p>
+            <div class="screen">LOADING...</div>
         </div>
         <p>A simple flipbook animation loop is at its core a loop showing an image for a small interval (<em>e.g.</em>,
         at a modest 9 frames per second, the interval is 1000 / 9, or around 111, milliseconds). The images are loaded
         first with <code>map</code>, and the loop runs through all frames using <code>each</code> (and is nested inside
         another <code>repeat</code> to run indefinitely).</p>
-        <p><span class="todo">TODO</span> Different sequences</p>
+        <p>Different animation loops can be chosen by listening to buttons and choosing a corresponding animation loop
+        (which <code>map</code> enables by naming fibers by the keys of the object that it maps over). In order to make
+        transitions smoother, moving to the next loop only happens after a whole sequence has played, which is achieved
+        by wrapping the <code>each</code> instruction into <code>either</code>, enabling it to run even when the fiber
+        is cancelled.</p>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
