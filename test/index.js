@@ -7,7 +7,7 @@ import Scheduler from "../lib/scheduler.js";
 function run(fiber, scheduler, until = Infinity) {
     scheduler ??= new Scheduler();
     scheduler.resetFiber(fiber);
-    scheduler.resume(fiber);
+    scheduler.resumeFiber(fiber);
     scheduler.clock.now = until;
     return scheduler;
 }
