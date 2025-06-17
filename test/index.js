@@ -6,7 +6,7 @@ import Scheduler from "../lib/scheduler.js";
 // Utility function to run a fiber synchronously.
 function run(fiber, scheduler, until = Infinity) {
     scheduler ??= new Scheduler();
-    fiber.reset(scheduler);
+    scheduler.resetFiber(fiber);
     scheduler.resume(fiber);
     scheduler.clock.now = until;
     return scheduler;
