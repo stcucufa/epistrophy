@@ -818,13 +818,13 @@ test("Repeated spawning", t => {
 
 // 4E0E Attach
 
-test("Fiber.attach()", t => {
+test("Scheduler.attachFiber()", t => {
     run(new Fiber().
         exec(K(3)).
         effect((fiber, scheduler) => {
             const n = fiber.value;
             for (let i = 0; i < n; ++i) {
-                fiber.attach(scheduler);
+                scheduler.attachFiber(fiber);
             }
         }).
         join(All).
