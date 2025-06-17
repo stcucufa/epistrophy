@@ -843,7 +843,7 @@ test("Cancel the current event listener", t => {
         });
     const scheduler = new Scheduler();
     run(fiber, scheduler);
-    fiber.cancel(scheduler);
+    scheduler.cancelFiber(fiber);
     t.true(fiber.isCancelled, "fiber is cancelled");
     window.dispatchEvent(new CustomEvent("hello"));
 });
@@ -851,7 +851,7 @@ test("Cancel the current event listener", t => {
 test("Self cancellation", t => {
     const fiber = new Fiber().
         exec(K("ko")).
-        effect((fiber, scheduler) => fiber.cancel(scheduler));
+        effect((fiber, scheduler) => scheduler.cancelFiber(fiber));
     run(fiber);
     t.true(fiber.isCancelled, "fiber cancelled itself");
 });
