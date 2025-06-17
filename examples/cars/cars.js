@@ -1,5 +1,5 @@
 import Scheduler from "../../lib/scheduler.js";
-import { Last, First } from "../../lib/fiber.js";
+import { Last, First, Gate } from "../../lib/fiber.js";
 
 const Width = 800;
 const Height = 600;
@@ -45,7 +45,7 @@ const fiber = Scheduler.run().
                 return game;
             })
     }).
-    join(First).
+    join().
 
     // Press a key to begin
 
@@ -103,7 +103,7 @@ const fiber = Scheduler.run().
                 );
             }
             fiber.
-                join(First(false)).
+                join(Gate).
                 effect(({ value: game }) => {
                     // If a car fiber ended, then there was a crash.
                     game.cars.length = 1;
@@ -139,10 +139,10 @@ const fiber = Scheduler.run().
                     game.cars[0].lane = 1;
                 })
             ).
-            join(First())
+            join(First)
         ).
 
-        join(First(false))
+        join(Gate)
     ).
 
     // Draw loop

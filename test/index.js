@@ -1,6 +1,6 @@
 import test from "./test.js";
 import { nop, clamp, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
-import Fiber, { All, Last, First } from "../lib/fiber.js";
+import Fiber, { All, Last, First, Gate } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
 // Utility function to run a fiber synchronously.
@@ -856,7 +856,7 @@ test("Self cancellation", t => {
     t.true(fiber.isCancelled, "fiber cancelled itself");
 });
 
-test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t => {
+test("Fiber.join(First) cancels sibling fibers and sets the fiber value", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.
             delay(111).
@@ -868,12 +868,12 @@ test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t =>
             )
         ).
         spawn(fiber => fiber.exec(K("ok"))).
-        join(First());
+        join(First);
     run(fiber);
     t.equal(fiber.value, "ok", "first value won");
 });
 
-test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t => {
+test("Fiber.join(First) cancels sibling fibers and sets the fiber value", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.exec(K("ok"))).
         spawn(fiber => fiber.
@@ -881,7 +881,7 @@ test("Fiber.join(First()) cancels sibling fibers and sets the fiber value", t =>
                 effect((fiber, scheduler) => { t.true(fiber.isCancelled, "fiber was cancelled"); })
             )
         ).
-        join(First());
+        join(First);
     run(fiber);
     t.equal(fiber.value, "ok", "first value won (sync)");
 });
@@ -896,12 +896,12 @@ test("Cancel pending children when joining", t => {
             join()
         ).
         spawn(nop).
-        join(First());
+        join(First);
     run(fiber);
     t.pass();
 });
 
-test("Fiber.join(First(false)) cancels sibling fibers and does not set its value", t => {
+test("Fiber.join(Gate) cancels sibling fibers and does not set its value", t => {
     const fiber = new Fiber().
         exec(K("ok")).
         spawn(fiber => fiber.
@@ -914,7 +914,7 @@ test("Fiber.join(First(false)) cancels sibling fibers and does not set its value
             )
         ).
         spawn(fiber => fiber.exec(K("ko"))).
-        join(First(false));
+        join(Gate);
     run(fiber);
     t.equal(fiber.value, "ok", "did not change the fiber value");
 });
@@ -928,7 +928,7 @@ test("Do not cancel child when not joining", t => {
             )
         ).
         spawn(nop).
-        join(First());
+        join(First);
     run(fiber);
     t.atleast(t.expectations, 1, "child fiber kept running");
 });
@@ -1115,7 +1115,7 @@ test("Either(f, g) should restore state correctly", t => {
             effect(() => { t.fail("fiber should be cancelled"); })
         ).
         spawn(fiber => fiber.delay(111)).
-        join(First());
+        join(First);
     run(fiber);
 });
 
@@ -1548,7 +1548,7 @@ test("Ramp does not begin if a fiber is cancelled", t => {
             })
         ).
         spawn(fiber => fiber.delay(1110)).
-        join(First());
+        join(First);
     run(fiber);
     t.undefined(fiber.error, "ramp did not begin");
 });
@@ -1573,7 +1573,7 @@ test("Ramp inside either does begin if a fiber is cancelled", t => {
             )
         ).
         spawn(fiber => fiber.delay(999)).
-        join(First());
+        join(First);
     run(fiber);
 });
 
@@ -1588,7 +1588,7 @@ test("Ramp ends when the fiber is cancelled", t => {
             })
         ).
         spawn(fiber => fiber.delay(777)).
-        join(First());
+        join(First);
     const scheduler = run(fiber, new Scheduler(), 222);
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "the ramp was cancelled");
@@ -1607,7 +1607,7 @@ test("Ramp in either continues when the fiber is cancelled", t => {
             )
         ).
         spawn(fiber => fiber.delay(777)).
-        join(First());
+        join(First);
     const scheduler = run(fiber, new Scheduler(), 222);
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "the ramp ended");
@@ -1667,7 +1667,7 @@ test("First ignores errors...", t => {
         spawn(fiber => fiber.exec(K("ok"))).
         spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
         spawn(fiber => fiber.exec(K("ko"))).
-        join(First()).
+        join(First).
         either(fiber => fiber.
             effect(({ value }) => { t.same(value, "ok", "errors were ignored"); })
         );
@@ -1680,7 +1680,7 @@ test("... unless all children fail", t => {
         spawn(fiber => fiber.effect(() => { throw Error("AUGH!!!"); })).
         spawn(fiber => fiber.effect(() => { throw Error("AUGH!!!!!!"); })).
         spawn(fiber => fiber.effect(() => { throw Error("AUGH"); })).
-        join(First()).
+        join(First).
         either(fiber => fiber.
             effect(({ error }) => { t.same(error.message, "AUGH", "failed with final error"); })
         );
@@ -1924,7 +1924,7 @@ test("Names can be reused a different times", t => {
         exec(K([0, 1])).
         repeat(fiber => fiber.
             spawn(fiber => fiber.named("fib").exec(({ value: [x, y] }) => [y, x + y])).
-            join(First()),
+            join(First),
             { repeatShouldEnd: n => n > 7 }
         ).
         effect(({ value: [_, n] }) => { t.same(n, 34, "repeated fib to compute value"); })

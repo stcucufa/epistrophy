@@ -159,7 +159,7 @@ Scheduler.run().
             event(buttons[1], "click").
             exec(({ value: count }) => count += 1)
         ).
-        join(First())
+        join(First)
     );
 ```
 
@@ -187,7 +187,7 @@ is clicked.
 These two `spawn`s are followed by:
 
 ```js
-        join(First())
+        join(First)
 ```
 
 which waits until the child fibers end. In its simplest form, `join()` waits for
@@ -198,7 +198,7 @@ In general, we also want to be able to do something with the values of the child
 fibers, so `join()` accepts a delegate object as its parameter, with a
 `childFiberDidEnd()` method that gets called when a child fiber ends. We see
 a first abstraction built on top of the primitives of the runtime here with the
-call to `First()`, which provides a delegate for `join()` that allows the fiber
+call to `First`, which provides a delegate for `join()` that allows the fiber
 to resume as soon as the first of its child fiber ends execution, and cancels
 all the other siblings, and setting the value of the fiber to the end value of
 its child.
