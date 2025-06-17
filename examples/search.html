@@ -65,7 +65,7 @@ Scheduler.run().
             spawn(fiber => fiber.event(search, "change")).
             spawn(fiber => fiber.event(button, "click")).
             join(First()).
-            effect((_, scheduler) => { scheduler.fiberNamed("autocomplete").cancel(scheduler); }).
+            effect((_, scheduler) => { scheduler.cancelFiber(scheduler.fiberNamed("autocomplete")); }).
             exec(query).
             either(
                 fiber => fiber.effect(({ value: features }) => {

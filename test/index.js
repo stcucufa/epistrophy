@@ -6,8 +6,8 @@ import Scheduler from "../lib/scheduler.js";
 // Utility function to run a fiber synchronously.
 function run(fiber, scheduler, until = Infinity) {
     scheduler ??= new Scheduler();
-    fiber.reset(scheduler);
-    scheduler.resume(fiber);
+    scheduler.resetFiber(fiber);
+    scheduler.resumeFiber(fiber);
     scheduler.clock.now = until;
     return scheduler;
 }
@@ -818,13 +818,13 @@ test("Repeated spawning", t => {
 
 // 4E0E Attach
 
-test("Fiber.attach()", t => {
+test("Scheduler.attachFiber()", t => {
     run(new Fiber().
         exec(K(3)).
         effect((fiber, scheduler) => {
             const n = fiber.value;
             for (let i = 0; i < n; ++i) {
-                fiber.attach(scheduler);
+                scheduler.attachFiber(fiber);
             }
         }).
         join(All).
@@ -843,7 +843,7 @@ test("Cancel the current event listener", t => {
         });
     const scheduler = new Scheduler();
     run(fiber, scheduler);
-    fiber.cancel(scheduler);
+    scheduler.cancelFiber(fiber);
     t.true(fiber.isCancelled, "fiber is cancelled");
     window.dispatchEvent(new CustomEvent("hello"));
 });
@@ -851,7 +851,7 @@ test("Cancel the current event listener", t => {
 test("Self cancellation", t => {
     const fiber = new Fiber().
         exec(K("ko")).
-        effect((fiber, scheduler) => fiber.cancel(scheduler));
+        effect((fiber, scheduler) => scheduler.cancelFiber(fiber));
     run(fiber);
     t.true(fiber.isCancelled, "fiber cancelled itself");
 });

@@ -63,7 +63,7 @@ const fiber = Scheduler.run().
                 childFiberDidEnd(child, scheduler) {
                     if (!child.isCancelled) {
                         for (const sibling of this.pending) {
-                            sibling.cancel(scheduler);
+                            scheduler.cancelFiber(sibling);
                         }
                         child.parent.value = child.value;
                     }
