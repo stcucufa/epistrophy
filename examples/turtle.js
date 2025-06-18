@@ -185,7 +185,9 @@ export class Turtle {
     }
 
     repeat(count, f) {
-        this.fiber.repeat(() => f(this), { repeatShouldEnd: i => i === count });
+        this.fiber.repeat(fiber => {
+            f(Object.assign(Object.create(this), { fiber }));
+        }, { repeatShouldEnd: i => i === count });
         return this;
     }
 
