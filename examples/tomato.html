@@ -38,63 +38,45 @@ const fiber = Scheduler.run().
     ).
     join().
 
-    // Main loop: when a button is pressed, start an animation loop with the
-    // images for that sequence and do not join, so that we can start listening
-    // to the next button while the animation loop keeps running. The custom
-    // join delegate has two purposes: first, start the Idle animation by
-    // default (bypassing listening to buttons when there is no animation loop),
-    // and second, “soft cancel” the siblings to let the inner animation to
-    // finish before moving to the next.
+    // Main loop: start an animation loop for the current sequence (starting
+    // with Idle), without joining, and immediately wait for a button press to
+    // start a new sequence. The custom join delegate “soft cancels” the
+    // siblings to let the inner animation loop finish before moving to the
+    // next sequence.
+    // FIXME 4J0Q Push/pop values
+    exec(({ value: loops }) => ({ loop: "Idle", loops })).
     repeat(fiber => fiber.
-        spawn(fiber => fiber.
-            map(fiber => fiber.
-                event(fiber => fiber.value.button, "click").
-                exec(fiber => fiber.value.images)
-            ).
-            join({
-                fiberWillJoin(fiber, scheduler) {
-                    if (!scheduler.fiberNamed("animation-loop")) {
-                        fiber.value = scheduler.fiberNamed("Idle").value.images;
-                        cancelSiblings(this, scheduler);
-                    }
-                },
-
-                // FIXME 4J0C Cancel a fiber with handleError=true
-                childFiberDidEnd(child, scheduler) {
-                    if (!child.isCancelled) {
-                        for (const sibling of this.pending) {
-                            scheduler.cancelFiber(sibling);
-                        }
-                        child.parent.value = child.value;
-                    }
-                }
-            }).
-            spawn(fiber => fiber.named("animation-loop").
-                repeat(fiber => fiber.
-                    // The animation loop is protected with either so that it
-                    // keeps running even when cancelled (which is why it needs
-                    // to use either the value, or the error of the fiber).
-                    // The repeat itself is not protected from cancellation so
-                    // it will end after the sequence has played when cancelled.
-                    either(fiber => fiber.
-                        each(fiber => fiber.
-                            effect(({ value, error }) => {
-                                screen.replaceChild(value ?? error, screen.firstChild);
-                            }).
-                            delay(1000 / FPS)
-                        )
+        spawn(fiber => fiber.named("animation-loop").
+            exec(({ value: { loop, loops } }) => loops[loop].images).
+            repeat(fiber => fiber.
+                // The animation loop is protected with either so that it
+                // keeps running even when cancelled (which is why it needs
+                // to use either the value, or the error of the fiber).
+                // The repeat itself is not protected from cancellation so
+                // it will end after the sequence has played when cancelled.
+                either(fiber => fiber.
+                    each(fiber => fiber.
+                        effect(({ value, error }) => {
+                            screen.replaceChild(value ?? error, screen.firstChild);
+                        }).
+                        delay(1000 / FPS)
                     )
                 )
             )
         ).
-        join(),
-        {
-            // This is necessary because the first iteration will take 0 time,
-            // which is expected. To be safe, we should check that any further
-            // iteration should have a non-zero duration.
-            // FIXME 4J0F repeatShouldEnd should know the duration of the iteration
-            repeatShouldEnd: K(false)
-        }
+        exec(({ value: { loops } }) => loops).
+        map(fiber => fiber.event(fiber => fiber.value.button, "click")).
+        join({
+            // FIXME 4J0C Cancel a fiber with handleError=true
+            childFiberDidEnd(child, scheduler) {
+                if (!child.isCancelled) {
+                    for (const sibling of this.pending) {
+                        scheduler.cancelFiber(sibling);
+                    }
+                    child.parent.value = { loop: child.name, loops: child.parent.value };
+                }
+            }
+        })
     );
         </script>
     </head>
@@ -112,7 +94,7 @@ const fiber = Scheduler.run().
         (which <code>map</code> enables by naming fibers by the keys of the object that it maps over). In order to make
         transitions smoother, moving to the next loop only happens after a whole sequence has played, which is achieved
         by wrapping the <code>each</code> instruction into <code>either</code>, enabling it to run even when the fiber
-        is cancelled.</p>
+        is cancelled. See source and comments for more details.</p>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
