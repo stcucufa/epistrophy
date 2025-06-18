@@ -470,7 +470,7 @@ test("Fiber.repeat(f, delegate)", t => {
                 t.same(args.length, 3, "`repeatShouldEnd` is called with three arguments");
                 t.same(this, delegate, "`this` is the delegate object");
                 t.same(args[0], 0, "iteration count is the first argument (starting at zero before the first iteration)");
-                t.same(args[1], fiber, "`fiber` is the second argument");
+                t.same(args[1].parent, fiber, "the second argument is a child fiber");
                 t.same(args[2], scheduler, "`scheduler` is the third argument");
             } else {
                 t.same(count, this.count + 1, "count is incremented on subsequent calls");
@@ -811,9 +811,10 @@ test("Repeated spawning", t => {
         );
     const scheduler = new Scheduler();
     run(fiber, scheduler, 200);
-    t.same(fiber.value, 1, "first iteration");
+    t.same(fiber.children[0].value, 1, "first iteration");
     scheduler.clock.now = 500;
-    t.same(fiber.value, 4, "more iterations");
+    t.same(fiber.children[0].value, 4, "more iterations");
+    t.same(fiber.value, 0, "base fiber value does not change during the repeat");
 });
 
 // 4E0E Attach
