@@ -1988,15 +1988,18 @@ test("Fiber fails if the function fails", t => {
 
 // 4K06 Multiple repeats reuse the same fiber
 
-test("Nested repeats", t => {
-    const output = [];
+test("Nested repeats (par)", t => {
     run(new Fiber().
-        repeat(fiber => fiber.
-            exec(() => "").
-            repeat(fiber => fiber.exec(({ value: out }) => out + "*"), { repeatShouldEnd: n => n >= 3 }).
-            effect(({ value }) => { output.push(value); }),
-            { repeatShouldEnd: n => n >= 4 }
+        exec(K([1, 2, 3, 4])).
+        map(fiber => fiber.
+            exec(({ value }) => ([value, ""])).
+            repeat(fiber => fiber.
+                effect(({ value }) => { value[1] += "*"; }),
+                { repeatShouldEnd: (i, { value }) => i >= value[0] }
+            ).
+            exec(({ value }) => value[1])
         ).
-        effect(({ value }) => { t.equal(output, ["***", "***", "***", "***"], "all loops ran"); })
+        join(All).
+        effect(({ value }) => { t.equal(value, ["*", "**", "***", "****"], "all loops ran"); })
     );
 });
