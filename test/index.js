@@ -802,18 +802,20 @@ test("Fiber.join(Last): children and grand-children", t => {
 });
 
 test("Repeated spawning", t => {
+    let v = 0;
     const fiber = new Fiber().
         exec(K(0)).
         repeat(fiber => fiber.
             spawn(fiber => fiber.delay(111)).
             join().
-            exec(({ value }) => value + 1)
+            exec(({ value }) => value + 1).
+            effect(({ value }) => v = value)
         );
     const scheduler = new Scheduler();
     run(fiber, scheduler, 200);
-    t.same(fiber.children[0].value, 1, "first iteration");
+    t.same(v, 1, "first iteration");
     scheduler.clock.now = 500;
-    t.same(fiber.children[0].value, 4, "more iterations");
+    t.same(v, 4, "more iterations");
     t.same(fiber.value, 0, "base fiber value does not change during the repeat");
 });
 
@@ -1981,5 +1983,20 @@ test("Fiber fails if the function fails", t => {
         either(fiber => fiber.
             effect(({ error }) => { t.same(error.message, "AUGH", "error in target function was caught"); })
         )
+    );
+});
+
+// 4K06 Multiple repeats reuse the same fiber
+
+test("Nested repeats", t => {
+    const output = [];
+    run(new Fiber().
+        repeat(fiber => fiber.
+            exec(() => "").
+            repeat(fiber => fiber.exec(({ value: out }) => out + "*"), { repeatShouldEnd: n => n >= 3 }).
+            effect(({ value }) => { output.push(value); }),
+            { repeatShouldEnd: n => n >= 4 }
+        ).
+        effect(({ value }) => { t.equal(output, ["***", "***", "***", "***"], "all loops ran"); })
     );
 });
