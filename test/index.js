@@ -2004,3 +2004,18 @@ test("Nested repeats", t => {
         effect(({ value }) => { t.equal(value, ["*", "**", "***", "****"], "all loops ran"); })
     );
 });
+
+test("Cancelling repeat", t => {
+    const out = [];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
+                delay(111).
+                effect(() => { out.push("*"); })
+            )
+        ).
+        spawn(fiber => fiber.delay(500)).
+        join(First);
+    run(fiber, new Scheduler(), 1111);
+    t.equal(out, ["*", "*", "*", "*"], "repeat was cut off after four iterations");
+});
