@@ -1988,12 +1988,13 @@ test("Fiber fails if the function fails", t => {
 
 // 4K06 Multiple repeats reuse the same fiber
 
-test("Nested repeats (par)", t => {
+test("Nested repeats", t => {
     run(new Fiber().
         exec(K([1, 2, 3, 4])).
         map(fiber => fiber.
             exec(({ value }) => ([value, ""])).
             repeat(fiber => fiber.
+                delay(111).
                 effect(({ value }) => { value[1] += "*"; }),
                 { repeatShouldEnd: (i, { value }) => i >= value[0] }
             ).
