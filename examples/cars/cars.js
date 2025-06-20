@@ -69,6 +69,7 @@ const fiber = Scheduler.run().
     join().
 
     // Game loop
+    // FIXME 4H0H Restart cars game
     
     spawn(fiber => fiber.
 

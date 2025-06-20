@@ -802,18 +802,20 @@ test("Fiber.join(Last): children and grand-children", t => {
 });
 
 test("Repeated spawning", t => {
+    let v = 0;
     const fiber = new Fiber().
         exec(K(0)).
         repeat(fiber => fiber.
             spawn(fiber => fiber.delay(111)).
             join().
-            exec(({ value }) => value + 1)
+            exec(({ value }) => value + 1).
+            effect(({ value }) => v = value)
         );
     const scheduler = new Scheduler();
     run(fiber, scheduler, 200);
-    t.same(fiber.children[0].value, 1, "first iteration");
+    t.same(v, 1, "first iteration");
     scheduler.clock.now = 500;
-    t.same(fiber.children[0].value, 4, "more iterations");
+    t.same(v, 4, "more iterations");
     t.same(fiber.value, 0, "base fiber value does not change during the repeat");
 });
 
@@ -1982,4 +1984,38 @@ test("Fiber fails if the function fails", t => {
             effect(({ error }) => { t.same(error.message, "AUGH", "error in target function was caught"); })
         )
     );
+});
+
+// 4K06 Multiple repeats reuse the same fiber
+
+test("Nested repeats", t => {
+    run(new Fiber().
+        exec(K([1, 2, 3, 4])).
+        map(fiber => fiber.
+            exec(({ value }) => ([value, ""])).
+            repeat(fiber => fiber.
+                delay(111).
+                effect(({ value }) => { value[1] += "*"; }),
+                { repeatShouldEnd: (i, { value }) => i >= value[0] }
+            ).
+            exec(({ value }) => value[1])
+        ).
+        join(All).
+        effect(({ value }) => { t.equal(value, ["*", "**", "***", "****"], "all loops ran"); })
+    );
+});
+
+test("Cancelling repeat", t => {
+    const out = [];
+    const fiber = new Fiber().
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
+                delay(111).
+                effect(() => { out.push("*"); })
+            )
+        ).
+        spawn(fiber => fiber.delay(500)).
+        join(First);
+    run(fiber, new Scheduler(), 1111);
+    t.equal(out, ["*", "*", "*", "*"], "repeat was cut off after four iterations");
 });
