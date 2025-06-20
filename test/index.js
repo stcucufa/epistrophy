@@ -243,13 +243,6 @@ test("Fiber with no op", t => {
     t.same(fiber.endTime, 0, "ended at t=0");
 });
 
-test("Fiber.named(name)", t => {
-    const fiber = new Fiber();
-    t.same(fiber.named("foo"), fiber, "returns the fiber");
-    t.same(fiber.name, "foo", "after setting its name");
-    t.match(fiber.id, /\bfoo\b/, `which becomes part of the fiber id (i.e., ${fiber.id})`);
-});
-
 test("Fiber.exec(f)", t => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().exec(function(...args) {
@@ -1731,13 +1724,9 @@ test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (set)
 test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (object)", t => {
     run(new Fiber().
         exec(K({ foo: 1, bar: 2, baz: 3 })).
-        map(fiber => fiber.
-            exec(fiber =>
-                (fiber.value === 1 && fiber.name === "foo") ||
-                (fiber.value === 2 && fiber.name === "bar") ||
-                (fiber.value === 3 && fiber.name === "baz")
-            )
-        ).
+        map(fiber => fiber.exec(
+            ({ value: [k, v] }) => (k === "foo" && v === 1) || (k === "bar" && v === 2) || (k === "baz" && v === 3)
+        )).
         join(All).
         effect(({ value: xs }) => { t.equal(xs, [true, true, true], "each value was computed"); })
     );
@@ -1746,13 +1735,9 @@ test("Fiber.map(f) spawns a fiber with f for every item in the fiber value (obje
 test("Fiber.map(f) spawns a named fiber with f for every item in the fiber value (map)", t => {
     run(new Fiber().
         exec(K(new Map([["foo", 1], ["bar", 2], ["baz", 3]]))).
-        map(fiber => fiber.
-            exec(fiber =>
-                (fiber.value === 1 && fiber.name === "foo") ||
-                (fiber.value === 2 && fiber.name === "bar") ||
-                (fiber.value === 3 && fiber.name === "baz")
-            )
-        ).
+        map(fiber => fiber.exec(
+            ({ value: [k, v] }) => (k === "foo" && v === 1) || (k === "bar" && v === 2) || (k === "baz" && v === 3)
+        )).
         join(All).
         effect(({ value: xs }) => { t.equal(xs, [true, true, true], "each value was computed"); })
     );
@@ -1800,7 +1785,7 @@ test("Fiber.map(f) treats the error as a single value inside either", t => {
 
 // 4A02 Each
 
-test("Fiber.each(f) loops over the itesm in the fiber value (array)", t => {
+test("Fiber.each(f) loops over the items in the fiber value (array)", t => {
     const iterations = [];
     run(new Fiber().
         exec(K([17, 31, 23])).
@@ -1812,7 +1797,7 @@ test("Fiber.each(f) loops over the itesm in the fiber value (array)", t => {
     );
 });
 
-test("Fiber.each(f) loops over the itesm in the fiber value (set)", t => {
+test("Fiber.each(f) loops over the items in the fiber value (set)", t => {
     const iterations = [];
     run(new Fiber().
         exec(K(new Set([17, 31, 23]))).
@@ -1824,7 +1809,7 @@ test("Fiber.each(f) loops over the itesm in the fiber value (set)", t => {
     );
 });
 
-test("Fiber.each(f) loops over the itesm in the fiber value (object)", t => {
+test("Fiber.each(f) loops over the items in the fiber value (object)", t => {
     const iterations = [];
     run(new Fiber().
         exec(K({ foo: 1, bar: 2, baz: 3 })).
@@ -1840,7 +1825,7 @@ test("Fiber.each(f) loops over the itesm in the fiber value (object)", t => {
     );
 });
 
-test("Fiber.each(f) loops over the itesm in the fiber value (map)", t => {
+test("Fiber.each(f) loops over the items in the fiber value (map)", t => {
     const map = new Map([["foo", 1], ["bar", 2], ["baz", 3]]);
     const iterations = [];
     run(new Fiber().
@@ -1857,7 +1842,7 @@ test("Fiber.each(f) loops over the itesm in the fiber value (map)", t => {
     );
 });
 
-test("Fiber.each(f) loops over the itesm in the fiber value (empty array)", t => {
+test("Fiber.each(f) loops over the items in the fiber value (empty array)", t => {
     const iterations = [];
     run(new Fiber().
         exec(K([])).
@@ -1909,17 +1894,45 @@ test("Fiber.named() with a non-string name", t => {
     );
 });
 
-test("Fiber.named() cannot rename a fiber", t => {
-    t.throws(() => { new Fiber().named("foo").named("bar") }, "an error is thrown");
+test("Fiber.named() can rename a fiber", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.
+            exec(K(17)).
+            named("foo").
+            effect(({ name }) => t.same(name, "foo", "initial name")).
+            delay(777).
+            named("bar").
+            effect(({ name }) => t.same(name, "bar", "new name")).
+            delay(888)
+        ).
+        spawn(fiber => fiber.
+            effect((_, scheduler) => { t.same(scheduler.fiberNamed("foo").value, 17, "found the fiber by its name"); }).
+            delay(999).
+            effect((_, scheduler) => {
+                t.undefined(scheduler.fiberNamed("foo"), "cannot find the fiber by its old name");
+                t.same(scheduler.fiberNamed("bar").value, 17, "found the fiber by its new name");
+            }).
+            delay(1111).
+            effect((_, scheduler) => { t.undefined(scheduler.fiberNamed("bar"), "cannot find the fiber after it ended"); })
+        )
+    );
 });
 
 test("A scheduler only accepts a single running fiber with a given name", t => {
-    t.throws(() => {
-        run(new Fiber().
-            spawn(fiber => fiber.named("foo")).
-            spawn(fiber => fiber.named("foo"))
-        );
-    }, "an error is thrown");
+    t.expectsError = true;
+    run(new Fiber().
+        spawn(fiber => fiber.
+            named("foo").
+            delay(1111)
+        ).
+        spawn(fiber => fiber.
+            named("foo").
+            either(fiber => fiber.
+                effect(({ error }) => { t.ok(error, "an error occurred when setting the second fiber name"); })
+            )
+        ).
+        join()
+    );
 });
 
 test("Names can be reused a different times", t => {
@@ -1930,7 +1943,7 @@ test("Names can be reused a different times", t => {
             join(First),
             { repeatShouldEnd: n => n > 7 }
         ).
-        effect(({ value: [_, n] }) => { t.same(n, 34, "repeated fib to compute value"); })
+        effect(({ value: [, n] }) => { t.same(n, 34, "repeated fib to compute value"); })
     );
 });
 
@@ -2018,4 +2031,14 @@ test("Cancelling repeat", t => {
         join(First);
     run(fiber, new Scheduler(), 1111);
     t.equal(out, ["*", "*", "*", "*"], "repeat was cut off after four iterations");
+});
+
+// 4J0D Name a running fiber
+
+test("Fiber.named(name)", t => {
+    run(new Fiber().
+        named("foo").
+        effect(({ name }) => { t.same(name, "foo", "names the fiber at runtime"); }).
+        effect(({ id }) => { t.match(id, /\bfoo\b/, `which becomes part of the fiber id (i.e., ${id})`); })
+    );
 });
