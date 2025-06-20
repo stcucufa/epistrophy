@@ -1,7 +1,11 @@
 import { typeOf } from "../lib/util.js";
 
+const targetIndex = parseInt(window.location.hash.substr(1));
+let index = 0;
 const tests = [];
 let request;
+
+window.addEventListener("hashchange", () => { window.location.reload(); });
 
 // Deep equality test, using special comparisons by type.
 const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(x)]?.(x, y));
@@ -25,8 +29,9 @@ const Equal = {
 };
 
 class Test {
-    constructor(title, f) {
+    constructor(title, index, f) {
         this.title = title;
+        this.index = index;
         this.f = f;
         this.expectations = 0;
     }
@@ -54,7 +59,7 @@ class Test {
 
     run(li) {
         this.li = li;
-        li.innerHTML = `<span>${this.title}</span>`;
+        li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
         this.passes = true;
         const assert = console.assert;
         console.assert = (...args) => {
@@ -168,15 +173,21 @@ class Test {
 }
 
 export default function test(title, f) {
-    tests.push(new Test(title, f));
-    if (!request) {
-        request = setTimeout(run, 0);
+    index += 1;
+    if (isNaN(targetIndex) || index === targetIndex) {
+        tests.push(new Test(title, index, f));
+        if (!request) {
+            request = setTimeout(run, 0);
+        }
     }
 }
 
 function run() {
     const parent = document.querySelector("div.tests") ?? document.body;
     const ol = parent.appendChild(document.createElement("ol"));
+    if (!isNaN(targetIndex)) {
+        ol.setAttribute("start", targetIndex);
+    }
     let fail = 0;
     for (const test of tests) {
         test.run(ol.appendChild(document.createElement("li")));
