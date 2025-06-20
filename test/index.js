@@ -1685,10 +1685,10 @@ test("... unless all children fail", t => {
 
 // 4D0B lift
 
-test("Fiber.lift(f) calls `f` with the fiber as a parameter and returns it for chaining", t => {
+test("Fiber.macro(f) calls `f` with the fiber as a parameter and returns it for chaining", t => {
     const delays = [17, 71, 23];
     const fiber = new Fiber().
-        lift(fiber => {
+        macro(fiber => {
             for (const delay of delays) {
                 fiber.spawn(fiber => fiber.delay(delay).exec(K(delay)));
             }
@@ -2040,5 +2040,26 @@ test("Fiber.named(name)", t => {
         named("foo").
         effect(({ name }) => { t.same(name, "foo", "names the fiber at runtime"); }).
         effect(({ id }) => { t.match(id, /\bfoo\b/, `which becomes part of the fiber id (i.e., ${id})`); })
+    );
+});
+
+// 4K07	Rename lift to macro
+
+test("Fiber.macro(f, ...args) can pass additional parameters to the macro", t => {
+    function delayedValue(fiber, value, begin) {
+        fiber.delay(begin).exec(K(value));
+    }
+
+    run(new Fiber().
+        macro(delayedValue, "foo", 333).
+        effect(({ value }, scheduler) => {
+            t.same(value, "foo", "first value is set");
+            t.same(scheduler.now, 333, "after the given delay");
+        }).
+        macro(delayedValue, "bar", 444).
+        effect(({ value }, scheduler) => {
+            t.same(value, "bar", "second value is set");
+            t.same(scheduler.now, 777, "after the given delay");
+        })
     );
 });
