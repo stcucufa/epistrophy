@@ -25,6 +25,10 @@ div.tests {
     margin-bottom: -4em;
 }
 
+div.tests a {
+    color: var(--picotron-dark-blue);
+}
+
 div.tests li span:first-child {
     font-weight: bold;
 }
