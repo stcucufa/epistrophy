@@ -2063,3 +2063,62 @@ test("Fiber.macro(f, ...args) can pass additional parameters to the macro", t =>
         })
     );
 });
+
+// 4J0Q Push/pop values
+
+test("Fiber.store(name) stores the current value in the fiber scope", t => {
+    run(new Fiber().
+        exec(K(19)).
+        store("x").
+        exec(({ value }) => 2 * value + 1).
+        effect(({ scope, value }) => {
+            t.same(value, 39, "current value");
+            t.same(scope.x, 19, "initial value is accessible through scope");
+        })
+    );
+});
+
+test("Fiber.store() name may be a function", t => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        exec(K(19)).
+        store((...args) => {
+            t.equal(args, [fiber, scheduler], "which gets called with fiber and scheduler as parameters");
+            return "x";
+        }).
+        exec(({ value }) => 2 * value + 1).
+        effect(({ scope, value }) => {
+            t.same(value, 39, "current value");
+            t.same(scope.x, 19, "initial value is accessible through scope");
+        });
+    run(fiber, scheduler);
+});
+
+test("Fiber fails if the name function fails", t => {
+    t.expectsError = true;
+    run(new Fiber().
+        store(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            effect(({ error }) => { t.same(error.message, "AUGH", "error in name function was caught"); })
+        )
+    );
+});
+
+test("Fiber.scope is inherited when spawning", t => {
+    run(new Fiber().
+        exec(K(19)).
+        store("x").
+        exec(({ value }) => 2 * value + 1).
+        spawn(fiber => fiber.
+            exec(({ scope: { x } }) => 3 * x).
+            effect(({ value }) => { t.same(value, 57, "value computed from parent scope"); }).
+            store("x").
+            effect(({ scope: { x } }) => { t.same(x, 57, "and saved to child scope"); })
+        ).
+        join(First).
+        effect(({ scope: { x }, value }) => {
+            t.same(value, 57, "got value from child");
+            t.same(x, 19, "parent scope is unchanged");
+        })
+    );
+});
