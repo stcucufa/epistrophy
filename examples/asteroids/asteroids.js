@@ -50,6 +50,7 @@ Scheduler.run().
     // Player loop
     spawn(fiber => fiber.named("ship").
         exec(({ value: game }) => game.ship()).
+        store("ship").
         repeat(fiber => fiber.
 
             // Keys: left and right to turn, up to accelerate.
@@ -76,22 +77,18 @@ Scheduler.run().
             spawn(fiber => fiber.
                 repeat(fiber => fiber.
                     delay(UpdateDuration).
-                    effect((fiber, scheduler) => {
-                        const ship = fiber.value;
-                        for (const particle of ship.update()) {
-                            scheduler.attachFiber(fiber).
-                                exec(K(particle)).
-                                spawn(fiber => fiber.
-                                    repeat(fiber => fiber.
-                                        delay(UpdateDuration).
-                                        effect(({ value: particle }) => particle.update())
-                                    )
-                                ).
-                                spawn(fiber => fiber.delay(particle.durationMs)).
-                                join(First).
-                                effect(({ value: particle }) => { particle.game.removeObject(particle); });
-                        }
-                    })
+                    exec(({ scope: { ship } }) => ship.update()).
+                    map(fiber => fiber.
+                        spawn(fiber => fiber.
+                            repeat(fiber => fiber.
+                                delay(UpdateDuration).
+                                effect(({ value: particle }) => particle.update())
+                            )
+                        ).
+                        spawn(fiber => fiber.delay(({ value: { durationMs } }) => durationMs)).
+                        join(First).
+                        effect(({ value: particle }) => { particle.game.removeObject(particle); })
+                    )
                 )
             ).
 
