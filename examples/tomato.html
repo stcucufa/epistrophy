@@ -27,27 +27,31 @@ const fiber = Scheduler.run().
     // Load images for every sequence and add a button to play that sequence.
     // The image sources are replaced by the actual image elements.
     map(fiber => fiber.
+        store("entry").
+        exec(({ value: [, indices] }) => indices).
         map(fiber => fiber.exec(async ({ value: i }) => loadImage(src(i)))).
         join(All).
-        effect(({ parent, name, value: images }) => {
+        exec(({ scope, value: images }) => {
+            const [name] = scope.entry;
             const button = p.appendChild(document.createElement("button"));
             button.setAttribute("type", "button");
             button.textContent = name;
-            parent.value[name] = { images, button };
+            return [name, { images, button }];
         })
     ).
-    join().
+    join(All).
+    exec(({ value: entries }) => Object.fromEntries(entries)).
+    store("loops").
+    exec(K("Idle")).
 
     // Main loop: start an animation loop for the current sequence (starting
     // with Idle), without joining, and immediately wait for a button press to
     // start a new sequence. The custom join delegate “soft cancels” the
     // siblings to let the inner animation loop finish before moving to the
     // next sequence.
-    // FIXME 4J0Q Push/pop values
-    exec(({ value: loops }) => ({ loop: "Idle", loops })).
     repeat(fiber => fiber.
         spawn(fiber => fiber.named("animation-loop").
-            exec(({ value: { loop, loops } }) => loops[loop].images).
+            exec(({ scope: { loops }, value: loop }) => loops[loop].images).
             repeat(fiber => fiber.
                 // The animation loop is protected with either so that it
                 // keeps running even when cancelled (which is why it needs
@@ -64,8 +68,8 @@ const fiber = Scheduler.run().
                 )
             )
         ).
-        exec(({ value: { loops } }) => loops).
-        map(fiber => fiber.event(fiber => fiber.value.button, "click")).
+        exec(({ scope: { loops } }) => loops).
+        map(fiber => fiber.event(({ value: [_, { button }] }) => button, "click")).
         join({
             // FIXME 4J0C Cancel a fiber with handleError=true
             childFiberDidEnd(child, scheduler) {
@@ -73,7 +77,7 @@ const fiber = Scheduler.run().
                     for (const sibling of this.pending) {
                         scheduler.cancelFiber(sibling);
                     }
-                    child.parent.value = { loop: child.name, loops: child.parent.value };
+                    child.parent.value = child.value[0];
                 }
             }
         })
