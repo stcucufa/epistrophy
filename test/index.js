@@ -1404,7 +1404,7 @@ test("Setting rate to 0 then resuming", t => {
             effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0); }).
             delay(888).
             effect((fiber, scheduler) => {
-                t.same(scheduler.fiberLocalTime(fiber), 888, "local time");
+                t.same(fiber.now, 888, "local time");
                 t.same(scheduler.now, 999, "fiber eventually resumed");
             })
         ).
@@ -1420,7 +1420,7 @@ test("Setting rate to 0 during a delay", t => {
         spawn(fiber => fiber.named("paused").
             delay(333).
             effect((fiber, scheduler) => {
-                t.same(scheduler.fiberLocalTime(fiber), 333, "fiber local time");
+                t.same(fiber.now, 333, "fiber local time");
                 t.same(scheduler.now, 999, "fiber eventually resumed");
             })
         ).
@@ -1443,7 +1443,7 @@ test("Setting rate to 0 during a ramp", t => {
                 }
             }).
             effect((fiber, scheduler) => {
-                t.same(scheduler.fiberLocalTime(fiber), 400, "fiber local time");
+                t.same(fiber.now, 400, "fiber local time");
                 t.same(scheduler.now, 1400, "ramp ended as expected");
             })
         ).
@@ -1467,7 +1467,7 @@ test("Setting rate to ∞ (zero-duration delay)", t => {
         effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, Infinity)).
         delay(888).
         effect((fiber, scheduler) => {
-            t.same(scheduler.fiberLocalTime(fiber), 888, "fiber local time");
+            t.same(fiber.now, 888, "fiber local time");
             t.same(scheduler.now, 0, "delay passed infinitely fast");
         });
     run(fiber);
@@ -1480,7 +1480,7 @@ test("Setting rate to ∞ (zero-duration ramp)", t => {
         ramp(888, {
             rampDidProgress(p, _, scheduler) {
                 t.same(p, ps.shift(), "ramp goes through expected steps");
-                // FIXME 4A05 Fiber local time
+                t.same(fiber.now, p === 0 ? 0 : 888, "fiber local time");
                 t.same(scheduler.now, 0, "ramp has effectively zero duration");
             }
         });
@@ -2153,28 +2153,29 @@ test("Scheduler.fiberLocalTime(fiber) returns the local time for an active fiber
         spawn(fiber => fiber.named("local").
             delay(333).
             effect((fiber, scheduler) => {
-                t.same(scheduler.now, 888, "global time (1)");
-                t.same(scheduler.fiberLocalTime(fiber), 333, "local time (1)");
+                t.same(scheduler.now, 888, "global time (2)");
+                t.same(fiber.now, 333, "local time (now) (2)");
+                t.same(scheduler.fiberLocalTime(fiber), 333, "local time (fiberLocalTime) (2)");
                 scheduler.setRateForFiber(fiber, 0.5);
             }).
             delay(222).
             effect((fiber, scheduler) => {
                 t.same(scheduler.now, 1332, "global time (4)");
-                t.same(scheduler.fiberLocalTime(fiber), 555, "local time affected by rate (4)");
+                t.same(fiber.now, 555, "local time affected by rate (4)");
                 scheduler.setRateForFiber(fiber, 2);
             }).
             delay(222).
             effect((fiber, scheduler) => {
                 t.same(scheduler.now, 1443, "global time (5)");
-                t.same(scheduler.fiberLocalTime(fiber), 777, "local time affected by rate (5)");
+                t.same(fiber.now, 777, "local time affected by rate (5)");
             })
         ).
         spawn(fiber => fiber.
             exec((_, scheduler) => scheduler.fiberNamed("local")).
             delay(222).
             effect(({ value: other }, scheduler) => {
-                t.same(scheduler.now, 777, "global time (2)");
-                t.same(scheduler.fiberLocalTime(other), 222, "local time for other fiber (2)");
+                t.same(scheduler.now, 777, "global time (1)");
+                t.same(scheduler.fiberLocalTime(other), 222, "local time for other fiber (1)");
             }).
             delay(222).
             effect(({ value: other }, scheduler) => {
