@@ -1466,8 +1466,8 @@ test("Setting rate to ∞ (zero-duration delay)", t => {
     const fiber = new Fiber().
         effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, Infinity)).
         delay(888).
-        effect((_, scheduler) => {
-            // FIXME 4A05 Fiber local time
+        effect((fiber, scheduler) => {
+            t.same(scheduler.fiberLocalTime(fiber), 888, "fiber local time");
             t.same(scheduler.now, 0, "delay passed infinitely fast");
         });
     run(fiber);
@@ -2161,6 +2161,12 @@ test("Scheduler.fiberLocalTime(fiber) returns the local time for an active fiber
             effect((fiber, scheduler) => {
                 t.same(scheduler.now, 1332, "global time (4)");
                 t.same(scheduler.fiberLocalTime(fiber), 555, "local time affected by rate (4)");
+                scheduler.setRateForFiber(fiber, 2);
+            }).
+            delay(222).
+            effect((fiber, scheduler) => {
+                t.same(scheduler.now, 1443, "global time (5)");
+                t.same(scheduler.fiberLocalTime(fiber), 777, "local time affected by rate (5)");
             })
         ).
         spawn(fiber => fiber.
