@@ -1,5 +1,5 @@
 import test from "./test.js";
-import { nop, clamp, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
+import { nop, clamp, extend, remove, K, PriorityQueue, message, on, off } from "../lib/util.js";
 import Fiber, { All, Last, First, Gate } from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
 
@@ -26,6 +26,15 @@ test("clamp(x, min, max) clamps `x` between `min` and `max`", t => {
     t.equal(clamp(91, 17, 23), 23, "x > max");
     t.equal(clamp(17, 17, 23), 17, "x = min");
     t.equal(clamp(23, 17, 23), 23, "x = max");
+});
+
+// 4K0G	Instantiate fibers with Object.create()
+
+test("extend(x, ...props) creates a new object from x with additional properties", t => {
+    const x = { foo: 1, bar: 2 };
+    const y = extend(x, { baz: 3 }, { foo: "ok", quux: 4 });
+    t.same(x, Object.getPrototypeOf(y), "the original object is the prototype of the new object");
+    t.equal(y, { foo: "ok", bar: 2, baz: 3, quux: 4 }, "the new object has additional/updated properties");
 });
 
 // 4E0A	Priority queue
