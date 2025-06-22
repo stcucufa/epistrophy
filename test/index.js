@@ -734,7 +734,7 @@ test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fi
     const delegate = {
         childFiberDidEnd(...args) {
             t.same(args.length, 2, "`childFiberDidEnd` is called with two arguments");
-            t.same(child.ops, args[0].ops, "an instance of the child fiber is the first argument");
+            t.same(child, Object.getPrototypeOf(args[0]), "an instance of the child fiber is the first argument");
             t.same(scheduler, args[1], "`scheduler` is the second argument");
             t.same(Object.getPrototypeOf(this), delegate, "and `this` is the delegate object");
         }
