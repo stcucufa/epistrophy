@@ -2147,7 +2147,7 @@ test("Spawn instantiates its fiber so that it can be reused inside a map", t => 
 
 // 4A05 Fiber local time
 
-test("Scheduler.fiberLocalTime(fiber) returns the local time for an active fiber", t => {
+test("Fiber.now/Scheduler.fiberLocalTime(fiber) return the local time for an active fiber", t => {
     run(new Fiber().
         delay(555).
         spawn(fiber => fiber.named("local").
@@ -2182,6 +2182,34 @@ test("Scheduler.fiberLocalTime(fiber) returns the local time for an active fiber
                 t.same(scheduler.now, 999, "global time (3)");
                 t.same(scheduler.fiberLocalTime(other), 388.5, "local time for other fiber (3)");
             })
+        )
+    );
+});
+
+test("Fiber.now is updated after a delay (including if the delay changed)", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            delay(333).
+            effect(fiber => { t.same(fiber.now, 222, "delay was rescheduled"); })
+        ).
+        spawn(fiber => fiber.
+            delay(111).
+            effect((_, scheduler) => { scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 222); })
+        )
+    );
+});
+
+test("Fiber.now is updated after a delay (delay is cut short)", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            delay(1111).
+            effect(fiber => { t.same(fiber.now, 333, "delay was rescheduled"); })
+        ).
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => { scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 222); })
         )
     );
 });
