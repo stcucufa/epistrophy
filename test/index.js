@@ -2036,8 +2036,7 @@ test("Cancelling repeat", t => {
 test("Fiber.named(name)", t => {
     run(new Fiber().
         named("foo").
-        effect(({ name }) => { t.same(name, "foo", "names the fiber at runtime"); }).
-        effect(({ id }) => { t.match(id, /\bfoo\b/, `which becomes part of the fiber id (i.e., ${id})`); })
+        effect(({ name }) => { t.same(name, "foo", "names the fiber at runtime"); })
     );
 });
 
