@@ -1403,8 +1403,8 @@ test("Setting rate to 0 then resuming", t => {
         spawn(fiber => fiber.named("paused").
             effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0); }).
             delay(888).
-            effect((_, scheduler) => {
-                // FIXME 4A05 Fiber local time
+            effect((fiber, scheduler) => {
+                t.same(scheduler.fiberLocalTime(fiber), 888, "local time");
                 t.same(scheduler.now, 999, "fiber eventually resumed");
             })
         ).
@@ -1419,8 +1419,8 @@ test("Setting rate to 0 during a delay", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.named("paused").
             delay(333).
-            effect((_, scheduler) => {
-                // FIXME 4A05 Fiber local time
+            effect((fiber, scheduler) => {
+                t.same(scheduler.fiberLocalTime(fiber), 333, "fiber local time");
                 t.same(scheduler.now, 999, "fiber eventually resumed");
             })
         ).
@@ -1442,8 +1442,8 @@ test("Setting rate to 0 during a ramp", t => {
                     t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
                 }
             }).
-            effect((_, scheduler) => {
-                // FIXME 4A05 Fiber local time
+            effect((fiber, scheduler) => {
+                t.same(scheduler.fiberLocalTime(fiber), 400, "fiber local time");
                 t.same(scheduler.now, 1400, "ramp ended as expected");
             })
         ).
@@ -2142,5 +2142,39 @@ test("Spawn instantiates its fiber so that it can be reused inside a map", t => 
         ).
         join(Last).
         effect(({ value }) => { t.equal(value, ["foo", "baz", "bar"], "all fibers ran"); })
+    );
+});
+
+// 4A05 Fiber local time
+
+test("Scheduler.fiberLocalTime(fiber) returns the local time for an active fiber", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            delay(333).
+            effect((fiber, scheduler) => {
+                t.same(scheduler.now, 888, "global time (1)");
+                t.same(scheduler.fiberLocalTime(fiber), 333, "local time (1)");
+                scheduler.setRateForFiber(fiber, 0.5);
+            }).
+            delay(222).
+            effect((fiber, scheduler) => {
+                t.same(scheduler.now, 1332, "global time (4)");
+                t.same(scheduler.fiberLocalTime(fiber), 555, "local time affected by rate (4)");
+            })
+        ).
+        spawn(fiber => fiber.
+            exec((_, scheduler) => scheduler.fiberNamed("local")).
+            delay(222).
+            effect(({ value: other }, scheduler) => {
+                t.same(scheduler.now, 777, "global time (2)");
+                t.same(scheduler.fiberLocalTime(other), 222, "local time for other fiber (2)");
+            }).
+            delay(222).
+            effect(({ value: other }, scheduler) => {
+                t.same(scheduler.now, 999, "global time (3)");
+                t.same(scheduler.fiberLocalTime(other), 388.5, "local time for other fiber (3)");
+            })
+        )
     );
 });
