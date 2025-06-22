@@ -16,8 +16,16 @@ const Equal = {
     set: (x, y) => x.difference(y).size === 0,
     number: (x, y) => isNaN(x) && isNaN(y),
     object: (x, y) => {
-        const keys = Object.keys(x);
-        return keys.length === Object.keys(y).length && keys.every(key => key in y && equal(x[key], y[key]));
+        function keys(x) {
+            const keys = [];
+            for (const key in x) {
+                keys.push(key);
+            }
+            return keys;
+        }
+        const kx = keys(x);
+        const ky = keys(y);
+        return kx.length === ky.length && kx.every(key => key in y && equal(x[key], y[key]));
     },
     map: (x, y) => {
         if (x.size !== y.size) {
