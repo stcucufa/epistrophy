@@ -724,11 +724,9 @@ test("Fiber.join(delegate) calls the `fiberWillJoin` delegate method before yiel
 test("Fiber.join(delegate) calls the `childFiberDidEnd` delegate when a child fiber ends", t => {
     const delegate = {
         childFiberDidEnd(...args) {
-            t.equal(
-                args,
-                [child, scheduler],
-                "`childFiberDidEnd` is called with `fiber` (the child fiber) and `scheduler` as arguments"
-            );
+            t.same(args.length, 2, "`childFiberDidEnd` is called with two arguments");
+            t.same(child.ops, args[0].ops, "an instance of the child fiber is the first argument");
+            t.same(scheduler, args[1], "`scheduler` is the second argument");
             t.same(Object.getPrototypeOf(this), delegate, "and `this` is the delegate object");
         }
     };
@@ -2120,5 +2118,21 @@ test("Fiber.scope is inherited when spawning", t => {
             t.same(value, 57, "got value from child");
             t.same(x, 19, "parent scope is unchanged");
         })
+    );
+});
+
+// 4K0F Spawn reuses the same fiber within map or repeat
+
+test("Spawn instantiates its fiber so that it can be reused inside a map", t => {
+    run(new Fiber().
+        exec(K({ foo: 17, bar: 31, baz: 29 })).
+        map(fiber => fiber.
+            spawn(fiber => fiber.delay(({ value: [, dur] }) => dur)).
+            spawn(fiber => fiber.delay(Infinity)).
+            join(First).
+            exec(({ value: [v] }) => v)
+        ).
+        join(Last).
+        effect(({ value }) => { t.equal(value, ["foo", "baz", "bar"], "all fibers ran"); })
     );
 });
