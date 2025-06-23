@@ -337,7 +337,7 @@ test("Fiber.event(target, type, delegate?)", t => {
     const scheduler = run(fiber, new Scheduler(), 1);
     window.dispatchEvent(new CustomEvent("hello"));
     scheduler.clock.now = Infinity;
-    t.same(fiber.value, -31, "fiber execution resumed after message was sent");
+    t.same(fiber.value, -31, "fiber execution resumed after event was dispatched");
 });
 
 test("Fiber.event(target, type, delegate?)", t => {
@@ -2277,5 +2277,36 @@ test("Fiber.now is updated during and after a ramp (including if the ramp is cut
             })
         );
     const scheduler = run(fiber, new Scheduler(), 777);
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated when an event is received (event)", t => {
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            event(window, "hello").
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 222, "local time");
+                t.same(scheduler.now, 777, "global time");
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated when an event is received (synchronous message)", t => {
+    const A = {};
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            event(A, "hello").
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 222, "local time");
+                t.same(scheduler.now, 777, "global time");
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    message(A, "hello");
     scheduler.clock.now = Infinity;
 });
