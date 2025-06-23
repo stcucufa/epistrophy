@@ -337,7 +337,7 @@ test("Fiber.event(target, type, delegate?)", t => {
     const scheduler = run(fiber, new Scheduler(), 1);
     window.dispatchEvent(new CustomEvent("hello"));
     scheduler.clock.now = Infinity;
-    t.same(fiber.value, -31, "fiber execution resumed after message was sent");
+    t.same(fiber.value, -31, "fiber execution resumed after event was dispatched");
 });
 
 test("Fiber.event(target, type, delegate?)", t => {
@@ -1403,8 +1403,8 @@ test("Setting rate to 0 then resuming", t => {
         spawn(fiber => fiber.named("paused").
             effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, 0); }).
             delay(888).
-            effect((_, scheduler) => {
-                // FIXME 4A05 Fiber local time
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 888, "local time");
                 t.same(scheduler.now, 999, "fiber eventually resumed");
             })
         ).
@@ -1419,8 +1419,8 @@ test("Setting rate to 0 during a delay", t => {
     const fiber = new Fiber().
         spawn(fiber => fiber.named("paused").
             delay(333).
-            effect((_, scheduler) => {
-                // FIXME 4A05 Fiber local time
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 333, "fiber local time");
                 t.same(scheduler.now, 999, "fiber eventually resumed");
             })
         ).
@@ -1442,8 +1442,8 @@ test("Setting rate to 0 during a ramp", t => {
                     t.same(p, ps.shift(), `ramp is progressing (p=${p})`);
                 }
             }).
-            effect((_, scheduler) => {
-                // FIXME 4A05 Fiber local time
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 400, "fiber local time");
                 t.same(scheduler.now, 1400, "ramp ended as expected");
             })
         ).
@@ -1466,8 +1466,8 @@ test("Setting rate to ∞ (zero-duration delay)", t => {
     const fiber = new Fiber().
         effect((fiber, scheduler) => scheduler.setRateForFiber(fiber, Infinity)).
         delay(888).
-        effect((_, scheduler) => {
-            // FIXME 4A05 Fiber local time
+        effect((fiber, scheduler) => {
+            t.same(fiber.now, 888, "fiber local time");
             t.same(scheduler.now, 0, "delay passed infinitely fast");
         });
     run(fiber);
@@ -1480,7 +1480,7 @@ test("Setting rate to ∞ (zero-duration ramp)", t => {
         ramp(888, {
             rampDidProgress(p, _, scheduler) {
                 t.same(p, ps.shift(), "ramp goes through expected steps");
-                // FIXME 4A05 Fiber local time
+                t.same(fiber.now, p === 0 ? 0 : 888, "fiber local time");
                 t.same(scheduler.now, 0, "ramp has effectively zero duration");
             }
         });
@@ -2142,5 +2142,220 @@ test("Spawn instantiates its fiber so that it can be reused inside a map", t => 
         ).
         join(Last).
         effect(({ value }) => { t.equal(value, ["foo", "baz", "bar"], "all fibers ran"); })
+    );
+});
+
+// 4A05 Fiber local time
+
+test("Fiber.now/Scheduler.fiberLocalTime(fiber) return the local time for an active fiber", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            delay(333).
+            effect((fiber, scheduler) => {
+                t.same(scheduler.now, 888, "global time (2)");
+                t.same(fiber.now, 333, "local time (now) (2)");
+                t.same(scheduler.fiberLocalTime(fiber), 333, "local time (fiberLocalTime) (2)");
+                scheduler.setRateForFiber(fiber, 0.5);
+            }).
+            delay(222).
+            effect((fiber, scheduler) => {
+                t.same(scheduler.now, 1332, "global time (4)");
+                t.same(fiber.now, 555, "local time affected by rate (4)");
+                scheduler.setRateForFiber(fiber, 2);
+            }).
+            delay(222).
+            effect((fiber, scheduler) => {
+                t.same(scheduler.now, 1443, "global time (5)");
+                t.same(fiber.now, 777, "local time affected by rate (5)");
+            })
+        ).
+        spawn(fiber => fiber.
+            exec((_, scheduler) => scheduler.fiberNamed("local")).
+            delay(222).
+            effect(({ value: other }, scheduler) => {
+                t.same(scheduler.now, 777, "global time (1)");
+                t.same(scheduler.fiberLocalTime(other), 222, "local time for other fiber (1)");
+            }).
+            delay(222).
+            effect(({ value: other }, scheduler) => {
+                t.same(scheduler.now, 999, "global time (3)");
+                t.same(scheduler.fiberLocalTime(other), 388.5, "local time for other fiber (3)");
+            })
+        )
+    );
+});
+
+test("Fiber.now is updated after a delay (including if the delay changed)", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            delay(333).
+            effect(fiber => { t.same(fiber.now, 222, "delay was rescheduled"); })
+        ).
+        spawn(fiber => fiber.
+            delay(111).
+            effect((_, scheduler) => { scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 222); })
+        )
+    );
+});
+
+test("Fiber.now is updated after a delay (delay is cut short)", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            delay(1111).
+            effect(fiber => { t.same(fiber.now, 333, "delay was rescheduled"); })
+        ).
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => { scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 222); })
+        )
+    );
+});
+
+test("Fiber.now is updated during and after a ramp", t => {
+    const ps = [[0, 0], [0.5, 222], [1, 444]];
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            ramp(444, {
+                rampDidProgress(p, fiber) {
+                    const [pp, tt] = ps.shift();
+                    t.same(pp, p, `fiber progress (${pp})`);
+                    t.same(tt, fiber.now, `with local time (${tt})`);
+                }
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated during and after a ramp (including if the duration changed)", t => {
+    const ps = [[0, 0, 555], [0.5, 222, 777], [0.7, 700, 1255], [1, 1000, 1555]];
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            ramp(444, {
+                rampDidProgress(p, fiber, scheduler) {
+                    const [pp, tt, ttt] = ps.shift();
+                    t.same(pp, p, `fiber progress (${pp})`);
+                    t.same(tt, fiber.now, `with local time (${tt})`);
+                    t.same(ttt, scheduler.now, `and global time (${ttt})`);
+                }
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => {
+                scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 1000);
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    scheduler.clock.now = 1255;
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated during and after a ramp (including if the ramp is cut off)", t => {
+    const ps = [[0, 0, 555], [0.5, 222, 777], [1, 333, 888]];
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            ramp(444, {
+                rampDidProgress(p, fiber, scheduler) {
+                    const [pp, tt, ttt] = ps.shift();
+                    t.same(pp, p, `fiber progress (${pp})`);
+                    t.same(tt, fiber.now, `with local time (${tt})`);
+                    t.same(ttt, scheduler.now, `and global time (${ttt})`);
+                }
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => {
+                scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 111);
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated when an event is received (event)", t => {
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            event(window, "hello").
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 222, "local time");
+                t.same(scheduler.now, 777, "global time");
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated when an event is received (synchronous message)", t => {
+    const A = {};
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            event(A, "hello").
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 222, "local time");
+                t.same(scheduler.now, 777, "global time");
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    message(A, "hello");
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated when an event is received (infinite rate)", t => {
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, Infinity); }).
+            delay(1111).
+            event(window, "hello").
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 1111, "local time");
+                t.same(scheduler.now, 777, "global time");
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated after joining", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.delay(111)).
+            spawn(fiber => fiber.delay(222)).
+            spawn(fiber => fiber.delay(333)).
+            join().
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 333, "local time");
+                t.same(scheduler.now, 888, "global time");
+            })
+        )
+    );
+});
+
+test("Fiber.now is updated after joining (sync join)", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            spawn().
+            spawn().
+            spawn().
+            join().
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 0, "local time");
+                t.same(scheduler.now, 555, "global time");
+            })
+        )
     );
 });
