@@ -2213,3 +2213,69 @@ test("Fiber.now is updated after a delay (delay is cut short)", t => {
         )
     );
 });
+
+test("Fiber.now is updated during and after a ramp", t => {
+    const ps = [[0, 0], [0.5, 222], [1, 444]];
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            ramp(444, {
+                rampDidProgress(p, fiber) {
+                    const [pp, tt] = ps.shift();
+                    t.same(pp, p, `fiber progress (${pp})`);
+                    t.same(tt, fiber.now, `with local time (${tt})`);
+                }
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated during and after a ramp (including if the duration changed)", t => {
+    const ps = [[0, 0, 555], [0.5, 222, 777], [0.7, 700, 1255], [1, 1000, 1555]];
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            ramp(444, {
+                rampDidProgress(p, fiber, scheduler) {
+                    const [pp, tt, ttt] = ps.shift();
+                    t.same(pp, p, `fiber progress (${pp})`);
+                    t.same(tt, fiber.now, `with local time (${tt})`);
+                    t.same(ttt, scheduler.now, `and global time (${ttt})`);
+                }
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => {
+                scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 1000);
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    scheduler.clock.now = 1255;
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated during and after a ramp (including if the ramp is cut off)", t => {
+    const ps = [[0, 0, 555], [0.5, 222, 777], [1, 333, 888]];
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.named("local").
+            ramp(444, {
+                rampDidProgress(p, fiber, scheduler) {
+                    const [pp, tt, ttt] = ps.shift();
+                    t.same(pp, p, `fiber progress (${pp})`);
+                    t.same(tt, fiber.now, `with local time (${tt})`);
+                    t.same(ttt, scheduler.now, `and global time (${ttt})`);
+                }
+            })
+        ).
+        spawn(fiber => fiber.
+            delay(333).
+            effect((_, scheduler) => {
+                scheduler.updateDelayForFiber(scheduler.fiberNamed("local"), 111);
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    scheduler.clock.now = Infinity;
+});
