@@ -2310,3 +2310,52 @@ test("Fiber.now is updated when an event is received (synchronous message)", t =
     message(A, "hello");
     scheduler.clock.now = Infinity;
 });
+
+test("Fiber.now is updated when an event is received (infinite rate)", t => {
+    const fiber = new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, Infinity); }).
+            delay(1111).
+            event(window, "hello").
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 1111, "local time");
+                t.same(scheduler.now, 777, "global time");
+            })
+        );
+    const scheduler = run(fiber, new Scheduler(), 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.now is updated after joining", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.delay(111)).
+            spawn(fiber => fiber.delay(222)).
+            spawn(fiber => fiber.delay(333)).
+            join().
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 333, "local time");
+                t.same(scheduler.now, 888, "global time");
+            })
+        )
+    );
+});
+
+test("Fiber.now is updated after joining (sync join)", t => {
+    run(new Fiber().
+        delay(555).
+        spawn(fiber => fiber.
+            spawn().
+            spawn().
+            spawn().
+            join().
+            effect((fiber, scheduler) => {
+                t.same(fiber.now, 0, "local time");
+                t.same(scheduler.now, 555, "global time");
+            })
+        )
+    );
+});
