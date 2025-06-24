@@ -28,7 +28,7 @@ test("clamp(x, min, max) clamps `x` between `min` and `max`", t => {
     t.equal(clamp(23, 17, 23), 23, "x = max");
 });
 
-// 4K0G	Instantiate fibers with Object.create()
+// 4K0G Instantiate fibers with Object.create()
 
 test("extend(x, ...props) creates a new object from x with additional properties", t => {
     const x = { foo: 1, bar: 2 };
@@ -37,7 +37,7 @@ test("extend(x, ...props) creates a new object from x with additional properties
     t.equal(y, { foo: "ok", bar: 2, baz: 3, quux: 4 }, "the new object has additional/updated properties");
 });
 
-// 4E0A	Priority queue
+// 4E0A Priority queue
 
 test("new PriorityQueue(cmp?)", t => {
     const queue = new PriorityQueue();
@@ -2049,7 +2049,7 @@ test("Fiber.named(name)", t => {
     );
 });
 
-// 4K07	Rename lift to macro
+// 4K07 Rename lift to macro
 
 test("Fiber.macro(f, ...args) can pass additional parameters to the macro", t => {
     function delayedValue(fiber, value, begin) {
@@ -2357,5 +2357,41 @@ test("Fiber.now is updated after joining (sync join)", t => {
                 t.same(scheduler.now, 555, "global time");
             })
         )
+    );
+});
+
+// 4K0M Variable/no fiber name
+
+test("Fiber.named(name) where name is a function", t => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        named((...args) => {
+            t.equal(args, [fiber, scheduler], "which gets called with fiber and scheduler as parameters");
+            return "bar";
+        }).
+        effect(({ name }) => { t.same(name, "bar", "the return value is used for the name"); });
+    run(fiber, scheduler);
+});
+
+test("Fiber.named(name) may cause an error", t => {
+    t.expectsError = true;
+    run(new Fiber().
+        named("foo").
+        named(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            effect(fiber => {
+                t.same(fiber.error.message, "AUGH", "the error is caught");
+                t.same(fiber.name, "foo", "the fiber name is unchanged");
+            })
+        )
+    );
+});
+
+test("Fiber.named() can unname a fiber", t => {
+    run(new Fiber().
+        named("foo").
+        effect((fiber, scheduler) => { t.same(scheduler.fiberNamed("foo"), fiber, "fiber is initially named"); }).
+        named().
+        effect((_, scheduler) => { t.undefined(scheduler.fiberNamed("foo"), "then unnamed"); })
     );
 });
