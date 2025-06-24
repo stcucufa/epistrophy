@@ -2445,6 +2445,19 @@ test("Undo named (error: duplicate name)", t => {
     t.undefined(fiber.error, "the error was undone");
 });
 
+test("Undo store", t => {
+    const fiber = new Fiber().
+        exec(K(23)).
+        store("x").
+        exec(K(17)).
+        effect(({ scope: { x } }, scheduler) => {
+            t.same(x, 23, "value was stored");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    run(fiber);
+    t.equal(fiber.scope, {}, "fiber scope is empty after undo");
+});
+
 test("Undo exec (sync)", t => {
     const fiber = new Fiber().
         exec(K(23)).
