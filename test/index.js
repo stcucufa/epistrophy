@@ -2485,7 +2485,7 @@ test("Undo delay", t => {
     t.same(scheduler.lastInstant, 333, "delay was undone (faster)");
 });
 
-test("Undo event", t => {
+test("Undo event (DOM event)", t => {
     const fiber = new Fiber().
         event(window, "hello").
         effect((fiber, scheduler) => {
@@ -2494,6 +2494,20 @@ test("Undo event", t => {
         });
     const scheduler = run(fiber, new Scheduler(), 222);
     window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+    t.same(scheduler.lastInstant, 444, "event was undone");
+});
+
+test("Undo event (message)", t => {
+    const A = {};
+    const fiber = new Fiber().
+        event(A, "hello").
+        effect((fiber, scheduler) => {
+            t.same(scheduler.now, 222, "message was received after some time");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber, new Scheduler(), 222);
+    message(A, "hello");
     scheduler.clock.now = Infinity;
     t.same(scheduler.lastInstant, 444, "event was undone");
 });
