@@ -2484,3 +2484,16 @@ test("Undo delay", t => {
     const scheduler = run(fiber);
     t.same(scheduler.lastInstant, 333, "delay was undone (faster)");
 });
+
+test("Undo event", t => {
+    const fiber = new Fiber().
+        event(window, "hello").
+        effect((fiber, scheduler) => {
+            t.same(scheduler.now, 222, "event was received after some time");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber, new Scheduler(), 222);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+    t.same(scheduler.lastInstant, 444, "event was undone");
+});
