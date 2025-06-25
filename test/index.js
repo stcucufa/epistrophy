@@ -2474,17 +2474,6 @@ test("Undo exec (sync)", t => {
     t.undefined(fiber.value, "value was unset");
 });
 
-test("Undo delay", t => {
-    const fiber = new Fiber().
-        delay(222).
-        effect((fiber, scheduler) => {
-            t.same(scheduler.now, 222, "delay elapsed");
-            scheduler.setRateForFiber(fiber, -2);
-        });
-    const scheduler = run(fiber);
-    t.same(scheduler.lastInstant, 333, "delay was undone (faster)");
-});
-
 test("Undo event (DOM event)", t => {
     const fiber = new Fiber().
         event(window, "hello").
@@ -2510,4 +2499,15 @@ test("Undo event (message)", t => {
     message(A, "hello");
     scheduler.clock.now = Infinity;
     t.same(scheduler.lastInstant, 444, "event was undone");
+});
+
+test("Undo delay", t => {
+    const fiber = new Fiber().
+        delay(222).
+        effect((fiber, scheduler) => {
+            t.same(scheduler.now, 222, "delay elapsed");
+            scheduler.setRateForFiber(fiber, -2);
+        });
+    const scheduler = run(fiber);
+    t.same(scheduler.lastInstant, 333, "delay was undone (faster)");
 });
