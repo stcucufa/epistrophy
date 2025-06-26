@@ -2511,3 +2511,30 @@ test("Undo delay", t => {
     const scheduler = run(fiber);
     t.same(scheduler.lastInstant, 333, "delay was undone (faster)");
 });
+
+// 4K04 Ops metadata
+
+test("Fiber.metadata", t => {
+    const fiber = new Fiber().
+        named("foo").
+        exec(K(17)).
+        delay(777).
+        effect(nop);
+    t.equal(fiber.metadata.map(({ op }) => op), ["named", "exec", "delay", "effect"], "op names");
+    t.same(fiber.metadata[0].name, "foo", "named: name parameter");
+    t.same(fiber.metadata[2].dur, 777, "delay: dur parameter");
+    t.same(fiber.metadata[3].async, false, "effect: async parameter");
+});
+
+test("Fiber.metadata: repeat", t => {
+    const fiber = new Fiber().
+        repeat(fiber => {
+            fiber.effect(fiber => {
+                const ops = fiber.metadata.map(({ op }) => op).join(", ");
+                t.match(ops, /\beffect\b/, "body of repeat has effect op");
+                t.match(ops, /\brepeat\/\w+, repeat\/\w+\b/, `template fiber has multiple repeat ops (${ops})`);
+            });
+        }, { repeatShouldEnd: n => n > 0 });
+    t.equal(fiber.metadata.map(({ op }) => op), ["repeat/instantiate"], "instantiate fiber for repeat");
+    run(fiber);
+});

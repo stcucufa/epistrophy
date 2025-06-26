@@ -136,7 +136,7 @@ class Test {
     }
 
     match(x, pattern, message) {
-        this.report(message, !pattern.test(x) && `${x} to match /${pattern}/`);
+        this.report(message, !pattern.test(x) && `${x} to match ${pattern}`);
     }
 
     pass(message) {
