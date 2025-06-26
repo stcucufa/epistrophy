@@ -2538,3 +2538,88 @@ test("Fiber.metadata: repeat", t => {
     t.equal(fiber.metadata.map(({ op }) => op), ["repeat/instantiate"], "instantiate fiber for repeat");
     run(fiber);
 });
+
+// 4K0L Custom undo
+
+test("No custom undo for named", t => {
+    t.throws(() => {
+        new Fiber().named("foo").undo(nop);
+    }, "setting it is an error");
+});
+
+test("No custom undo for store", t => {
+    t.throws(() => {
+        new Fiber().store("foo").undo(nop);
+    }, "setting it is an error");
+});
+
+test("Custom undo for exec", t => {
+    run(new Fiber().
+        exec(K(17)).
+        exec(K(23)).
+        undo(({ value }) => { t.same(value, 17, "value was reset"); }).
+        effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, -1); })
+    );
+});
+
+test("Custom undo for effect", t => {
+    run(new Fiber().
+        exec(K(17)).
+        effect(({ value }) => { t.same(value, 17, "value was set (do)"); }).
+        undo(({ value }) => { t.same(value, 17, "value was reset (undo)"); }).
+        exec(K(23)).
+        effect((fiber, scheduler) => {
+            t.same(fiber.value, 23, "a new value was set (do)");
+            scheduler.setRateForFiber(fiber, -1);
+        })
+    );
+});
+
+test("Custom undo for event (DOM event)", t => {
+    const fiber = new Fiber().
+        exec(K([17, 31])).
+        effect(nop).undo(({ value }, scheduler ) => {
+            t.equal(value, [17, 31], "value was restored");
+            t.same(scheduler.now, 444, "all event effects were undone")
+        }).
+        event(window, "hello", { eventWasHandled: (_, { value }) => { value.push(23); } }).
+        undo(({ value }, scheduler) => {
+            value.pop();
+            t.same(scheduler.now, 222, "event undo happens before the negative delay");
+        }).
+        effect((fiber, scheduler) => {
+            t.equal(fiber.value, [17, 31, 23], "value was updated when event was handled");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber, new Scheduler(), 222);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Custom undo for event (message)", t => {
+    const A = {};
+    const fiber = new Fiber().
+        exec(K([17, 31])).
+        effect(nop).undo(({ value }, scheduler ) => {
+            t.equal(value, [17, 31], "value was restored");
+            t.same(scheduler.now, 444, "all event effects were undone")
+        }).
+        event(A, "hello", { eventWasHandled: (_, { value }) => { value.push(23); } }).
+        undo(({ value }, scheduler) => {
+            value.pop();
+            t.same(scheduler.now, 222, "event undo happens before the negative delay");
+        }).
+        effect((fiber, scheduler) => {
+            t.equal(fiber.value, [17, 31, 23], "value was updated when event was handled");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber, new Scheduler(), 222);
+    message(A, "hello");
+    scheduler.clock.now = Infinity;
+});
+
+test("No custom undo for delay", t => {
+    t.throws(() => {
+        new Fiber().delay(444).undo(nop);
+    }, "setting it is an error");
+});
