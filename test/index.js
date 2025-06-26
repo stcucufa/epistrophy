@@ -2395,3 +2395,119 @@ test("Fiber.named() can unname a fiber", t => {
         effect((_, scheduler) => { t.undefined(scheduler.fiberNamed("foo"), "then unnamed"); })
     );
 });
+
+// 4K0K Undo operators
+
+test("Undo named", t => {
+    const fiber = new Fiber().
+        named("foo").
+        named("bar").
+        effect((fiber, scheduler) => {
+            t.same(fiber.name, "bar", "fiber is named");
+            t.same(scheduler.fiberNamed("bar"), fiber, "and can be retrieved by its name");
+            t.undefined(scheduler.fiberNamed("foo"), "but not by its previous name");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber);
+    t.undefined(fiber.name, "fiber does not have a name anymore");
+    t.undefined(scheduler.fiberNamed("bar"), "and cannot be retrieved");
+});
+
+test("Undo named (error with name)", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        named(() => { throw Error("AUGH"); }).
+        either(fiber => fiber.
+            effect((fiber, scheduler) => {
+                t.same(fiber.error.message, "AUGH", "the error is caught");
+                scheduler.setRateForFiber(fiber, -1);
+            })
+        );
+    run(fiber);
+    t.undefined(fiber.error, "the error was undone");
+});
+
+test("Undo named (error: duplicate name)", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        named("foo").
+        either(fiber => fiber.
+            effect(({ error }, scheduler) => {
+                t.ok(error, "naming the fiber failed");
+                scheduler.setRateForFiber(fiber, -1);
+            })
+        );
+    run(new Fiber().
+        named("foo").
+        effect((parent, scheduler) => { scheduler.attachFiber(parent, fiber); }).
+        join()
+    );
+    t.undefined(fiber.error, "the error was undone");
+});
+
+test("Undo store", t => {
+    const fiber = new Fiber().
+        exec(K(23)).
+        store("x").
+        exec(K(17)).
+        effect(({ scope: { x } }, scheduler) => {
+            t.same(x, 23, "value was stored");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    run(fiber);
+    t.equal(fiber.scope, {}, "fiber scope is empty after undo");
+});
+
+test("Undo exec (sync)", t => {
+    const fiber = new Fiber().
+        exec(K(23)).
+        effect((fiber, value) => {
+            t.same(fiber.rate, 1, "default undo for sync effect is to do nothing");
+            t.same(fiber.value, 23, "first value was set");
+        }).
+        exec(K(17)).
+        effect((fiber, scheduler) => {
+            t.same(fiber.value, 17, "second value was set");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    run(fiber);
+    t.undefined(fiber.value, "value was unset");
+});
+
+test("Undo event (DOM event)", t => {
+    const fiber = new Fiber().
+        event(window, "hello").
+        effect((fiber, scheduler) => {
+            t.same(scheduler.now, 222, "event was received after some time");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber, new Scheduler(), 222);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+    t.same(scheduler.lastInstant, 444, "event was undone");
+});
+
+test("Undo event (message)", t => {
+    const A = {};
+    const fiber = new Fiber().
+        event(A, "hello").
+        effect((fiber, scheduler) => {
+            t.same(scheduler.now, 222, "message was received after some time");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber, new Scheduler(), 222);
+    message(A, "hello");
+    scheduler.clock.now = Infinity;
+    t.same(scheduler.lastInstant, 444, "event was undone");
+});
+
+test("Undo delay", t => {
+    const fiber = new Fiber().
+        delay(222).
+        effect((fiber, scheduler) => {
+            t.same(scheduler.now, 222, "delay elapsed");
+            scheduler.setRateForFiber(fiber, -2);
+        });
+    const scheduler = run(fiber);
+    t.same(scheduler.lastInstant, 333, "delay was undone (faster)");
+});
