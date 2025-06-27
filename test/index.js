@@ -2635,8 +2635,8 @@ test("No custom undo for delay", t => {
 
 // 4L09 Undo delay with infinite rate
 
-test("Undo delay (infinite rate)", t => {
-    const fiber = new Fiber().
+test("Undo delay (infinite positive rate)", t => {
+    run(new Fiber().
         effect((fiber, scheduler) => {
             scheduler.setRateForFiber(fiber, Infinity);
         }).undo((fiber, scheduler) => {
@@ -2648,12 +2648,27 @@ test("Undo delay (infinite rate)", t => {
             t.same(fiber.now, 222, "delay elapsed");
             t.same(scheduler.now, 0, "infinitely fast");
             scheduler.setRateForFiber(fiber, -2);
-        });
-    const scheduler = run(fiber);
+        })
+    );
+});
+
+test("Undo delay (infinite negative rate)", t => {
+    run(new Fiber().
+        effect(nop).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "delay was undone");
+            t.same(scheduler.now, 222, "at an infinite rate");
+        }).
+        delay(222).
+        effect((fiber, scheduler) => {
+            t.same(fiber.now, 222, "delay elapsed");
+            t.same(scheduler.now, 222, "at the regular rate");
+            scheduler.setRateForFiber(fiber, -Infinity);
+        })
+    );
 });
 
 test("Undo delay (infinite rate both ways)", t => {
-    const fiber = new Fiber().
+    run(new Fiber().
         effect((fiber, scheduler) => {
             scheduler.setRateForFiber(fiber, Infinity);
         }).undo((fiber, scheduler) => {
@@ -2665,6 +2680,50 @@ test("Undo delay (infinite rate both ways)", t => {
             t.same(fiber.now, 222, "delay elapsed");
             t.same(scheduler.now, 0, "infinitely fast");
             scheduler.setRateForFiber(fiber, -Infinity);
+        })
+    );
+});
+
+// 4L02 Undo ramp
+
+test("Undo ramp (fixed duration)", t => {
+    const ps = [[0, 0, 0], [0.5, 500, 500], [1, 1000, 1000], [1, 1000, 1000], [0.5, 500, 1500],  [0, 0, 2000]];
+    const fiber = new Fiber().
+        ramp(1000, {
+            rampDidProgress(p, fiber, scheduler) {
+                const [pp, fn, sn] = ps.shift();
+                t.same(p, pp, `ramp did progress (p = ${p})`);
+                t.same(fiber.now, fn, `fiber local time (${fiber.now})`);
+                t.same(scheduler.now, sn, `global time (${scheduler.now})`);
+            }
+        }).
+        effect((fiber, scheduler) => {
+            t.same(ps.length, 3, "ramp finished but will run backward now");
+            scheduler.setRateForFiber(fiber, -1);
         });
-    const scheduler = run(fiber);
+    const scheduler = run(fiber, new Scheduler(), 500);
+    scheduler.clock.now = 1500;
+    scheduler.clock.now = Infinity;
+    t.same(ps.length, 0, "ramp went backward and forward");
+});
+
+test("Undo ramp (variable duration)", t => {
+    const ps = [[0, 0, 0], [0.5, 500, 500], [1, 1000, 1000], [1, 1000, 1000], [0.5, 500, 1500],  [0, 0, 2000]];
+    const fiber = new Fiber().
+        ramp(K(1000), {
+            rampDidProgress(p, fiber, scheduler) {
+                const [pp, fn, sn] = ps.shift();
+                t.same(p, pp, `ramp did progress (p = ${p})`);
+                t.same(fiber.now, fn, `fiber local time (${fiber.now})`);
+                t.same(scheduler.now, sn, `global time (${scheduler.now})`);
+            }
+        }).
+        effect((fiber, scheduler) => {
+            t.same(ps.length, 3, "ramp finished but will run backward now");
+            scheduler.setRateForFiber(fiber, -1);
+        });
+    const scheduler = run(fiber, new Scheduler(), 500);
+    scheduler.clock.now = 1500;
+    scheduler.clock.now = Infinity;
+    t.same(ps.length, 0, "ramp went backward and forward");
 });
