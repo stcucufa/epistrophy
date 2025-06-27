@@ -2476,6 +2476,10 @@ test("Undo exec (sync)", t => {
 
 test("Undo event (DOM event)", t => {
     const fiber = new Fiber().
+        effect(nop).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "event was undone");
+            t.same(scheduler.now, 444, "delay was duplicated");
+        }).
         event(window, "hello").
         effect((fiber, scheduler) => {
             t.same(scheduler.now, 222, "event was received after some time");
@@ -2484,12 +2488,15 @@ test("Undo event (DOM event)", t => {
     const scheduler = run(fiber, new Scheduler(), 222);
     window.dispatchEvent(new CustomEvent("hello"));
     scheduler.clock.now = Infinity;
-    t.same(scheduler.lastInstant, 444, "event was undone");
 });
 
 test("Undo event (message)", t => {
     const A = {};
     const fiber = new Fiber().
+        effect(nop).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "event was undone");
+            t.same(scheduler.now, 444, "delay was duplicated");
+        }).
         event(A, "hello").
         effect((fiber, scheduler) => {
             t.same(scheduler.now, 222, "message was received after some time");
@@ -2498,18 +2505,20 @@ test("Undo event (message)", t => {
     const scheduler = run(fiber, new Scheduler(), 222);
     message(A, "hello");
     scheduler.clock.now = Infinity;
-    t.same(scheduler.lastInstant, 444, "event was undone");
 });
 
 test("Undo delay", t => {
     const fiber = new Fiber().
+        effect(nop).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "delay was undone");
+            t.same(scheduler.now, 333, "twice as fast");
+        }).
         delay(222).
         effect((fiber, scheduler) => {
             t.same(scheduler.now, 222, "delay elapsed");
             scheduler.setRateForFiber(fiber, -2);
         });
     const scheduler = run(fiber);
-    t.same(scheduler.lastInstant, 333, "delay was undone (faster)");
 });
 
 // 4K04 Ops metadata
@@ -2622,4 +2631,40 @@ test("No custom undo for delay", t => {
     t.throws(() => {
         new Fiber().delay(444).undo(nop);
     }, "setting it is an error");
+});
+
+// 4L09 Undo delay with infinite rate
+
+test("Undo delay (infinite rate)", t => {
+    const fiber = new Fiber().
+        effect((fiber, scheduler) => {
+            scheduler.setRateForFiber(fiber, Infinity);
+        }).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "delay was undone");
+            t.same(scheduler.now, 111, "at a finite rate");
+        }).
+        delay(222).
+        effect((fiber, scheduler) => {
+            t.same(fiber.now, 222, "delay elapsed");
+            t.same(scheduler.now, 0, "infinitely fast");
+            scheduler.setRateForFiber(fiber, -2);
+        });
+    const scheduler = run(fiber);
+});
+
+test("Undo delay (infinite rate both ways)", t => {
+    const fiber = new Fiber().
+        effect((fiber, scheduler) => {
+            scheduler.setRateForFiber(fiber, Infinity);
+        }).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "delay was undone");
+            t.same(scheduler.now, 0, "at an infinite rate");
+        }).
+        delay(222).
+        effect((fiber, scheduler) => {
+            t.same(fiber.now, 222, "delay elapsed");
+            t.same(scheduler.now, 0, "infinitely fast");
+            scheduler.setRateForFiber(fiber, -Infinity);
+        });
+    const scheduler = run(fiber);
 });
