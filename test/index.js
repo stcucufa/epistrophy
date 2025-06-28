@@ -2700,6 +2700,22 @@ test("Undo delay (halfway through)", t => {
     );
 });
 
+test("Undo delay (halfway through infinite delay)", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.named("delay").
+            effect(nop).undo((fiber, scheduler) => {
+                t.same(fiber.now, 0, "delay was undone");
+                t.same(scheduler.now, 200, "at normal rate");
+            }).
+            delay(Infinity)
+        ).
+        spawn(fiber => fiber.
+            delay(100).
+            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("delay"), -1); })
+        )
+    );
+});
+
 // 4L02 Undo ramp
 
 test("Undo ramp (fixed duration)", t => {
@@ -2776,8 +2792,8 @@ test("Undo ramp (rate change during ramp)", t => {
 });
 
 test("Undo ramp (halfway through)", t => {
-    const ps = [[0, 0, 0], [0, 0, 1000]];
-    run(new Fiber().
+    const ps = [[0, 0, 0], [0.25, 250, 250], [0, 0, 1000]];
+    const fiber = new Fiber().
         spawn(fiber => fiber.
             named("ramp").
             ramp(1000, {
@@ -2794,7 +2810,8 @@ test("Undo ramp (halfway through)", t => {
             effect((_, scheduler) => {
                 scheduler.setRateForFiber(scheduler.fiberNamed("ramp"), -1);
             })
-        )
-    );
+        );
+    const scheduler = run(fiber, new Scheduler(), 250);
+    scheduler.clock.now = Infinity;
     t.same(ps.length, 0, "ramp went backward and forward");
 });
