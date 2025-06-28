@@ -2745,7 +2745,7 @@ test("Undo ramp (variable duration)", t => {
 });
 
 test("Undo ramp (rate change during ramp)", t => {
-    const ps = [[0, 0, 0], [0.75, 750, 1000], [1, 1000, 1500], [1, 1000, 1500], [0.5, 500, 2000], [0, 0, 2500]];
+    const ps = [[0, 0, 0], [0.75, 750, 1000], [1, 1000, 1500], [1, 1000, 2500], [0.5, 500, 3000], [0, 0, 3500]];
     const fiber = new Fiber().
         spawn(fiber => fiber.
             named("ramp").
@@ -2756,21 +2756,22 @@ test("Undo ramp (rate change during ramp)", t => {
                     t.same(fiber.now, fn, `fiber local time (${fiber.now})`);
                     t.same(scheduler.now, sn, `global time (${scheduler.now})`);
                 }
-            })
+            }).
+            delay(Infinity)
         ).
         spawn(fiber => fiber.
             delay(500).
             effect((_, scheduler) => {
                 scheduler.setRateForFiber(scheduler.fiberNamed("ramp"), 0.5);
             }).
-            delay(1000).
+            delay(1500).
             effect((_, scheduler) => {
                 scheduler.setRateForFiber(scheduler.fiberNamed("ramp"), -1);
             })
         );
     const scheduler = run(fiber, new Scheduler(), 1000);
-    scheduler.now = 1500;
-    scheduler.now = Infinity;
+    scheduler.clock.now = 3000;
+    scheduler.clock.now = Infinity;
     t.same(ps.length, 0, "ramp went backward and forward");
 });
 
