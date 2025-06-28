@@ -2745,7 +2745,6 @@ test("Undo ramp (variable duration)", t => {
 });
 
 test("Undo ramp (rate change during ramp)", t => {
-    t.skip();
     const ps = [[0, 0, 0], [0.75, 750, 1000], [1, 1000, 1500], [1, 1000, 1500], [0.5, 500, 2000], [0, 0, 2500]];
     const fiber = new Fiber().
         spawn(fiber => fiber.
@@ -2776,7 +2775,6 @@ test("Undo ramp (rate change during ramp)", t => {
 });
 
 test("Undo ramp (halfway through)", t => {
-    t.skip();
     const ps = [[0, 0, 0], [0, 0, 1000]];
     run(new Fiber().
         spawn(fiber => fiber.
