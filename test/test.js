@@ -46,6 +46,7 @@ class Test {
 
     static DefaultMessage = "expectation was met";
     static FailDefaultMessage = "unconditional failure";
+    static SkipDefaultMessage = "skipped";
 
     report(message, expected) {
         if (expected) {
@@ -63,6 +64,14 @@ class Test {
         this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.FailDefaultMessage}`;
         this.li.scrollIntoView({ block: "end" });
         this.expectations += 1;
+    }
+
+    skip(message) {
+        this.skipped = true;
+        this.li.innerHTML += ` <span class="skip">...</span> ${message ?? Test.SkipDefaultMessage}`;
+        this.li.scrollIntoView({ block: "end" });
+        this.expectations += 1;
+        throw Error("skipped");
     }
 
     run(li) {
@@ -99,9 +108,17 @@ class Test {
         try {
             this.f(this);
         } catch (error) {
-            this.report("error running test", `no exception but got: <em>${error.message}</em>`);
-            this.passes = false;
+            if (!this.skipped) {
+                this.report("error running test", `no exception but got: <em>${error.message}</em>`);
+                this.passes = false;
+            }
         } finally {
+            console.assert = assert;
+            console.warn = warn;
+            console.error = error;
+            if (this.skipped) {
+                return;
+            }
             if (this.expectations === 0) {
                 this.fail("no expectations in test");
             }
@@ -111,9 +128,6 @@ class Test {
             if (this.expectsError && this.errors === 0) {
                 this.fail("no errors during test");
             }
-            console.assert = assert;
-            console.warn = warn;
-            console.error = error;
         }
     }
 
@@ -162,11 +176,6 @@ class Test {
         }
     }
 
-    todo() {
-        this.report("TODO");
-        this.li.classList.add("todo");
-    }
-
     true(x, message) {
         this.report(message, x !== true, `${x} to be true`);
     }
@@ -197,15 +206,20 @@ function run() {
         ol.setAttribute("start", targetIndex);
     }
     let fail = 0;
+    let skip = 0;
     for (const test of tests) {
         test.run(ol.appendChild(document.createElement("li")));
-        if (!test.passes) {
+        if (test.skipped) {
+            skip += 1;
+        } else if (!test.passes) {
             fail += 1;
         }
     }
     const p = parent.appendChild(document.createElement("p"));
+    const total = tests.length - skip;
+    const skipped = skip > 0 ? `, <span class="skip">...</span> ${skip} skipped` : "";
     p.classList.add("report");
-    p.innerHTML = fail === 0 ? `<span class="ok">ok</span> All tests pass (${tests.length})` :
-        `<span class="ko">ko</span> Test failures: ${fail}/${tests.length} (${(100 * fail / tests.length).toFixed(2)}%)`;
+    p.innerHTML = fail === 0 ? `<span class="ok">ok</span> ${total} tests pass${skipped}` :
+        `<span class="ko">ko</span> Test failures: ${fail}/${total} (${(100 * fail / total).toFixed(2)}%)${skipped}`;
     p.scrollIntoView({ block: "end" });
 }
