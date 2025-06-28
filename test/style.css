@@ -1,9 +1,10 @@
 :root {
-    --picotron-white: #fff1e8;
     --picotron-dark-blue: #1d2b53;
+    --picotron-dark-orange: #ff6c24;
     --picotron-green: #00e436;
     --picotron-red: #ff004d;
-    --picotron-dark-orange: #ff6c24;
+    --picotron-yellow: #ffec27;
+    --picotron-white: #fff1e8;
 }
 
 body {
@@ -33,7 +34,7 @@ div.tests li span:first-child {
     font-weight: bold;
 }
 
-div.tests span.ok, div.tests span.ko {
+div.tests span.ok, div.tests span.ko, div.tests span.skip {
     font-weight: bold;
     font-size: smaller;
     font-variant: small-caps;
@@ -50,8 +51,8 @@ div.tests span.ko {
     color: var(--picotron-white);
 }
 
-div.tests li.todo {
-    opacity: 0.5;
+div.tests span.skip {
+    background-color: var(--picotron-yellow);
 }
 
 div.tests p.report {
