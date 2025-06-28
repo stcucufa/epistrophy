@@ -1,9 +1,6 @@
-import { typeOf } from "../lib/util.js";
-
-const targetIndex = parseInt(window.location.hash.substr(1));
-let index = 0;
-const tests = [];
-let request;
+import { K, typeOf } from "../lib/util.js";
+import Scheduler from "../lib/scheduler.js";
+import Fiber from "../lib/fiber.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
@@ -189,37 +186,55 @@ class Test {
     }
 }
 
+// Setup the scheduler and main fiber.
+
+const scheduler = new Scheduler();
+const fiber = new Fiber().
+    exec(() => {
+        const parent = document.querySelector("div.tests") ?? document.body;
+        const ol = parent.appendChild(document.createElement("ol"));
+        if (!isNaN(targetIndex)) {
+            ol.setAttribute("start", targetIndex);
+        }
+        return { count: 0, fail: 0, skip: 0, parent, ol };
+    }).
+    join({
+        childFiberDidEnd({ value: test, parent: { value: tests } }) {
+            tests.count += 1;
+            if (test.skipped) {
+                tests.skip += 1;
+            } else if (!test.passes) {
+                tests.fail += 1;
+            }
+        }
+    }).
+    effect(({ value: { parent, skip, fail, count } }) => {
+        const p = parent.appendChild(document.createElement("p"));
+        const total = count - skip;
+        const skipped = skip > 0 ? `, <span class="skip">...</span> ${skip} skipped` : "";
+        p.classList.add("report");
+        p.innerHTML = fail === 0 ? `<span class="ok">ok</span> ${total} tests pass${skipped}` :
+            `<span class="ko">ko</span> Test failures: ${fail}/${total} (${(100 * fail / total).toFixed(2)}%)${skipped}`;
+        p.scrollIntoView({ block: "end" });
+    });
+scheduler.clock.start();
+scheduler.resetFiber(fiber);
+scheduler.resumeFiber(fiber);
+
+// Export the test function, creating a new fiber for every test to run in
+// parallel.
+
+const targetIndex = parseInt(window.location.hash.substr(1));
+let index = 0;
+
 export default function test(title, f) {
     index += 1;
     if (isNaN(targetIndex) || index === targetIndex) {
-        tests.push(new Test(title, index, f));
-        if (!request) {
-            request = setTimeout(run, 0);
-        }
+        scheduler.attachFiber(fiber).
+            exec(K(new Test(title, index, f))).
+            exec(({ value: test, parent: { value: { ol } } }) => {
+                test.run(ol.appendChild(document.createElement("li")));
+                return test;
+            });
     }
-}
-
-function run() {
-    const parent = document.querySelector("div.tests") ?? document.body;
-    const ol = parent.appendChild(document.createElement("ol"));
-    if (!isNaN(targetIndex)) {
-        ol.setAttribute("start", targetIndex);
-    }
-    let fail = 0;
-    let skip = 0;
-    for (const test of tests) {
-        test.run(ol.appendChild(document.createElement("li")));
-        if (test.skipped) {
-            skip += 1;
-        } else if (!test.passes) {
-            fail += 1;
-        }
-    }
-    const p = parent.appendChild(document.createElement("p"));
-    const total = tests.length - skip;
-    const skipped = skip > 0 ? `, <span class="skip">...</span> ${skip} skipped` : "";
-    p.classList.add("report");
-    p.innerHTML = fail === 0 ? `<span class="ok">ok</span> ${total} tests pass${skipped}` :
-        `<span class="ko">ko</span> Test failures: ${fail}/${total} (${(100 * fail / total).toFixed(2)}%)${skipped}`;
-    p.scrollIntoView({ block: "end" });
 }
