@@ -2830,3 +2830,24 @@ test("Undo spawn (no join)", t => {
         })
     )
 });
+
+// 4L04 Undo repeat
+
+test("Undo repeat (after)", t => {
+    run(new Fiber().
+        exec(K(17)).
+        effect(nop).undo((fiber, scheduler) => {
+            t.same(fiber.value, 17, "repeat was undone");
+            t.same(fiber.now, 0, "fiber local time");
+            t.same(scheduler.now, 1332, "global time");
+        }).
+        repeat(fiber => fiber.
+            delay(111).
+            exec(({ value }) => value + 1), { repeatShouldEnd: n => n === 6 }
+        ).
+        effect((fiber, scheduler) => {
+            t.same(fiber.value, 23, "repeat completed");
+            scheduler.setRateForFiber(fiber, -1);
+        })
+    );
+});
