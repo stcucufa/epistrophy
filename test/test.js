@@ -191,12 +191,12 @@ class Test {
 const scheduler = new Scheduler();
 const fiber = new Fiber().
     exec(() => {
-        const parent = document.querySelector("div.tests") ?? document.body;
-        const ol = parent.appendChild(document.createElement("ol"));
+        const parentElement = document.querySelector("div.tests") ?? document.body;
+        const ol = parentElement.appendChild(document.createElement("ol"));
         if (!isNaN(targetIndex)) {
             ol.setAttribute("start", targetIndex);
         }
-        return { count: 0, fail: 0, skip: 0, parent, ol };
+        return { count: 0, fail: 0, skip: 0, parentElement, ol };
     }).
     join({
         childFiberDidEnd({ value: test, parent: { value: tests } }) {
@@ -208,8 +208,8 @@ const fiber = new Fiber().
             }
         }
     }).
-    effect(({ value: { parent, skip, fail, count } }) => {
-        const p = parent.appendChild(document.createElement("p"));
+    effect(({ value: { parentElement, skip, fail, count } }) => {
+        const p = parentElement.appendChild(document.createElement("p"));
         const total = count - skip;
         const skipped = skip > 0 ? `, <span class="skip">...</span> ${skip} skipped` : "";
         p.classList.add("report");
