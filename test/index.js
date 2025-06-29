@@ -2815,3 +2815,18 @@ test("Undo ramp (halfway through)", t => {
     scheduler.clock.now = Infinity;
     t.same(ps.length, 0, "ramp went backward and forward");
 });
+
+// 4L03 Undo spawn
+
+test("Undo spawn (no join)", t => {
+    run(new Fiber().
+        effect(nop).undo(fiber => { t.undefined(fiber.children, "no more child fiber after undo"); }).
+        spawn(fiber => fiber.
+            effect(fiber => { t.equal(fiber.parent.children, [fiber], "parent has a child fiber"); })
+        ).
+        delay(111).
+        effect((fiber, scheduler) => {
+            scheduler.setRateForFiber(fiber, -1);
+        })
+    )
+});
