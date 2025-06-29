@@ -2842,3 +2842,18 @@ test("Async exec", async t => await runAsync(new Fiber().
         t.above(fiber.now, 0, `setTimeout took some time (${fiber.now})`);
     })
 ));
+
+// 4L03 Undo spawn
+
+test("Undo spawn (no join)", t => {
+    run(new Fiber().
+        effect(nop).undo(fiber => { t.undefined(fiber.children, "no more child fiber after undo"); }).
+        spawn(fiber => fiber.
+            effect(fiber => { t.equal(fiber.parent.children, [fiber], "parent has a child fiber"); })
+        ).
+        delay(111).
+        effect((fiber, scheduler) => {
+            scheduler.setRateForFiber(fiber, -1);
+        })
+    )
+});
