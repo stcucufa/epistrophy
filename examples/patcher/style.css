@@ -1,0 +1,28 @@
+:root {
+    --picotron-white: #fff1e8;
+    --picotron-medium-green: #00b251;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#grid rect {
+    fill: var(--picotron-white);
+}
+
+#grid line {
+    stroke: var(--picotron-medium-green);
+}
