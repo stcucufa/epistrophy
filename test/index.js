@@ -12,6 +12,18 @@ function run(fiber, scheduler, until = Infinity) {
     return scheduler;
 }
 
+// Utility function to run a fiber asynchronously until the scheduler becomes
+// idle.
+const runAsync = fiber => new Promise(resolve => {
+    const scheduler = Scheduler.initWithFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+});
+
 test("remove(xs, x)", t => {
     const xs = [1, 2, 3, 4, 5, 2, 2, 2];
     t.same(remove(xs, 2), 2, "the removed element is removed");
@@ -2815,3 +2827,18 @@ test("Undo ramp (halfway through)", t => {
     scheduler.clock.now = Infinity;
     t.same(ps.length, 0, "ramp went backward and forward");
 });
+
+// 3407 Async tests
+
+test("Async effect", async t => await runAsync(new Fiber().
+    effect(async () => new Promise(resolve => { window.setTimeout(resolve); })).
+    effect(fiber => { t.above(fiber.now, 0, `setTimeout took some time (${fiber.now})`); })
+));
+
+test("Async exec", async t => await runAsync(new Fiber().
+    exec(async () => new Promise(resolve => { window.setTimeout(() => resolve(23)); })).
+    effect(fiber => {
+        t.same(fiber.value, 23, "value was set");
+        t.above(fiber.now, 0, `setTimeout took some time (${fiber.now})`);
+    })
+));

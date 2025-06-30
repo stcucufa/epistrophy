@@ -2,6 +2,7 @@
     --picotron-dark-blue: #1d2b53;
     --picotron-dark-orange: #ff6c24;
     --picotron-green: #00e436;
+    --picotron-light-blue: #83ebf5;
     --picotron-red: #ff004d;
     --picotron-yellow: #ffec27;
     --picotron-white: #fff1e8;
@@ -34,7 +35,7 @@ div.tests li span:first-child {
     font-weight: bold;
 }
 
-div.tests span.ok, div.tests span.ko, div.tests span.skip {
+div.tests span.ok, div.tests span.ko, div.tests span.skip, div.tests span.pending {
     font-weight: bold;
     font-size: smaller;
     font-variant: small-caps;
@@ -53,6 +54,10 @@ div.tests span.ko {
 
 div.tests span.skip {
     background-color: var(--picotron-yellow);
+}
+
+div.tests span.pending {
+    background-color: var(--picotron-light-blue);
 }
 
 div.tests p.report {
