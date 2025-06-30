@@ -2815,3 +2815,18 @@ test("Undo ramp (halfway through)", t => {
     scheduler.clock.now = Infinity;
     t.same(ps.length, 0, "ramp went backward and forward");
 });
+
+// 3407 Async tests
+
+test("Async effect", async t => new Promise(resolve => {
+    const fiber = new Fiber().
+        effect(async () => new Promise(resolve => window.setTimeout(resolve))).
+        effect(fiber => { t.above(fiber.now, 0, `setTimeout took some time (${fiber.now})`); });
+    const scheduler = Scheduler.initWithFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));

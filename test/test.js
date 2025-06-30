@@ -1,4 +1,4 @@
-import { K, typeOf } from "../lib/util.js";
+import { K, typeOf, isAsync } from "../lib/util.js";
 import Scheduler from "../lib/scheduler.js";
 import Fiber from "../lib/fiber.js";
 
@@ -71,9 +71,9 @@ class Test {
         throw Error("skipped");
     }
 
-    run(li) {
-        this.li = li;
-        li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
+    prepare(ol) {
+        this.li = ol.appendChild(document.createElement("li"));
+        this.li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
         this.passes = true;
         const assert = console.assert;
         console.assert = (...args) => {
@@ -102,33 +102,64 @@ class Test {
                 this.warnings += 1;
             }
         };
-        try {
-            this.f(this);
-        } catch (error) {
-            if (!this.skipped) {
-                this.report("error running test", `no exception but got: <em>${error.message}</em>`);
-                this.passes = false;
-            }
-        } finally {
-            console.assert = assert;
-            console.warn = warn;
-            console.error = error;
-            if (this.skipped) {
-                return;
-            }
-            if (this.expectations === 0) {
-                this.fail("no expectations in test");
-            }
-            if (this.expectsWarning && this.warnings === 0) {
-                this.fail("no warnings during test");
-            }
-            if (this.expectsError && this.errors === 0) {
-                this.fail("no errors during test");
-            }
+        this.console = { assert, error, warn };
+    }
+
+    cleanup() {
+        for (const [key, value] of Object.entries(this.console)) {
+            console[key] = value;
+        }
+        delete this.console;
+        if (this.skipped) {
+            return;
+        }
+        if (this.expectations === 0) {
+            this.fail("no expectations in test");
+        }
+        if (this.expectsWarning && this.warnings === 0) {
+            this.fail("no warnings during test");
+        }
+        if (this.expectsError && this.errors === 0) {
+            this.fail("no errors during test");
         }
     }
 
+    reportTestError(error) {
+        if (!this.skipped) {
+            this.report("error running test", `no exception but got: <em>${error.message ?? error}</em>`);
+            this.passes = false;
+        }
+    }
+
+    async runAsync(ol) {
+        this.prepare(ol);
+        try {
+            await this.f(this);
+        } catch (error) {
+            this.reportTestError(error);
+        } finally {
+            this.cleanup();
+        }
+        return this;
+    }
+
+    run(ol) {
+        this.prepare(ol);
+        try {
+            this.f(this);
+        } catch (error) {
+            this.reportTestError();
+        } finally {
+            this.cleanup();
+        }
+        return this;
+    }
+
     // Assertions
+
+    above(x, y, message) {
+        this.report(message, !(x > y) && `${x} > ${y}`);
+    }
 
     atleast(x, y, message) {
         this.report(message, !(x >= y) && `${x} ≥ ${y}`);
@@ -232,9 +263,9 @@ export default function test(title, f) {
     if (isNaN(targetIndex) || index === targetIndex) {
         scheduler.attachFiber(fiber).
             exec(K(new Test(title, index, f))).
-            exec(({ value: test, parent: { value: { ol } } }) => {
-                test.run(ol.appendChild(document.createElement("li")));
-                return test;
-            });
+            exec(isAsync(f) ?
+                async ({ value: test, parent: { value: { ol } } }) => await test.runAsync(ol) :
+                ({ value: test, parent: { value: { ol } } }) => test.run(ol)
+            );
     }
 }
