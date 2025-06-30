@@ -2820,8 +2820,24 @@ test("Undo ramp (halfway through)", t => {
 
 test("Async effect", async t => new Promise(resolve => {
     const fiber = new Fiber().
-        effect(async () => new Promise(resolve => window.setTimeout(resolve))).
+        effect(async () => new Promise(resolve => { window.setTimeout(resolve); })).
         effect(fiber => { t.above(fiber.now, 0, `setTimeout took some time (${fiber.now})`); });
+    const scheduler = Scheduler.initWithFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));
+
+test("Async exec", async t => new Promise(resolve => {
+    const fiber = new Fiber().
+        exec(async () => new Promise(resolve => { window.setTimeout(() => resolve(23)); })).
+        effect(fiber => {
+            t.same(fiber.value, 23, "value was set");
+            t.above(fiber.now, 0, `setTimeout took some time (${fiber.now})`);
+        });
     const scheduler = Scheduler.initWithFiber(fiber);
     on(scheduler, "update", ({ idle }) => {
         if (idle) {
