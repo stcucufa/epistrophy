@@ -52,21 +52,18 @@ class Test {
         } else {
             this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessage}`;
         }
-        this.li.scrollIntoView({ block: "end" });
         this.expectations += 1;
     }
 
     fail(message) {
         this.passes = false;
         this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.FailDefaultMessage}`;
-        this.li.scrollIntoView({ block: "end" });
         this.expectations += 1;
     }
 
     skip(message) {
         this.skipped = true;
         this.li.innerHTML += ` <span class="skip">...</span> ${message ?? Test.SkipDefaultMessage}`;
-        this.li.scrollIntoView({ block: "end" });
         this.expectations += 1;
         throw Error("skipped");
     }
@@ -227,7 +224,8 @@ const fiber = new Fiber().
         if (!isNaN(targetIndex)) {
             ol.setAttribute("start", targetIndex);
         }
-        return { count: 0, fail: 0, skip: 0, parentElement, ol };
+        const p = parentElement.appendChild(document.createElement("p"));
+        return summary({ count: 0, fail: 0, skip: 0, ol, p });
     }).
     join({
         childFiberDidEnd({ value: test, parent: { value: tests } }) {
@@ -237,20 +235,27 @@ const fiber = new Fiber().
             } else if (!test.passes) {
                 tests.fail += 1;
             }
+            summary(tests);
         }
     }).
-    effect(({ value: { parentElement, skip, fail, count } }) => {
-        const p = parentElement.appendChild(document.createElement("p"));
-        const total = count - skip;
-        const skipped = skip > 0 ? `, <span class="skip">...</span> ${skip} skipped` : "";
-        p.classList.add("report");
-        p.innerHTML = fail === 0 ? `<span class="ok">ok</span> ${total} tests pass${skipped}` :
-            `<span class="ko">ko</span> Test failures: ${fail}/${total} (${(100 * fail / total).toFixed(2)}%)${skipped}`;
-        p.scrollIntoView({ block: "end" });
-    });
+    effect(({ value: tests }) => { summary(tests, true); });
 scheduler.clock.start();
 scheduler.resetFiber(fiber);
 scheduler.resumeFiber(fiber);
+
+// Update the p element with the test summary.
+function summary(tests, done = false) {
+    const total = tests.count - tests.skip;
+    const skipped = tests.skip > 0 ? `, <span class="skip">...</span> ${tests.skip} skipped` : "";
+    tests.p.classList.add("report");
+    tests.p.innerHTML = tests.fail === 0 ?
+        `${done ? `<span class="ok">ok</span>` : `<span class="pending">...</span>`} ${total} tests pass${skipped}` :
+        `<span class="ko">ko</span> Test failures: ${tests.fail}/${total} (${
+            (100 * tests.fail / total).toFixed(2).replace(/\.00$/, "")
+        }%)${skipped}`;
+    tests.p.scrollIntoView({ block: "end" });
+    return tests;
+}
 
 // Export the test function, creating a new fiber for every test to run in
 // parallel.
