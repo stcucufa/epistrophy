@@ -249,7 +249,7 @@ function summary(tests, done = false) {
     const skipped = tests.skip > 0 ? `, <span class="skip">...</span> ${tests.skip} skipped` : "";
     tests.p.classList.add("report");
     tests.p.innerHTML = tests.fail === 0 ?
-        `${done ? `<span class="ok">ok</span>` : `<span class="pending">...</span>`} ${total} tests pass${skipped}` :
+        `${done ? `<span class="ok">ok</span>` : `<span class="pending">...</span>`} Tests: ${total}${skipped}` :
         `<span class="ko">ko</span> Test failures: ${tests.fail}/${total} (${
             (100 * tests.fail / total).toFixed(2).replace(/\.00$/, "")
         }%)${skipped}`;
