@@ -145,7 +145,7 @@ class Test {
         try {
             this.f(this);
         } catch (error) {
-            this.reportTestError();
+            this.reportTestError(error);
         } finally {
             this.cleanup();
         }
