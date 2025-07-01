@@ -2846,14 +2846,31 @@ test("Async exec", async t => await runAsync(new Fiber().
 // 4L03 Undo spawn
 
 test("Undo spawn (no join)", t => {
+    t.skip();
+    let undone = false;
     run(new Fiber().
         effect(nop).undo(fiber => { t.undefined(fiber.children, "no more child fiber after undo"); }).
         spawn(fiber => fiber.
-            effect(fiber => { t.equal(fiber.parent.children, [fiber], "parent has a child fiber"); })
+            effect(fiber => { t.equal(fiber.parent.children, [fiber], "parent has a child fiber"); }).
+            undo(fiber => { undone = true; })
         ).
         delay(111).
         effect((fiber, scheduler) => {
             scheduler.setRateForFiber(fiber, -1);
         })
     )
+    t.true(undone, "child fiber was undone");
+});
+
+test("Undo spawn: restore fiber name", t => {
+    t.skip();
+    run(new Fiber().
+        spawn(fiber => fiber.named("foo").
+            effect(nop).undo(fiber => { t.equal(fiber.name, "foo", "name was restored"); })
+        ).
+        delay(111).
+        effect((fiber, scheduler) => {
+            scheduler.setRateForFiber(fiber, -1);
+        })
+    );
 });

@@ -45,10 +45,12 @@ class Test {
     static FailDefaultMessage = "unconditional failure";
     static SkipDefaultMessage = "skipped";
 
-    report(message, expected) {
+    report(message, expected, detailedExpectation) {
         if (expected) {
             this.passes = false;
-            this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.DefaultMessage} (expected ${expected})`;
+            this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.DefaultMessage} (expected ${
+                detailedExpectation ?? expected
+            })`;
         } else {
             this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessage}`;
         }
