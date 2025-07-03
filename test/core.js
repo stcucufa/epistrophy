@@ -1,12 +1,33 @@
 import test from "./test.js";
-import { nop } from "../lib/util.js";
+import { nop, on } from "../lib/util.js";
 import { Fiber, Scheduler } from "../lib/core.js";
 
+// Utility function to run a fiber synchronously.
 function run(fiber) {
     const scheduler = new Scheduler();
     scheduler.resumeFiber(fiber);
     scheduler.update(0, Infinity);
 }
+
+// Utility function to run a fiber asynchronously until the scheduler becomes
+// idle.
+const runAsync = fiber => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    scheduler.resumeFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+});
+
+test("Scheduler.update()", t => {
+    run(new Fiber().
+        sync(fiber => { fiber.value = 17; }).
+        sync(({ value }) => { t.same(value, 17, "fiber has the expected value"); })
+    );
+});
 
 test("Fiber.run()", t => {
     const fiber = new Fiber().
@@ -96,9 +117,62 @@ test("Fiber.ramp(dur, f)", t => {
     t.equal(ps, [], "went through all updates");
 });
 
-test("Scheduler.update()", t => {
-    run(new Fiber().
-        sync(fiber => { fiber.value = 17; }).
-        sync(({ value }) => { t.same(value, 17, "fiber has the expected value"); })
-    );
+test("Fiber.async(f)", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        async((...args) => {
+            t.equal(args, [fiber, scheduler], "f gets called with the fiber and the scheduler");
+            return new Promise(resolve => { window.setTimeout(resolve); });
+        }).
+        sync((fiber, scheduler) => {
+            t.above(scheduler.now, 0, "time has passed");
+        });
+    scheduler.resumeFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));
+
+test("Fiber.async(f, delegate)", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        async(() => new Promise(resolve => { window.setTimeout(resolve(17)); }), {
+            asyncWillEnd(...args) {
+                t.equal(
+                    args, [17, fiber, scheduler],
+                    "delegate.asyncWillEnd gets called when the call ends with the value, fiber and scheduler"
+                );
+            }
+        }).
+        sync((fiber, scheduler) => {
+            t.above(scheduler.now, 0, "time has passed");
+        });
+    scheduler.resumeFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));
+
+test("Fiber.async handles synchronous errors", async t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        async(() => { throw Error("AUGH"); }).
+        sync(() => { t.fail("error should have been handled"); });
+    await runAsync(fiber);
+    t.same(fiber.error.message, "AUGH", "fiber error is set");
+});
+
+test("Fiber.async handles asynchronous errors", async t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        async(() => new Promise((_, reject) => { window.setTimeout(() => { reject(Error("AUGH")); }); })).
+        sync(() => { t.fail("error should have been handled"); });
+    await runAsync(fiber);
+    t.same(fiber.error.message, "AUGH", "fiber error is set");
 });
