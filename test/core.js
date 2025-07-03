@@ -97,7 +97,7 @@ test("Fiber.ramp(dur), variable dur error", t => {
     t.expectsError = true;
     const fiber = new Fiber().
         ramp(() => { throw Error("AUGH"); }).
-        sync((_, scheduler) => { t.fail("unreachable op"); });
+        sync(() => { t.fail("unreachable op"); });
     run(fiber);
     t.same(fiber.error.message, "AUGH", "fiber error was set");
 });
@@ -154,6 +154,22 @@ test("Fiber.ramp(dur, f)", t => {
     scheduler.update(0, 250);
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "went through all updates");
+});
+
+test("Fiber.ramp(dur, f), f throws", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        ramp(777, () => { throw Error("AUGH"); }).
+        sync(() => { t.fail("unreachable op"); });
+    run(fiber);
+    t.same(fiber.error.message, "AUGH", "the error was caught");
+});
+
+test("Fiber.ramp(∞, f), f throws", t => {
+    const fiber = new Fiber().
+        ramp(Infinity, p => { t.same(p, 0, "p stays at zero"); }).
+        sync(() => { t.fail("unreachable op"); });
+    run(fiber, 777);
 });
 
 test("Fiber.async(f)", async t => new Promise(resolve => {
