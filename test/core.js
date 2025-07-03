@@ -3,10 +3,11 @@ import { nop, on } from "../lib/util.js";
 import { Fiber, Scheduler } from "../lib/core.js";
 
 // Utility function to run a fiber synchronously.
-function run(fiber) {
+function run(fiber, until = Infinity) {
     const scheduler = new Scheduler();
     scheduler.resumeFiber(fiber);
     scheduler.update(0, Infinity);
+    return scheduler;
 }
 
 // Utility function to run a fiber asynchronously until the scheduler becomes
@@ -33,7 +34,7 @@ test("Fiber.run()", t => {
     const fiber = new Fiber().
         sync(fiber => { fiber.value = 23; }).
         sync(fiber => { fiber.value += 17; });
-    fiber.run().next();
+    fiber.run({ now: 0 }).next();
     t.same(fiber.value, 40, "all ops ran");
 });
 
@@ -43,7 +44,7 @@ test("Fiber.run() catches errors", t => {
         sync(fiber => { fiber.value = 23; }).
         sync(() => { throw Error("AUGH"); }).
         sync(fiber => { fiber.value += 17; });
-    fiber.run().next();
+    fiber.run({ now: 0 }).next();
     t.same(fiber.error.message, "AUGH", "error property is set");
     t.same(fiber.value, 23, "ops after the error did not run");
 });
@@ -60,14 +61,20 @@ test("Fiber.sync(f)", t => {
 test("Fiber.ramp(dur)", t => {
     run(new Fiber().
         ramp(777).
-        sync((_, scheduler) => { t.same(scheduler.now, 777, "time passed"); })
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 777, "time passed");
+            t.same(fiber.now, 777, "local time");
+        })
     );
 });
 
 test("Fiber.ramp(dur), string", t => {
     run(new Fiber().
         ramp("1.111s").
-        sync((_, scheduler) => { t.same(scheduler.now, 1111, "time passed"); })
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 1111, "time passed");
+            t.same(fiber.now, 1111, "local time");
+        })
     );
 });
 
@@ -78,7 +85,10 @@ test("Fiber.ramp(dur), variable dur", t => {
             t.equal(args, [fiber, scheduler], "dur gets called with the fiber and the scheduler");
             return 555;
         }).
-        sync((_, scheduler) => { t.same(scheduler.now, 555, "time passed"); });
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 555, "time passed");
+            t.same(fiber.now, 555, "local time");
+        });
     scheduler.resumeFiber(fiber);
     scheduler.update(0, Infinity);
 });
@@ -95,21 +105,25 @@ test("Fiber.ramp(dur), variable dur error", t => {
 test("Fiber.ramp(dur), dur ≤ 0", t => {
     run(new Fiber().
         ramp(-999).
-        sync((_, scheduler) => { t.same(scheduler.now, 0, "time did not pass"); })
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 0, "time did not pass");
+            t.same(fiber.now, 0, "local time");
+        })
     );
 });
 
 test("Fiber.ramp(dur, f)", t => {
-    const ps = [[0, 0], [250, 0.25], [1000, 1]];
+    const ps = [[0, 0, 0], [250, 250, 0.25], [1000, 1000, 1]];
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         ramp(1000, (...args) => {
-            const [now, pp] = ps.shift();
-            if (now === 0) {
+            const [sn, fn, pp] = ps.shift();
+            if (sn === 0) {
                 t.equal(args, [pp, fiber, scheduler], "f gets called with p, the fiber, and the scheduler");
             }
             t.equal(pp, args[0], `0 ≤ p ≤ 1 (${pp})`);
-            t.equal(now, scheduler.now, `current time (${scheduler.now})`);
+            t.equal(sn, scheduler.now, `current time (${scheduler.now})`);
+            t.equal(fn, fiber.now, `local time (${fiber.now})`);
         });
     scheduler.resumeFiber(fiber);
     scheduler.update(0, 250);
@@ -159,6 +173,10 @@ test("Fiber.async(f, delegate)", async t => new Promise(resolve => {
     scheduler.clock.start();
 }));
 
+// FIXME 4L0N Test: assertion failures are contagious
+// FIXME 4M03 Test: skip in async test
+
+/*
 test("Fiber.async handles synchronous errors", async t => {
     t.expectsError = true;
     const fiber = new Fiber().
@@ -176,3 +194,4 @@ test("Fiber.async handles asynchronous errors", async t => {
     await runAsync(fiber);
     t.same(fiber.error.message, "AUGH", "fiber error is set");
 });
+*/
