@@ -102,7 +102,7 @@ test("Fiber.ramp(dur), variable dur error", t => {
     t.same(fiber.error.message, "AUGH", "fiber error was set");
 });
 
-test("Fiber.ramp(dur), dur ≤ 0", t => {
+test("Fiber.ramp(dur), dur < 0", t => {
     run(new Fiber().
         ramp(-999).
         sync((fiber, scheduler) => {
@@ -112,12 +112,37 @@ test("Fiber.ramp(dur), dur ≤ 0", t => {
     );
 });
 
+test("Fiber.ramp(dur), invalid string", t => {
+    t.expectsWarning = true;
+    run(new Fiber().
+        ramp("for a while").
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 0, "time did not pass");
+            t.same(fiber.now, 0, "local time");
+        })
+    );
+});
+
+test("Fiber.ramp(dur), dur = 0", t => {
+    const ps = [[0, 0, 0], [1, 0, 0]];
+    run(new Fiber().
+        ramp(0, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        }).
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 0, "time did not pass");
+            t.same(fiber.now, 0, "local time");
+            t.equal(ps, [], "ramp went through all updates");
+        })
+    );
+});
+
 test("Fiber.ramp(dur, f)", t => {
-    const ps = [[0, 0, 0], [250, 250, 0.25], [1000, 1000, 1]];
+    const ps = [[0, 0, 0], [0.25, 250, 250], [1, 1000, 1000]];
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         ramp(1000, (...args) => {
-            const [sn, fn, pp] = ps.shift();
+            const [pp, fn, sn] = ps.shift();
             if (sn === 0) {
                 t.equal(args, [pp, fiber, scheduler], "f gets called with p, the fiber, and the scheduler");
             }
