@@ -6,7 +6,7 @@ import { Fiber, Scheduler } from "../lib/core.js";
 function run(fiber, until = Infinity) {
     const scheduler = new Scheduler();
     scheduler.resumeFiber(fiber);
-    scheduler.update(0, Infinity);
+    scheduler.clock.now = until;
     return scheduler;
 }
 
