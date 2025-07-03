@@ -195,9 +195,9 @@ class Test {
         try {
             f();
             this.report(message, "an exception to be thrown");
-        } catch (_) {
+        } catch (error) {
             passes = true;
-            this.report(message);
+            this.report(typeof message === "function" ? message(error) : message);
         }
     }
 
