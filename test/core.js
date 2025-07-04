@@ -236,3 +236,112 @@ test("Fiber.async handles asynchronous errors", async t => {
     t.same(fiber.error.message, "AUGH", "fiber error is set");
 });
 */
+
+// 4M04 Core: fiber rate
+
+test("Scheduler.setFiberRate(rate)", t => {
+    run(new Fiber().
+        sync((fiber, scheduler) => {
+            t.same(fiber.rate, 1, "rate is 1 by default");
+            scheduler.setFiberRate(fiber, 2);
+            t.same(fiber.rate, 2, "rate was updated");
+            t.same(new Fiber().rate, 1, "other fiber rate is unaffected");
+        })
+    );
+});
+
+test("Fiber rate affects the observed duration of a ramp", t => {
+    run(new Fiber().
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 2); }).
+        ramp(888).
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 444, "observed time");
+            t.same(fiber.now, 888, "fiber local time");
+        })
+    );
+});
+
+test("Setting fiber rate while a ramp is in progress (faster)", t => {
+    const ps = [[0, 0, 0], [0.5, 444, 444], [1, 888, 555]];
+    const fiber = new Fiber().
+        ramp(888, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        }).
+        sync(() => { t.equal(ps, [], "ramp went through all updates"); });
+    const scheduler = run(fiber, 444);
+    scheduler.setFiberRate(fiber, 4);
+    scheduler.clock.now = Infinity;
+});
+
+test("Setting fiber rate while a ramp is in progress (slower)", t => {
+    const ps = [[0, 0, 0], [0.5, 444, 444], [0.75, 666, 2664], [1, 888, 4884]];
+    const fiber = new Fiber().
+        ramp(888, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        }).
+        sync(() => { t.equal(ps, [], "ramp went through all updates"); });
+    const scheduler = run(fiber, 444);
+    scheduler.setFiberRate(fiber, 0.1);
+    scheduler.clock.now = 2664;
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber rate = 0 pauses execution of the fiber", t => {
+    run(new Fiber().
+        sync((fiber, scheduler) => {
+            scheduler.setFiberRate(fiber, 0);
+            t.same(fiber.rate, 0, "rate was set to zero; fiber is paused");
+        }).
+        sync(() => { t.fail("unreachable op"); })
+    );
+});
+
+test("Fiber rate = 0 pauses execution of the fiber then resume it", t => {
+    const fiber = new Fiber().
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 0); }).
+        sync((fiber, scheduler) => {
+            t.same(fiber.now, 0, "fiber eventually resumed");
+            t.same(scheduler.now, 777, "observed resume time");
+        });
+    const scheduler = run(fiber, 777);
+    scheduler.setFiberRate(fiber, 1);
+    scheduler.clock.now = Infinity;
+});
+
+test("Pause and resume a ramp", t => {
+    const ps = [[0, 0, 0], [0.5, 444, 444], [0.625, 555, 8555], [1, 888, 8888]];
+    const fiber = new Fiber().
+        ramp(888, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        }).
+        sync(() => { t.equal(ps, [], "ramp went through all updates"); });
+    const scheduler = run(fiber, 444);
+    scheduler.setFiberRate(fiber, 0);
+    scheduler.clock.now = 8444;
+    scheduler.setFiberRate(fiber, 1);
+    scheduler.clock.now = 8555;
+    scheduler.clock.now = Infinity;
+});
+
+test("Pause and resume async", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        async(() => new Promise(resolve => { window.setTimeout(resolve); }), {
+            asyncWillEnd(_, fiber, scheduler) {
+                t.same(fiber.rate, 0, "async ending with rate=0");
+                window.setTimeout(() => { scheduler.setFiberRate(fiber, 1); });
+            }
+        }).
+        sync((fiber, scheduler) => {
+            t.same(fiber.now, 0, "fiber resumed at t=0");
+            t.above(scheduler.now, 0, `time has passed (${scheduler.now})`);
+        });
+    scheduler.resumeFiber(fiber);
+    scheduler.setFiberRate(fiber, 0);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));
