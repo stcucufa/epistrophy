@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Stopwatch example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+import { Scheduler, Fiber } from "../lib/core.js";
+
+const scheduler = new Scheduler();
+const fiber = new Fiber().
+    sync(fiber => {
+        fiber.value = {
+            button: document.querySelector("button"),
+            progress: document.querySelector("progress")
+        };
+    }).
+    async(fiber => new Promise(resolve => {
+        fiber.eventHandler = event => {
+            event.target.disabled = true;
+            resolve();
+        };
+        fiber.value.button.addEventListener("click", fiber.eventHandler);
+    }), {
+        asyncWillEnd(_, fiber) {
+            fiber.value.button.removeEventListener("click", fiber.eventHandler);
+            delete fiber.eventHandler;
+        }
+    }).
+    ramp(fiber => fiber.value.progress.max, (p, { value: { progress } }) => { progress.value = p * progress.max; }).
+    ramp(333).
+    ramp(77, (p, { value: { progress } }) => { progress.value = (1 - p) * progress.max; });
+
+scheduler.resumeFiber(fiber);
+scheduler.clock.start();
+
+        </script>
+    </head>
+    <body>
+        <h1>Stopwatch example</h1>
+        <p class="example">
+            <progress value="0" max="3333"></progress>
+            <button type="button">Start</button>
+        </p>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>

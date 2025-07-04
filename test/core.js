@@ -261,6 +261,17 @@ test("Fiber rate affects the observed duration of a ramp", t => {
     );
 });
 
+test("Fiber rate affects the observed duration of a ramp (rate = ∞)", t => {
+    run(new Fiber().
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, Infinity); }).
+        ramp(888).
+        sync((fiber, scheduler) => {
+            t.same(scheduler.now, 0, "observed time");
+            t.same(fiber.now, 888, "fiber local time");
+        })
+    );
+});
+
 test("Setting fiber rate while a ramp is in progress (faster)", t => {
     const ps = [[0, 0, 0], [0.5, 444, 444], [1, 888, 555]];
     const fiber = new Fiber().
