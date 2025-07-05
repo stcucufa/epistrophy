@@ -310,11 +310,14 @@ test("Fiber rate = 0 pauses execution of the fiber", t => {
 test("Fiber rate = 0 pauses execution of the fiber then resume it", t => {
     const fiber = new Fiber().
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 0); }).
+        sync(fiber => { fiber.value = 17; }).
         sync((fiber, scheduler) => {
-            t.same(fiber.now, 0, "fiber eventually resumed");
+            t.same(fiber.value, 17, "fiber eventually resumed");
+            t.same(fiber.now, 0, "no change in local time");
             t.same(scheduler.now, 777, "observed resume time");
         });
     const scheduler = run(fiber, 777);
+    t.undefined(fiber.value, "fiber paused itself");
     scheduler.setFiberRate(fiber, 1);
     scheduler.clock.now = Infinity;
 });
