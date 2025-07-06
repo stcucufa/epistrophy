@@ -440,3 +440,23 @@ test("Undo async (negative delay)", async t => new Promise(resolve => {
         }
     });
 }));
+
+test("Undo async (partway through)", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        sync(nop).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "fiber went back to the beginning");
+            t.above(scheduler.now, 0, `but took some time (${scheduler.now})`);
+        }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve, 3600000); }));
+    scheduler.resumeFiber(fiber);
+    scheduler.clock.start();
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        } else if (fiber.rate > 0) {
+            scheduler.setFiberRate(fiber, -1);
+        }
+    });
+
+}));
