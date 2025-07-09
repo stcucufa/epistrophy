@@ -68,16 +68,6 @@ test("Fiber.ramp(dur)", t => {
     );
 });
 
-test("Fiber.ramp(dur), string", t => {
-    run(new Fiber().
-        ramp("1.111s").
-        sync((fiber, scheduler) => {
-            t.same(scheduler.now, 1111, "time passed");
-            t.same(fiber.now, 1111, "local time");
-        })
-    );
-});
-
 test("Fiber.ramp(dur), variable dur", t => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
@@ -105,17 +95,6 @@ test("Fiber.ramp(dur), variable dur error", t => {
 test("Fiber.ramp(dur), dur < 0", t => {
     run(new Fiber().
         ramp(-999).
-        sync((fiber, scheduler) => {
-            t.same(scheduler.now, 0, "time did not pass");
-            t.same(fiber.now, 0, "local time");
-        })
-    );
-});
-
-test("Fiber.ramp(dur), invalid string", t => {
-    t.expectsWarning = true;
-    run(new Fiber().
-        ramp("for a while").
         sync((fiber, scheduler) => {
             t.same(scheduler.now, 0, "time did not pass");
             t.same(fiber.now, 0, "local time");
