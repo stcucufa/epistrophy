@@ -424,14 +424,14 @@ test("Undo ramp (partway through)", t => {
 
 test("Undo async (negative delay)", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
-    let end;
     const fiber = new Fiber().
         sync(nop).undo((fiber, scheduler) => {
+            const end = fiber.value;
             t.same(fiber.now, 0, "fiber went back to the beginning");
             t.atleast(scheduler.now, 2 * end, `scheduler kept moving forward (${scheduler.now} ≈ 2 × ${end})`);
         }).
         async(() => new Promise(resolve => { window.setTimeout(resolve); }), {
-            asyncWillEndWithValue(_, fiber, scheduler) { end = scheduler.clock.now; }
+            asyncWillEndWithValue(_, fiber, scheduler) { fiber.value = scheduler.clock.now; }
         }).
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); });
     scheduler.scheduleFiber(fiber);
@@ -460,5 +460,4 @@ test("Undo async (partway through)", async t => new Promise(resolve => {
             scheduler.setFiberRate(fiber, -1);
         }
     });
-
 }));
