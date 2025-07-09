@@ -5,7 +5,7 @@ import { Fiber, Scheduler } from "../lib/core.js";
 // Utility function to run a fiber synchronously.
 function run(fiber, until = Infinity) {
     const scheduler = new Scheduler();
-    scheduler.resumeFiber(fiber);
+    scheduler.scheduleFiber(fiber);
     scheduler.clock.now = until;
     return scheduler;
 }
@@ -14,7 +14,7 @@ function run(fiber, until = Infinity) {
 // idle.
 const runAsync = fiber => new Promise(resolve => {
     const scheduler = new Scheduler();
-    scheduler.resumeFiber(fiber);
+    scheduler.scheduleFiber(fiber);
     on(scheduler, "update", ({ idle }) => {
         if (idle) {
             resolve();
@@ -89,7 +89,7 @@ test("Fiber.ramp(dur), variable dur", t => {
             t.same(scheduler.now, 555, "time passed");
             t.same(fiber.now, 555, "local time");
         });
-    scheduler.resumeFiber(fiber);
+    scheduler.scheduleFiber(fiber);
     scheduler.update(0, Infinity);
 });
 
@@ -150,7 +150,7 @@ test("Fiber.ramp(dur, f)", t => {
             t.equal(sn, scheduler.now, `current time (${scheduler.now})`);
             t.equal(fn, fiber.now, `local time (${fiber.now})`);
         });
-    scheduler.resumeFiber(fiber);
+    scheduler.scheduleFiber(fiber);
     scheduler.update(0, 250);
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "went through all updates");
@@ -182,7 +182,7 @@ test("Fiber.async(f)", async t => new Promise(resolve => {
         sync((fiber, scheduler) => {
             t.above(scheduler.now, 0, "time has passed");
         });
-    scheduler.resumeFiber(fiber);
+    scheduler.scheduleFiber(fiber);
     on(scheduler, "update", ({ idle }) => {
         if (idle) {
             resolve();
@@ -193,19 +193,21 @@ test("Fiber.async(f)", async t => new Promise(resolve => {
 
 test("Fiber.async(f, delegate)", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
+    const delegate = {
+        asyncWillEndWithValue(...args) {
+            t.equal(
+                args, [17, fiber, scheduler],
+                "delegate.asyncWillEndWithValue gets called when the call ends with the value, fiber and scheduler"
+            );
+            t.equal(this, delegate, "and the delegate as `this`");
+        }
+    };
     const fiber = new Fiber().
-        async(() => new Promise(resolve => { window.setTimeout(resolve(17)); }), {
-            asyncWillEnd(...args) {
-                t.equal(
-                    args, [17, fiber, scheduler],
-                    "delegate.asyncWillEnd gets called when the call ends with the value, fiber and scheduler"
-                );
-            }
-        }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve(17)); }), delegate).
         sync((fiber, scheduler) => {
             t.above(scheduler.now, 0, "time has passed");
         });
-    scheduler.resumeFiber(fiber);
+    scheduler.scheduleFiber(fiber);
     on(scheduler, "update", ({ idle }) => {
         if (idle) {
             resolve();
@@ -341,7 +343,7 @@ test("Pause and resume async", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         async(() => new Promise(resolve => { window.setTimeout(resolve); }), {
-            asyncWillEnd(_, fiber, scheduler) {
+            asyncWillEndWithValue(_, fiber, scheduler) {
                 t.same(fiber.rate, 0, "async ending with rate=0");
                 window.setTimeout(() => { scheduler.setFiberRate(fiber, 1); });
             }
@@ -350,7 +352,7 @@ test("Pause and resume async", async t => new Promise(resolve => {
             t.same(fiber.now, 0, "fiber resumed at t=0");
             t.above(scheduler.now, 0, `time has passed (${scheduler.now})`);
         });
-    scheduler.resumeFiber(fiber);
+    scheduler.scheduleFiber(fiber);
     scheduler.setFiberRate(fiber, 0);
     on(scheduler, "update", ({ idle }) => {
         if (idle) {
@@ -358,4 +360,104 @@ test("Pause and resume async", async t => new Promise(resolve => {
         }
     });
     scheduler.clock.start();
+}));
+
+// 4M07 Core: undo
+
+test("Undo sync (nop)", t => {
+    run(new Fiber().
+        sync(() => { t.pass("going forward"); }).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); }).
+        sync(() => { t.fail("unreachable op"); })
+    );
+});
+
+test("Undo sync (undo error)", t => {
+    t.skip("FIXME: 4L0N	Test: assertion failures are contagious");
+    t.expectsError = true;
+    const fiber = new Fiber().
+        sync(() => { throw Error("AUGH"); }).
+        sync(() => { t.fail("unreachable op"); });
+    const scheduler = run(fiber, 777);
+    t.same(fiber.error.message, "AUGH", "fiber did fail");
+    scheduler.setFiberRate(fiber, -1);
+    scheduler.scheduleFiber(fiber, 777);
+    scheduler.clock.now = Infinity;
+    t.undefined(fiber.error, "error was undone");
+});
+
+test("Undo sync (custom)", t => {
+    const stack = [];
+    const fiber = new Fiber().
+        sync(() => { stack.push(17); }).undo((...args) => {
+            t.equal(args, [fiber, scheduler], "the undo function is called with fiber and scheduler");
+            t.same(stack.pop(), 17, "the effect was undone");
+        }).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); });
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(fiber);
+    scheduler.clock.now = Infinity;
+});
+
+test("Undo ramp", t => {
+    const ps = [[0, 0, 0], [1, 444, 444], [1, 444, 444], [0, 0, 888]];
+    run(new Fiber().
+        ramp(444, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        }).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
+    t.equal(ps, [], "ramp went through all updates");
+});
+
+test("Undo ramp (partway through)", t => {
+    const ps = [[0, 0, 0], [0.25, 222, 222], [0, 0, 333]];
+    const fiber = new Fiber().
+        ramp(888, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        });
+    const scheduler = run(fiber, 222);
+    scheduler.setFiberRate(fiber, -2);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
+});
+
+test("Undo async (negative delay)", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        sync(nop).undo((fiber, scheduler) => {
+            const end = fiber.value;
+            t.same(fiber.now, 0, "fiber went back to the beginning");
+            t.atleast(scheduler.now, 2 * end, `scheduler kept moving forward (${scheduler.now} ≈ 2 × ${end})`);
+        }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve); }), {
+            asyncWillEndWithValue(_, fiber, scheduler) { fiber.value = scheduler.clock.now; }
+        }).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); });
+    scheduler.scheduleFiber(fiber);
+    scheduler.clock.start();
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+}));
+
+test("Undo async (partway through)", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        sync(nop).undo((fiber, scheduler) => {
+            t.same(fiber.now, 0, "fiber went back to the beginning");
+            t.above(scheduler.now, 0, `but took some time (${scheduler.now})`);
+        }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve, 3600000); }));
+    scheduler.scheduleFiber(fiber);
+    scheduler.clock.start();
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        } else if (fiber.rate > 0) {
+            scheduler.setFiberRate(fiber, -1);
+        }
+    });
 }));
