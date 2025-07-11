@@ -172,17 +172,15 @@ test("Fiber.async(f)", async t => new Promise(resolve => {
 
 test("Fiber.async(f, delegate)", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
-    const delegate = {
-        asyncWillEndWithValue(...args) {
-            t.equal(
-                args, [17, fiber, scheduler],
-                "delegate.asyncWillEndWithValue gets called when the call ends with the value, fiber and scheduler"
-            );
-            t.equal(this, delegate, "and the delegate as `this`");
-        }
-    };
     const fiber = new Fiber().
-        async(() => new Promise(resolve => { window.setTimeout(resolve(17)); }), delegate).
+        async(() => new Promise(resolve => { window.setTimeout(resolve(17)); }), {
+            asyncWillEnd(...args) {
+                t.equal(
+                    args, [17, fiber, scheduler],
+                    "delegate.asyncWillEnd gets called when the call ends with the value, fiber and scheduler"
+                );
+            }
+        }).
         sync((fiber, scheduler) => {
             t.above(scheduler.now, 0, "time has passed");
         });
@@ -322,7 +320,7 @@ test("Pause and resume async", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         async(() => new Promise(resolve => { window.setTimeout(resolve); }), {
-            asyncWillEndWithValue(_, fiber, scheduler) {
+            asyncWillEnd(_, fiber, scheduler) {
                 t.same(fiber.rate, 0, "async ending with rate=0");
                 window.setTimeout(() => { scheduler.setFiberRate(fiber, 1); });
             }
@@ -341,102 +339,28 @@ test("Pause and resume async", async t => new Promise(resolve => {
     scheduler.clock.start();
 }));
 
-// 4M07 Core: undo
+// 4N03 Core: backward execution, not undo
 
-test("Undo sync (nop)", t => {
-    run(new Fiber().
-        sync(() => { t.pass("going forward"); }).
-        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); }).
-        sync(() => { t.fail("unreachable op"); })
-    );
+test("Add a reverse effect", t => {
+    const fiber = new Fiber().sync(nop);
+    t.same(fiber, fiber.reverse(nop), "reverse a sync instruction");
+    t.same(fiber, fiber.async(nop).reverse(nop), "reverse an async instruction");
 });
 
-test("Undo sync (undo error)", t => {
-    t.skip("FIXME: 4L0N	Test: assertion failures are contagious");
-    t.expectsError = true;
-    const fiber = new Fiber().
-        sync(() => { throw Error("AUGH"); }).
-        sync(() => { t.fail("unreachable op"); });
-    const scheduler = run(fiber, 777);
-    t.same(fiber.error.message, "AUGH", "fiber did fail");
-    scheduler.setFiberRate(fiber, -1);
-    scheduler.scheduleFiber(fiber, 777);
-    scheduler.clock.now = Infinity;
-    t.undefined(fiber.error, "error was undone");
+test("Add reverse effect", t => {
+    t.throws(() => {
+        new Fiber().reverse(nop)
+    }, "error: nothing to reverse");
 });
 
-test("Undo sync (custom)", t => {
-    const stack = [];
-    const fiber = new Fiber().
-        sync(() => { stack.push(17); }).undo((...args) => {
-            t.equal(args, [fiber, scheduler], "the undo function is called with fiber and scheduler");
-            t.same(stack.pop(), 17, "the effect was undone");
-        }).
-        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); });
-    const scheduler = new Scheduler();
-    scheduler.scheduleFiber(fiber);
-    scheduler.clock.now = Infinity;
+test("Add reverse effect", t => {
+    t.throws(() => {
+        new Fiber().ramp(777).reverse(nop)
+    }, "error: cannot provide a reverse effect");
 });
 
-test("Undo ramp", t => {
-    const ps = [[0, 0, 0], [1, 444, 444], [1, 444, 444], [0, 0, 888]];
-    run(new Fiber().
-        ramp(444, (p, fiber, scheduler) => {
-            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
-        }).
-        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
-    );
-    t.equal(ps, [], "ramp went through all updates");
+test("Add reverse effect", t => {
+    t.throws(() => {
+        new Fiber().sync(nop).reverse(nop).reverse(nop)
+    }, "error: cannot provide a further reverse effect");
 });
-
-test("Undo ramp (partway through)", t => {
-    const ps = [[0, 0, 0], [0.25, 222, 222], [0, 0, 333]];
-    const fiber = new Fiber().
-        ramp(888, (p, fiber, scheduler) => {
-            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
-        });
-    const scheduler = run(fiber, 222);
-    scheduler.setFiberRate(fiber, -2);
-    scheduler.clock.now = Infinity;
-    t.equal(ps, [], "ramp went through all updates");
-});
-
-test("Undo async (negative delay)", async t => new Promise(resolve => {
-    const scheduler = new Scheduler();
-    const fiber = new Fiber().
-        sync(nop).undo((fiber, scheduler) => {
-            const end = fiber.value;
-            t.same(fiber.now, 0, "fiber went back to the beginning");
-            t.atleast(scheduler.now, 2 * end, `scheduler kept moving forward (${scheduler.now} ≈ 2 × ${end})`);
-        }).
-        async(() => new Promise(resolve => { window.setTimeout(resolve); }), {
-            asyncWillEndWithValue(_, fiber, scheduler) { fiber.value = scheduler.clock.now; }
-        }).
-        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); });
-    scheduler.scheduleFiber(fiber);
-    scheduler.clock.start();
-    on(scheduler, "update", ({ idle }) => {
-        if (idle) {
-            resolve();
-        }
-    });
-}));
-
-test("Undo async (partway through)", async t => new Promise(resolve => {
-    const scheduler = new Scheduler();
-    const fiber = new Fiber().
-        sync(nop).undo((fiber, scheduler) => {
-            t.same(fiber.now, 0, "fiber went back to the beginning");
-            t.above(scheduler.now, 0, `but took some time (${scheduler.now})`);
-        }).
-        async(() => new Promise(resolve => { window.setTimeout(resolve, 3600000); }));
-    scheduler.scheduleFiber(fiber);
-    scheduler.clock.start();
-    on(scheduler, "update", ({ idle }) => {
-        if (idle) {
-            resolve();
-        } else if (fiber.rate > 0) {
-            scheduler.setFiberRate(fiber, -1);
-        }
-    });
-}));
