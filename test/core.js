@@ -364,3 +364,18 @@ test("Add reverse effect", t => {
         new Fiber().sync(nop).reverse(nop).reverse(nop)
     }, "error: cannot provide a further reverse effect");
 });
+
+test("Reverse sync", t => {
+    let values = [];
+    const fiber = new Fiber().
+        sync(() => values.push(17)).reverse(() => values.push(-17)).
+        sync(() => values.push(31)).
+        sync(() => values.push(23)).reverse(() => values.push(-23)).
+        sync((fiber, scheduler) => {
+            scheduler.setFiberRate(fiber, -1);
+            // FIXME ???
+            fiber.ip -= 1;
+        });
+    const scheduler = run(fiber, 111);
+    t.equal(values, [17, 31, 23, -23, -17], "run forward then backward");
+});
