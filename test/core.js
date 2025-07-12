@@ -407,3 +407,20 @@ test("Reverse ramp (during ramp)", t => {
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all updates");
 });
+
+test("Reverse async", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        async(() => new Promise(resolve => { window.setTimeout(resolve, 111); })).
+        sync((fiber, scheduler) => {
+            t.above(fiber.now, 0, `local time has passed (${fiber.now})`);
+            t.same(scheduler.now, fiber.now, `observed time has passed (${scheduler.now})`);
+        });
+    scheduler.scheduleFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));
