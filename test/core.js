@@ -330,7 +330,7 @@ test("Pause and resume async", async t => new Promise(resolve => {
             t.above(scheduler.now, 0, `time has passed (${scheduler.now})`);
         });
     scheduler.scheduleFiber(fiber);
-    scheduler.setFiberRate(fiber, 0);
+    scheduler.scheduleFiber(new Fiber().sync((_, scheduler) => { scheduler.setFiberRate(fiber, 0); }));
     on(scheduler, "update", ({ idle }) => {
         if (idle) {
             resolve();
@@ -373,9 +373,37 @@ test("Reverse sync", t => {
         sync(() => values.push(23)).reverse(() => values.push(-23)).
         sync((fiber, scheduler) => {
             scheduler.setFiberRate(fiber, -1);
-            // FIXME ???
             fiber.ip -= 1;
         });
     const scheduler = run(fiber, 111);
     t.equal(values, [17, 31, 23, -23, -17], "run forward then backward");
+});
+
+test("Reverse ramp (when done)", t => {
+    run(new Fiber().
+        sync(nop).reverse((fiber, scheduler) => {
+            t.same(fiber.now, 0, "ramp was reversed");
+            t.same(scheduler.now, 888, "with an observed duration");
+            t.same(fiber.value, 0, "and reversed value");
+        }).
+        ramp(444, (p, fiber) => { fiber.value = p; }).
+        sync((fiber, scheduler) => {
+            t.same(fiber.now, 444, "ramp ended");
+            t.same(scheduler.now, 444, "with an observed duration");
+            t.same(fiber.value, 1, "and end value");
+            scheduler.setFiberRate(fiber, -1);
+        })
+    );
+});
+
+test("Reverse ramp (during ramp)", t => {
+    const ps = [[0, 0, 0], [0.25, 111, 111], [0, 0, 222]]
+    const fiber = new Fiber().
+        ramp(444, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        });
+    const scheduler = run(fiber, 111);
+    scheduler.setFiberRate(fiber, -1);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
 });
