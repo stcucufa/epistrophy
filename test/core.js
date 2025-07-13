@@ -397,28 +397,78 @@ test("Reverse ramp (when done)", t => {
 });
 
 test("Reverse ramp (during ramp)", t => {
-    const ps = [[0, 0, 0], [0.25, 111, 111], [0, 0, 222]]
+    const ps = [[0, 0, 0], [0.25, 222, 222], [0.125, 111, 333], [0, 0, 444]]
     const fiber = new Fiber().
-        ramp(444, (p, fiber, scheduler) => {
+        ramp(888, (p, fiber, scheduler) => {
             t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
         });
-    const scheduler = run(fiber, 111);
+    const scheduler = run(fiber, 222);
     scheduler.setFiberRate(fiber, -1);
+    scheduler.clock.now = 333;
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all updates");
 });
 
-test("Reverse async", async t => new Promise(resolve => {
+test("Reverse async (when done)", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
-        async(() => new Promise(resolve => { window.setTimeout(resolve, 111); })).
+        sync(nop).reverse((fiber, scheduler) => {
+            t.same(scheduler.now, fiber.observedEnd, `observed time has passed (${scheduler.now})`);
+        }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve); })).
         sync((fiber, scheduler) => {
             t.above(fiber.now, 0, `local time has passed (${fiber.now})`);
             t.same(scheduler.now, fiber.now, `observed time has passed (${scheduler.now})`);
+            fiber.observedEnd = 2 * fiber.now;
+            scheduler.setFiberRate(fiber, -1);
         });
     scheduler.scheduleFiber(fiber);
     on(scheduler, "update", ({ idle }) => {
         if (idle) {
+            t.same(fiber.now, 0, "fiber went back to the beginning");
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));
+
+test("Reverse async (custom)", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        sync(nop).reverse((fiber, scheduler) => {
+            t.undefined(fiber.response, "response was removed");
+            t.undefined(fiber.data, "data was removed");
+        }).
+        async(async fiber => { fiber.response = await fetch("data.json"); }).
+        reverse(fiber => { delete fiber.response; }).
+        async(async fiber => { fiber.data = (await fiber.response.json()).data; }).
+        reverse(fiber => { delete fiber.data; }).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); });
+    scheduler.scheduleFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            t.same(fiber.now, 0, "fiber went back to the beginning");
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+}));
+
+test("Reverse async (before being done)", async t => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    const fiber = new Fiber().
+        sync(nop).reverse((fiber, scheduler) => {
+            t.above(scheduler.now, 0, `observed time has passed (${scheduler.now})`);
+        }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve, 84_600_000); }));
+    scheduler.scheduleFiber(fiber);
+    scheduler.scheduleFiber(new Fiber().
+        ramp(23, nop).
+        sync((_, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            t.same(fiber.now, 0, "fiber went back to the beginning");
             resolve();
         }
     });
