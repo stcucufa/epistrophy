@@ -474,3 +474,23 @@ test("Reverse async (before being done)", async t => new Promise(resolve => {
     });
     scheduler.clock.start();
 }));
+
+// 4N02 Core: move forward again
+
+test("Forward, back, forward (sync)", t => {
+    run(new Fiber().
+        sync(fiber => { fiber.directions ??= []; }).reverse((fiber, scheduler) => {
+            t.equal(fiber.directions, [">>>", "<<<"], "backward");
+            scheduler.setFiberRate(fiber, 1);
+        }).
+        sync(fiber => { fiber.directions.push(">>>"); }).reverse(fiber => { fiber.directions.push("<<<"); }).
+        sync((fiber, scheduler) => {
+            if (fiber.directions.length === 3) {
+                t.equal(fiber.directions, [">>>", "<<<", ">>>"], "forward again");
+            } else {
+                t.equal(fiber.directions, [">>>"], "forward");
+                scheduler.setFiberRate(fiber, -1);
+            }
+        })
+    );
+});
