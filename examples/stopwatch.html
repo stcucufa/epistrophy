@@ -22,7 +22,7 @@ scheduler.scheduleFiber(new Fiber().
         fiber.eventHandler = resolve;
         fiber.value.button.addEventListener("click", resolve);
     }), {
-        asyncWillEndWithValue(_, fiber) {
+        asyncWillEnd(_, fiber) {
             fiber.value.button.removeEventListener("click", fiber.eventHandler);
             delete fiber.eventHandler;
         }
@@ -34,7 +34,7 @@ scheduler.scheduleFiber(new Fiber().
     }).
     ramp(fiber => fiber.value.progress.max, (p, { value: { progress } }) => { progress.value = p * progress.max; }).
     ramp(333).
-    ramp(77, (p, { value: { progress } }) => { progress.value = (1 - p) * progress.max; })
+    ramp(111, (p, { value: { progress } }) => { progress.value = (1 - p) * progress.max; })
 );
 
         </script>
