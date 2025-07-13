@@ -9,38 +9,41 @@
 import { Scheduler, Fiber } from "../lib/core.js";
 
 const scheduler = new Scheduler();
-const fiber = new Fiber().
+scheduler.clock.start();
+scheduler.scheduleFiber(new Fiber().
     sync(fiber => {
         fiber.value = {
+            range: document.querySelector("input"),
             button: document.querySelector("button"),
             progress: document.querySelector("progress")
         };
     }).
     async(fiber => new Promise(resolve => {
-        fiber.eventHandler = event => {
-            event.target.disabled = true;
-            resolve();
-        };
-        fiber.value.button.addEventListener("click", fiber.eventHandler);
+        fiber.eventHandler = resolve;
+        fiber.value.button.addEventListener("click", resolve);
     }), {
         asyncWillEnd(_, fiber) {
             fiber.value.button.removeEventListener("click", fiber.eventHandler);
             delete fiber.eventHandler;
         }
     }).
+    sync(({ value: { range, button, progress } }) => {
+        range.disabled = true;
+        button.disabled = true
+        progress.max = range.value * 1000;
+    }).
     ramp(fiber => fiber.value.progress.max, (p, { value: { progress } }) => { progress.value = p * progress.max; }).
     ramp(333).
-    ramp(77, (p, { value: { progress } }) => { progress.value = (1 - p) * progress.max; });
-
-scheduler.resumeFiber(fiber);
-scheduler.clock.start();
+    ramp(111, (p, { value: { progress } }) => { progress.value = (1 - p) * progress.max; })
+);
 
         </script>
     </head>
     <body>
         <h1>Stopwatch example</h1>
         <p class="example">
-            <progress value="0" max="3333"></progress>
+            <input type="range" min="1" max="60" value="30"/>
+            <progress value="0"></progress>
             <button type="button">Start</button>
         </p>
         <h2>Source</h2>
