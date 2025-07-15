@@ -474,3 +474,16 @@ test("Reverse async (before being done)", async t => new Promise(resolve => {
     });
     scheduler.clock.start();
 }));
+
+// 4M02 Core: either
+
+test("Reverse error (sync)", t => {
+    t.expectsError = true;
+    const fiber = new Fiber().
+        sync(nop).reverse(() => { t.pass("recovered from error"); }).
+        sync(() => { throw Error("AUGH"); }).
+        sync(() => { t.fail("unreachable op"); });
+    scheduler.run(fiber, 777);
+    scheduler.setFiberRate(fiber, -1);
+    scheduler.clock.now = Infinity;
+});
