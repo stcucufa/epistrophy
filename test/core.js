@@ -316,7 +316,6 @@ test("Pause and resume a ramp", t => {
     scheduler.clock.now = Infinity;
 });
 
-/*
 test("Pause and resume async", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
@@ -339,7 +338,6 @@ test("Pause and resume async", async t => new Promise(resolve => {
     });
     scheduler.clock.start();
 }));
-*/
 
 // 4N03 Core: backward execution, not undo
 
