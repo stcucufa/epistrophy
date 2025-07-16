@@ -361,7 +361,13 @@ test("Add reverse effect", t => {
 test("Add reverse effect", t => {
     t.throws(() => {
         new Fiber().ramp(777).reverse(nop)
-    }, "error: cannot provide a reverse effect");
+    }, "error: cannot provide a reverse effect (ramp)");
+});
+
+test("Add reverse effect", t => {
+    t.throws(() => {
+        new Fiber().ever(nop).reverse(nop)
+    }, "error: cannot provide a reverse effect (ever)");
 });
 
 test("Add reverse effect", t => {
@@ -488,5 +494,30 @@ test("Skip ops on error, except within an `ever` block", t => {
         sync(() => { t.fail("unreachable op"); }).
         ever(fiber => fiber.
             sync(() => { t.pass("reachable op within ever"); })
+        ));
+});
+
+test("Recover from error when going backward", t => {
+    runWithErrors(t, new Fiber().
+        sync(nop).reverse(fiber => { t.undefined(fiber.error, "no error anymore"); }).
+        sync(() => { throw Error("AUGH"); }).
+        sync(() => { t.fail("unreachable op"); }).reverse(() => { t.fail("unreachable op (backward)"); }).
+        ever(fiber => fiber.
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+        ));
+});
+
+test("Multiple errors and recovery", t => {
+    runWithErrors(t, new Fiber().
+        sync(nop).reverse(fiber => { t.undefined(fiber.error, "no error in the end"); }).
+        sync(() => { throw Error("AUGH"); }).
+        ever(fiber => fiber.
+            sync(fiber => { delete fiber.error; }).
+            reverse(fiber => { t.same(fiber.error.message, "WHOA", "second error (backward)"); })
+        ).
+        sync(() => { throw Error("WHOA"); }).
+        ever(fiber => fiber.
+            sync(fiber => { t.same(fiber.error.message, "WHOA", "second error (forward)"); }).
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
         ));
 });
