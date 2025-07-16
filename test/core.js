@@ -10,6 +10,14 @@ function run(fiber, until = Infinity) {
     return scheduler;
 }
 
+function runWithErrors(t, fiber) {
+    const scheduler = new Scheduler();
+    t.expectsError = true;
+    on(scheduler, "error", () => { t.errors += 1; });
+    scheduler.scheduleFiber(fiber);
+    scheduler.clock.now = Infinity;
+}
+
 // Utility function to run a fiber asynchronously until the scheduler becomes
 // idle.
 const runAsync = fiber => new Promise(resolve => {
@@ -39,7 +47,6 @@ test("Fiber.run()", t => {
 });
 
 test("Fiber.run() catches errors", t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         sync(fiber => { fiber.value = 23; }).
         sync(() => { throw Error("AUGH"); }).
@@ -84,11 +91,10 @@ test("Fiber.ramp(dur), variable dur", t => {
 });
 
 test("Fiber.ramp(dur), variable dur error", t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         ramp(() => { throw Error("AUGH"); }).
         sync(() => { t.fail("unreachable op"); });
-    run(fiber);
+    runWithErrors(t, fiber);
     t.same(fiber.error.message, "AUGH", "fiber error was set");
 });
 
@@ -136,11 +142,10 @@ test("Fiber.ramp(dur, f)", t => {
 });
 
 test("Fiber.ramp(dur, f), f throws", t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         ramp(777, () => { throw Error("AUGH"); }).
         sync(() => { t.fail("unreachable op"); });
-    run(fiber);
+    runWithErrors(t, fiber);
     t.same(fiber.error.message, "AUGH", "the error was caught");
 });
 
@@ -477,13 +482,11 @@ test("Reverse async (before being done)", async t => new Promise(resolve => {
 
 // 4M02 Core: either
 
-test("Reverse error (sync)", t => {
-    t.expectsError = true;
-    const fiber = new Fiber().
-        sync(nop).reverse(() => { t.pass("recovered from error"); }).
+test("Skip ops on error, except within an `ever` block", t => {
+    runWithErrors(t, new Fiber().
         sync(() => { throw Error("AUGH"); }).
-        sync(() => { t.fail("unreachable op"); });
-    scheduler.run(fiber, 777);
-    scheduler.setFiberRate(fiber, -1);
-    scheduler.clock.now = Infinity;
+        sync(() => { t.fail("unreachable op"); }).
+        ever(fiber => fiber.
+            sync(() => { t.pass("reachable op within ever"); })
+        ));
 });
