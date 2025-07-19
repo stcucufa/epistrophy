@@ -631,7 +631,7 @@ test("Set rate for children as well (initially)", t => {
 });
 
 test("Set rate for children as well (during)", t => {
-    const fiber = new Fiber().
+    run(new Fiber().
         spawn(fiber => fiber.
             sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 2); }).
             ramp(888).
@@ -648,6 +648,18 @@ test("Set rate for children as well (during)", t => {
         ).
         ramp(111).
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 3); }).
-        ramp(555);
-    run(fiber);
+        ramp(555)
+    );
+});
+
+test("Unend fibers that were spawned when going backward", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.
+            sync(nop).reverse((_, scheduler) => { t.same(scheduler.now, 444, "child fiber was completely undone"); }).
+            ramp(111).
+            sync((_, scheduler) => { t.same(scheduler.now, 111, "child ended"); })
+        ).
+        ramp(222).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
 });
