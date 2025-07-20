@@ -1,4 +1,4 @@
-import { K, typeOf, isAsync } from "../lib/util.js";
+import { K, show, typeOf, isAsync } from "../lib/util.js";
 import Scheduler from "../lib/scheduler.js";
 import Fiber from "../lib/fiber.js";
 
@@ -6,9 +6,6 @@ window.addEventListener("hashchange", () => { window.location.reload(); });
 
 // Deep equality test, using special comparisons by type.
 const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(x)]?.(x, y));
-
-// FIXME 4O06 Test: show values
-const show = x => typeof x === "symbol" ? `Symbol(${Symbol.keyFor(x) ?? ""})` : x.toString();
 
 // Compare x and y depending on their type (despite x !== y).
 const Equal = {
@@ -209,7 +206,7 @@ class Test {
     }
 
     typeof(x, type, message) {
-        this.report(message, typeOf(x) !== type, `${x} to be of type ${type}`);
+        this.report(message, typeOf(x) !== type, `${show(x)} to be of type ${type}`);
     }
 
     undefined(x, message) {
