@@ -1,5 +1,3 @@
-import { nop } from "../lib/util.js";
-
 const Token = {
     Space: Symbol.for("Space"),
     OpenBrace: Symbol.for("{"),
@@ -74,6 +72,9 @@ function setAttribute(stack, value) {
         element.attributes[name] = value;
     }
 }
+
+// Unescape string content.
+const unescape = x => x.replace(/\\(.)/gs, "$1");
 
 function unquote(value) {
     const n = this.createElement(Token.Backtick);
@@ -303,6 +304,3 @@ class Parser {
 export default function parse(text) {
     return new Parser({ text }).parse();
 }
-
-// Unescape string content.
-const unescape = x => x.replace(/\\(.)/gs, "$1");
