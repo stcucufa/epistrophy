@@ -1,5 +1,6 @@
 import test from "./test.js";
 import parse from "../dodo/parser.js";
+import run from "../dodo/interpreter.js";
 
 test("parse()", t => {
     const document = parse("{ hello }");
@@ -163,4 +164,63 @@ test("parse(): unterminated CDATA", t => {
 
 test("parse(): unexpected CDATA", t => {
     t.throws(() => parse("{ {: no CDATA section for name :} this: does not work }"), "cannot use CDATA for element name");
+});
+
+// 2K05 Dodo: eval
+
+test("Interpreter: invalid root", t => {
+    t.throws(() => run("{ hello: world! }"), "throws");
+});
+
+test("Interpreter: self-evaluating expression", t => {
+    t.same(run("{ seq `17 }"), 17, "number");
+});
+
+test("Interpreter: self-evaluating expression", t => {
+    t.same(run("{ seq Hello, world! }"), "Hello, world!", "text");
+});
+
+test("Interpreter: variable", t => {
+    t.typeof(run("{ seq `unquote }"), "symbol", "defined variable");
+    t.true(run("{ seq `true }"), "true variable");
+    t.same(run("{ seq `false }"), false, "false variable");
+});
+
+test("Interpreter: undefined variable error", t => {
+    t.throws(() => run("{ seq `foo }"), "throws");
+});
+
+test("Interpreter: unquote special form", t => {
+    t.same(run("{ seq `unquote }"), run("{ seq { unquote unquote } }"), "{ unquote x } ≡ `x");
+    t.throws(() => run("{ seq { unquote } }"), "accepts only a single argument (zero arguments)");
+    t.throws(() => run("{ seq { unquote foo bar baz } }"), "accepts only a single argument (too many)");
+});
+
+test("Interpreter: set! special form", t => {
+    t.same(run("{ seq { set! set! `23 } }"), 23, "returns the new value");
+    t.same(run("{ seq { set! set! `23 } `set! }"), 23, "after setting it");
+    t.throws(() => run("{ seq { set! x `23 } }"), "can only set the value of a defined variable");
+    t.throws(() => run("{ seq { set! `set! `23 } }"), "variable name must be a string");
+});
+
+test("Interpreter: define special form", t => {
+    t.same(run("{ seq { define x `23 } }"), 23, "returns the new value");
+    t.same(run("{ seq { define x `23 } `x }"), 23, "after setting it");
+    t.throws(() => run("{ seq { define x `23 } { define x `17 } }"), "cannot redefine a value in the same scope");
+    t.throws(() => run("{ seq { define `x `23 } }"), "variable name must be a string");
+});
+
+test("Interperer: if special form", t => {
+    t.same(run("{ seq { if `true `23 ko } }"), 23, "predicate is true");
+    t.same(run("{ seq { if false `23 ko } }"), 23, "predicate is truthy (false as string)");
+    t.same(run("{ seq { if `0 `23 ko } }"), 23, "predicate is truthy (0)");
+    t.same(run("{ seq { if `{} `23 ko } }"), 23, "predicate is truthy (empty list)");
+    t.same(run("{ seq { if `false ko `23 } }"), 23, "predicate is false");
+});
+
+test("Interpreter: application", t => {
+    t.same(run("{ seq { + `17 `23 `19 } }"), 59, "+ (with arguments)");
+    t.same(run("{ seq { - } }"), 0, "- (no argument)");
+    t.throws(() => { run("{ seq { ??? foo bar } }"); }, "undefined value");
+    t.throws(() => { run("{ seq { define f `23 } { f `17 } }"); }, "not a function");
 });

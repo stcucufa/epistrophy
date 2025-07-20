@@ -1,3 +1,5 @@
+export const backtick = Symbol.for("`");
+
 const Token = {
     Space: Symbol.for("Space"),
     OpenBrace: Symbol.for("{"),
@@ -5,7 +7,7 @@ const Token = {
     Attribute: Symbol.for("Attribute"),
     Value: Symbol.for("Value"),
     String: Symbol.for("String"),
-    Backtick: Symbol.for("`"),
+    Backtick: backtick,
     Text: Symbol.for("Text"),
     OpenCDATA: Symbol.for("{:"),
     CDATASection: Symbol.for(":}"),
@@ -303,4 +305,9 @@ class Parser {
 
 export default function parse(text) {
     return new Parser({ text }).parse();
+}
+
+// FIXME 4O0A Dodo: unparse
+export function unparse(element) {
+    return `{ ${element.name} ... }`;
 }
