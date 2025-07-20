@@ -14,7 +14,7 @@ class Interpreter {
             define: SpecialForm,
             "set!": SpecialForm,
             unquote: SpecialForm,
-            seq: (...args) => SpecialForm,
+            seq: SpecialForm,
             true: true,
             false: false,
             "+": (_, ...args) => args.reduce((z, x) => z + x, 0),
