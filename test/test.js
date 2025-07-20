@@ -7,6 +7,9 @@ window.addEventListener("hashchange", () => { window.location.reload(); });
 // Deep equality test, using special comparisons by type.
 const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(x)]?.(x, y));
 
+// FIXME 4O06 Test: show values
+const show = x => typeof x === "symbol" ? `Symbol(${Symbol.keyFor(x) ?? ""})` : x.toString();
+
 // Compare x and y depending on their type (despite x !== y).
 const Equal = {
     array: (x, y) => x.length === y.length && x.every((xi, i) => equal(xi, y[i])),
@@ -187,7 +190,7 @@ class Test {
     }
 
     same(x, y, message) {
-        this.report(message, !(x === y) && `${x} === ${y}`);
+        this.report(message, !(x === y) && `${show(x)} === ${show(y)}`);
     }
 
     throws(f, message) {

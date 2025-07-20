@@ -48,12 +48,6 @@ function attributeName(stack, value) {
     stack.pendingAttributeName = value;
 }
 
-function get(value) {
-    const n = this.createElement("get");
-    n.content.push(value);
-    return n;
-}
-
 function newElement(stack) {
     stack.push(this.createElement());
 }
@@ -79,6 +73,12 @@ function setAttribute(stack, value) {
         element.name = name;
         element.attributes[name] = value;
     }
+}
+
+function unquote(value) {
+    const n = this.createElement(Token.Backtick);
+    n.content.push(value);
+    return n;
 }
 
 const Transitions = {
@@ -139,7 +139,7 @@ const Transitions = {
     [State.Unquote]: {
         [Token.OpenBrace]: [State.List, newList],
         [Token.Value]: [State.Content, function(stack, value) {
-            stack.at(-1).content.push(parseNumber(value) ?? get.call(this, value));
+            stack.at(-1).content.push(parseNumber(value) ?? unquote.call(this, value));
         }],
     },
     [State.List]: {
