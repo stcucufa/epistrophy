@@ -513,7 +513,7 @@ test("Multiple errors and recovery", t => {
         sync(() => { throw Error("AUGH"); }).
         ever(fiber => fiber.
             sync(fiber => { delete fiber.error; }).
-            reverse(fiber => { t.same(fiber.error.message, "WHOA", "second error (backward)"); })
+            reverse(fiber => { t.same(fiber.error.message, "AUGH", "first error (backward)"); })
         ).
         sync(() => { throw Error("WHOA"); }).
         ever(fiber => fiber.
