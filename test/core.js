@@ -543,7 +543,6 @@ test("Recover from error when going backward (async)", async t => {
 });
 
 test("Multiple errors and recovery", t => {
-    t.skip();
     runWithErrors(t, new Fiber().
         sync(nop).reverse(fiber => { t.undefined(fiber.error, "no error in the end"); }).
         sync(() => { throw Error("AUGH"); }).
@@ -657,7 +656,7 @@ test("Unend fibers that were spawned when going backward", t => {
         spawn(fiber => fiber.
             sync(nop).reverse((_, scheduler) => { t.same(scheduler.now, 444, "child fiber was completely undone"); }).
             ramp(111).
-            sync((_, scheduler) => { t.same(scheduler.now, 111, "child ended"); })
+            sync(nop).reverse((_, scheduler) => { t.same(scheduler.now, 333, "child fiber is unending"); })
         ).
         ramp(222).
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
