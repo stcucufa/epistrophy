@@ -10,6 +10,14 @@ function run(fiber, until = Infinity) {
     return scheduler;
 }
 
+function runWithErrors(t, fiber) {
+    const scheduler = new Scheduler();
+    t.expectsError = true;
+    on(scheduler, "error", () => { t.errors += 1; });
+    scheduler.scheduleFiber(fiber);
+    scheduler.clock.now = Infinity;
+}
+
 // Utility function to run a fiber asynchronously until the scheduler becomes
 // idle.
 const runAsync = fiber => new Promise(resolve => {
@@ -22,6 +30,20 @@ const runAsync = fiber => new Promise(resolve => {
     });
     scheduler.clock.start();
 });
+
+const runAsyncWithErrors = (t, fiber) => new Promise(resolve => {
+    const scheduler = new Scheduler();
+    t.expectsError = true;
+    on(scheduler, "error", () => { t.errors += 1; });
+    scheduler.scheduleFiber(fiber);
+    on(scheduler, "update", ({ idle }) => {
+        if (idle) {
+            resolve();
+        }
+    });
+    scheduler.clock.start();
+});
+
 
 test("Scheduler.update()", t => {
     run(new Fiber().
@@ -39,7 +61,6 @@ test("Fiber.run()", t => {
 });
 
 test("Fiber.run() catches errors", t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         sync(fiber => { fiber.value = 23; }).
         sync(() => { throw Error("AUGH"); }).
@@ -84,11 +105,10 @@ test("Fiber.ramp(dur), variable dur", t => {
 });
 
 test("Fiber.ramp(dur), variable dur error", t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         ramp(() => { throw Error("AUGH"); }).
         sync(() => { t.fail("unreachable op"); });
-    run(fiber);
+    runWithErrors(t, fiber);
     t.same(fiber.error.message, "AUGH", "fiber error was set");
 });
 
@@ -136,11 +156,10 @@ test("Fiber.ramp(dur, f)", t => {
 });
 
 test("Fiber.ramp(dur, f), f throws", t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         ramp(777, () => { throw Error("AUGH"); }).
         sync(() => { t.fail("unreachable op"); });
-    run(fiber);
+    runWithErrors(t, fiber);
     t.same(fiber.error.message, "AUGH", "the error was caught");
 });
 
@@ -193,28 +212,21 @@ test("Fiber.async(f, delegate)", async t => new Promise(resolve => {
     scheduler.clock.start();
 }));
 
-// FIXME 4L0N Test: assertion failures are contagious
-// FIXME 4M03 Test: skip in async test
-
-/*
 test("Fiber.async handles synchronous errors", async t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         async(() => { throw Error("AUGH"); }).
         sync(() => { t.fail("error should have been handled"); });
-    await runAsync(fiber);
+    await runAsyncWithErrors(t, fiber);
     t.same(fiber.error.message, "AUGH", "fiber error is set");
 });
 
 test("Fiber.async handles asynchronous errors", async t => {
-    t.expectsError = true;
     const fiber = new Fiber().
         async(() => new Promise((_, reject) => { window.setTimeout(() => { reject(Error("AUGH")); }); })).
         sync(() => { t.fail("error should have been handled"); });
-    await runAsync(fiber);
+    await runAsyncWithErrors(t, fiber);
     t.same(fiber.error.message, "AUGH", "fiber error is set");
 });
-*/
 
 // 4M04 Core: fiber rate
 
@@ -356,7 +368,13 @@ test("Add reverse effect", t => {
 test("Add reverse effect", t => {
     t.throws(() => {
         new Fiber().ramp(777).reverse(nop)
-    }, "error: cannot provide a reverse effect");
+    }, "error: cannot provide a reverse effect (ramp)");
+});
+
+test("Add reverse effect", t => {
+    t.throws(() => {
+        new Fiber().ever(nop).reverse(nop)
+    }, "error: cannot provide a reverse effect (ever)");
 });
 
 test("Add reverse effect", t => {
@@ -474,3 +492,84 @@ test("Reverse async (before being done)", async t => new Promise(resolve => {
     });
     scheduler.clock.start();
 }));
+
+// 4M02 Core: either
+
+test("Skip ops on error, except within an `ever` block", t => {
+    runWithErrors(t, new Fiber().
+        sync(() => { throw Error("AUGH"); }).
+        sync(() => { t.fail("unreachable op"); }).
+        ever(fiber => fiber.
+            sync(() => { t.pass("reachable op within ever"); })
+        ));
+});
+
+test("Skip ops on error, except within an `ever` block (async)", async t => {
+    await runAsyncWithErrors(t, new Fiber().
+        sync(() => { throw Error("AUGH"); }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve, 84_600_000); })).
+        sync(() => { t.fail("unreachable op"); }).
+        ever(fiber => fiber.
+            async(() => new Promise(resolve => { window.setTimeout(resolve, 17); })).
+            sync(() => { t.pass("reachable op within ever"); })
+        ));
+});
+
+test("Recover from error when going backward", t => {
+    runWithErrors(t, new Fiber().
+        sync(nop).reverse(fiber => { t.undefined(fiber.error, "no error anymore"); }).
+        sync(() => { throw Error("AUGH"); }).
+        sync(() => { t.fail("unreachable op"); }).reverse(() => { t.fail("unreachable op (backward)"); }).
+        ever(fiber => fiber.
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+        ));
+});
+
+test("Recover from error when going backward (async)", async t => {
+    await runAsyncWithErrors(t, new Fiber().
+        sync(nop).reverse(fiber => { t.undefined(fiber.error, "no error anymore"); }).
+        sync(() => { throw Error("AUGH"); }).
+        sync(() => { t.fail("unreachable op"); }).reverse(() => { t.fail("unreachable op (backward)"); }).
+        async(() => new Promise(resolve => { window.setTimeout(resolve, 84_600_000); })).
+            reverse(() => { t.fail("unreachable async op (backward)"); }).
+        ever(fiber => fiber.
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+        ));
+});
+
+test("Multiple errors and recovery", t => {
+    runWithErrors(t, new Fiber().
+        sync(nop).reverse(fiber => { t.undefined(fiber.error, "no error in the end"); }).
+        sync(() => { throw Error("AUGH"); }).
+        ever(fiber => fiber.
+            sync(fiber => { delete fiber.error; }).
+            reverse(fiber => { t.same(fiber.error.message, "AUGH", "first error (backward)"); })
+        ).
+        sync(() => { throw Error("WHOA"); }).
+        ever(fiber => fiber.
+            sync(fiber => { t.same(fiber.error.message, "WHOA", "second error (forward)"); }).
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+        ));
+});
+
+test("Multiple errors and recovery (async)", async t => {
+    await runAsyncWithErrors(t, new Fiber().
+        sync(nop).reverse((fiber, scheduler) => {
+            t.undefined(fiber.error, "no error in the end");
+            t.same(fiber.now, 0, "time reverted to zero");
+            t.above(scheduler.now, 30, `some time has passed (${scheduler.now})`);
+        }).
+        async(() => new Promise((_, reject) => { window.setTimeout(() => { reject(Error("AUGH")); }, 17); })).
+        ever(fiber => fiber.
+            sync((fiber, scheduler) => {
+                t.above(scheduler.now, 0, `some time has passed (${scheduler.now})`);
+            }).
+            sync(fiber => { delete fiber.error; }).
+            reverse(fiber => { t.same(fiber.error.message, "AUGH", "first error (backward)"); })
+        ).
+        sync(() => { throw Error("WHOA"); }).
+        ever(fiber => fiber.
+            sync(fiber => { t.same(fiber.error.message, "WHOA", "second error (forward)"); }).
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+        ));
+});
