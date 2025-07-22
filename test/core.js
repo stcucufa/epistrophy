@@ -662,3 +662,45 @@ test("Unend fibers that were spawned when going backward", t => {
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
     );
 });
+
+// 4O03 Core: join
+
+test("Join is a noop when no children have been spawned", t => {
+    run(new Fiber().
+        join().
+        sync(fiber => { t.same(fiber.now, 0, "no time has passed"); })
+    );
+});
+
+test("Join delegate: fiberWillJoin(fiber, scheduler)", t => {
+    const scheduler = new Scheduler();
+    const delegate = {
+        fiberWillJoin(...args) {
+            t.equal(args, [fiber, scheduler], "`fiberWillJoin` is called with fiber and scheduler");
+            t.same(this, delegate, "and the delegate object as `this`");
+        },
+        childFiberDidJoin(...args) {
+            t.equal(args, [fiber.children[0], scheduler], "`childFiberDidJoin` is called with child fiber and scheduler");
+            t.same(this, delegate, "and the delegate object as `this`");
+        }
+    };
+    const fiber = new Fiber().
+        spawn(nop).
+        sync(fiber => { t.same(fiber.children.length, 1, "fiber has one child"); }).
+        join(delegate).
+        sync(fiber => {
+            t.undefined(fiber.children, "fiber has no children anymore");
+            t.same(fiber.now, 0, "all happened synchronously");
+        });
+    scheduler.scheduleFiber(fiber);
+    scheduler.clock.now = Infinity;
+});
+
+test("Join", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.ramp(888)).
+        spawn(fiber => fiber.ramp(777)).
+        join().
+        sync(fiber => { t.same(fiber.now, 888, "has the duration of the child with the longest duration"); })
+    );
+});
