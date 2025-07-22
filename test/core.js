@@ -368,18 +368,15 @@ test("Add reverse effect", t => {
     t.throws(() => {
         new Fiber().ramp(777).reverse(nop)
     }, "error: cannot provide a reverse effect (ramp)");
-});
-
-test("Add reverse effect", t => {
     t.throws(() => {
         new Fiber().ever(nop).reverse(nop)
     }, "error: cannot provide a reverse effect (ever)");
-});
-
-test("Add reverse effect", t => {
     t.throws(() => {
         new Fiber().spawn(nop).reverse(nop)
     }, "error: cannot provide a reverse effect (spawn)");
+    t.throws(() => {
+        new Fiber().join().reverse(nop)
+    }, "error: cannot provide a reverse effect (join)");
 });
 
 test("Add reverse effect", t => {
@@ -702,5 +699,15 @@ test("Join", t => {
         spawn(fiber => fiber.ramp(777)).
         join().
         sync(fiber => { t.same(fiber.now, 888, "has the duration of the child with the longest duration"); })
+    );
+});
+
+test("Reverse join", t => {
+    run(new Fiber().
+        sync(nop).reverse(fiber => { t.same(fiber.now, 0, "parent fiber returned to 0"); }).
+        spawn(fiber => fiber.ramp(888)).
+        spawn(fiber => fiber.ramp(777)).
+        join().
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
     );
 });
