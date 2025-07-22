@@ -654,11 +654,34 @@ test("Set rate for children as well (during)", t => {
 test("Unend fibers that were spawned when going backward", t => {
     run(new Fiber().
         spawn(fiber => fiber.
-            sync(nop).reverse((_, scheduler) => { t.same(scheduler.now, 444, "child fiber was completely undone"); }).
+            sync(nop).reverse((fiber, scheduler) => {
+                t.same(fiber.now, 0, "child fiber time went back to 0");
+                t.same(scheduler.now, 444, "child fiber was completely undone");
+            }).
             ramp(111).
             sync(nop).reverse((_, scheduler) => { t.same(scheduler.now, 333, "child fiber is unending"); })
         ).
         ramp(222).
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
+});
+
+test("Spawn order (forward)", t => {
+    const effects = [];
+    run(new Fiber().
+        spawn(fiber => fiber.
+            sync(() => { effects.push("A"); }).
+            spawn(fiber => fiber.sync(() => { effects.push("C"); })).
+            spawn(fiber => fiber.
+                sync(() => { effects.push("D"); }).
+                sync(() => { effects.push("E"); })).
+            sync(() => { effects.push("B"); })
+        ).
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.sync(() => { effects.push("x"); })).
+            spawn(fiber => fiber.sync(() => { effects.push("y"); }))
+        ).
+        ramp(111).
+        sync(() => { t.equal(effects, ["A", "B", "C", "D", "E", "x", "y"], "fibers spawned in expected order"); })
     );
 });
