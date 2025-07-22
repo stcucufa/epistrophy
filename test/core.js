@@ -552,7 +552,7 @@ test("Multiple errors and recovery", t => {
         ));
 });
 
-test("Multiple errors and recovery", async t => {
+test("Multiple errors and recovery (async)", async t => {
     await runAsyncWithErrors(t, new Fiber().
         sync(nop).reverse((fiber, scheduler) => {
             t.undefined(fiber.error, "no error in the end");
