@@ -670,18 +670,50 @@ test("Spawn order (forward)", t => {
     const effects = [];
     run(new Fiber().
         spawn(fiber => fiber.
-            sync(() => { effects.push("A"); }).
-            spawn(fiber => fiber.sync(() => { effects.push("C"); })).
-            spawn(fiber => fiber.
-                sync(() => { effects.push("D"); }).
-                sync(() => { effects.push("E"); })).
-            sync(() => { effects.push("B"); })
+            spawn(fiber => fiber.sync(fiber => {
+                console.info(`fiber #${fiber.id}: C`);
+                effects.push("C");
+            })).
+            sync(fiber => {
+                console.info(`fiber #${fiber.id}: B`);
+                effects.push("B");
+            })
         ).
+        spawn(fiber => fiber.sync(fiber => {
+            console.info(`fiber #${fiber.id}: D`);
+            effects.push("D");
+        })).
+        sync(fiber => {
+            console.info(`fiber #${fiber.id}: A`);
+            effects.push("A");
+        })
+    );
+    t.equal(effects, ["A", "B", "C", "D"], "fibers executed in expected order");
+});
+
+test("Spawn order (backward)", t => {
+    const effects = [];
+    run(new Fiber().
+        sync(nop).reverse(() => { t.equal(effects, ["D", "C", "B", "A"]); }).
         spawn(fiber => fiber.
-            spawn(fiber => fiber.sync(() => { effects.push("x"); })).
-            spawn(fiber => fiber.sync(() => { effects.push("y"); }))
+            spawn(fiber => fiber.sync(nop).reverse(fiber => {
+                console.info(`fiber #${fiber.id}: C`);
+                effects.push("C");
+            })).
+            sync(nop).reverse(fiber => {
+                console.info(`fiber #${fiber.id}: B`);
+                effects.push("B");
+            })
         ).
+        spawn(fiber => fiber.sync(nop).reverse(fiber => {
+            console.info(`fiber #${fiber.id}: D`);
+            effects.push("D");
+        })).
+        sync(nop).reverse(fiber => {
+            console.info(`fiber #${fiber.id}: A`);
+            effects.push("A");
+        }).
         ramp(111).
-        sync(() => { t.equal(effects, ["A", "B", "C", "D", "E", "x", "y"], "fibers spawned in expected order"); })
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
     );
 });
