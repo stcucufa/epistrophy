@@ -1,6 +1,7 @@
 import test from "./test.js";
 import parse from "../dodo/parser.js";
 import run from "../dodo/interpreter.js";
+import compile from "../dodo/compiler.js";
 
 test("parse()", t => {
     const document = parse("{ hello }");
@@ -231,4 +232,30 @@ test("Interpreter: lambda special form", t => {
 test("Interpreter: define for functions", t => {
     t.same(run("{ seq { define incr `{ x } { + `1 `x } } { incr `23 } }"), 24, "single parameter");
     t.same(run("{ seq { define !- `{ x y } { - `y `x } } { !- `17 `23 } }"), 6, "multiple parameters");
+});
+
+// 4P03 Dodo: Compile
+
+test("Compiler: atom", t => {
+    t.equal(compile("{ I `23 }"), [["push", 23]], "number");
+    t.equal(compile("{ I hello, world! }"), [["push", "hello, world!"]], "string");
+    t.equal(compile("{ I `{ 23 { hello world } } }"), [["push", [23, ["hello", "world"]]]], "list");
+});
+
+test("Compiler: +", t => {
+    t.equal(compile("{ + }"), [["push", 0]], "add no number (0)");
+    t.equal(compile("{ + `23 }"), [["push", 23]], "add a single number (I)");
+    t.equal(compile("{ + `23 `17 }"), [["push", 23], ["push", 17], ["add", 2]], "add two numbers");
+    t.equal(compile("{ + `23 `17 `31 `51 }"),
+        [["push", 23], ["push", 17], ["push", 31], ["push", 51], ["add", 4]], "add more than two numbers");
+});
+
+test("Compiler: *", t => {
+    t.equal(compile("{ * } "), [["push", 1]], "multiply no number (0)");
+    t.equal(compile("{ * `23 }"), [["push", 23]], "multiply a single number (I)");
+    t.equal(compile("{ * `23 `17 }"), [["push", 23], ["push", 17], ["mul", 2]], "multiply two numbers");
+    t.equal(compile("{ * `23 `17 `31 `51 }"),
+        [["push", 23], ["push", 17], ["push", 31], ["push", 51], ["mul", 4]], "multiply more than two numbers");
+    t.equal(compile("{ * { + `1 `2 } `3 }"),
+        [["push", 1], ["push", 2], ["add", 2], ["push", 3], ["mul", 2]], "multiply and add");
 });

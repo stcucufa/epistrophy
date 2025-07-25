@@ -17,6 +17,7 @@ class Interpreter {
             seq: SpecialForm,
             true: true,
             false: false,
+            I: (_, x) => x,
             "+": (_, ...args) => args.reduce((z, x) => z + x, 0),
             "-": (_, z, ...args) => args.length === 0 ? -z : args.reduce((z, x) => z - x, z),
             "*": (_, ...args) => args.reduce((z, x) => z * x, 1),
