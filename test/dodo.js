@@ -3,7 +3,7 @@ import parse from "../dodo/parser.js";
 import run from "../dodo/interpreter.js";
 import compile from "../dodo/compiler.js";
 
-test("parse()", t => {
+test("Parser", t => {
     const document = parse("{ hello }");
     t.same(document.text, "{ hello }", "returns a document object with the original text");
     t.same(document.root.document, document, "document of root is document");
@@ -12,11 +12,11 @@ test("parse()", t => {
     t.equal(document.root.content, [], "no content");
 });
 
-test("parse(): empty document", t => {
+test("Parser: empty document", t => {
     t.throws(() => parse(""), `"no content" error`);
 });
 
-test("parse(): no content", t => {
+test("Parser: no content", t => {
     t.throws(() => parse(
 `# Just a comment, not content!
 And some text,
@@ -24,71 +24,71 @@ which does not count.
 `), `"no content" error`);
 });
 
-test("parse(): element name", t => {
+test("Parser: element name", t => {
     const { root } = parse("{ Hello,\\ world! }")
     t.same(root.name, "Hello, world!");
 });
 
-test("parse(): anonymous element", t => {
+test("Parser: anonymous element", t => {
     const { root } = parse("{ { λ: x { + `x `1 } } `2 }");
     t.undefined(root.name, "name is undefined");
     t.same(root.content[0].name, "λ", "first child element has a name");
     t.same(root.content[1], 2, "content also contains a number");
 });
 
-test("parse(): unescaping", t => {
+test("Parser: unescaping", t => {
     const { root } = parse(`{ \\{\\ \\wow\\:\\ \\} }`);
     t.same(root.name, "{ wow: }", "name with {} and :");
 });
 
-test("parse(): token and string attributes", t => {
+test("Parser: token and string attributes", t => {
     const { root } = parse(`{ p foo: bar baz: "fum, \\"quux\\", &c." x: y:z a\\:bc: d That’s it! }`);
     t.equal(root.attributes, { foo: "bar", baz: `fum, "quux", &c.`, x: "y:z", "a:bc": "d" }, "attributes");
     t.equal(root.content, ["That’s it!"], "content following attributes");
 });
 
-test("parse(): default attribute", t => {
+test("Parser: default attribute", t => {
     const { root } = parse("{ hello: world! foo: bar }");
     t.equal(root.attributes, { hello: "world!", foo: "bar" }, "and more attributes");
     t.equal(root.content, [], "no content");
 });
 
-test("parse(): default attribute", t => {
+test("Parser: default attribute", t => {
     const { root } = parse("{ hello foo: bar hello: world! }");
     t.equal(root.attributes, { hello: "world!", foo: "bar" }, "spelled out");
     t.equal(root.content, [], "no content");
 });
 
-test("parse(): not an attribute", t => {
+test("Parser: not an attribute", t => {
     const { root } = parse("{ p This\\: is not an attribute. That: not an attribute either. }");
     t.equal(root.attributes, {}, "escaped");
     t.equal(root.content, ["This: is not an attribute. That: not an attribute either."], "parsed as content text");
 });
 
-test("parse(): not an attribute", t => {
+test("Parser: not an attribute", t => {
     const { root } = parse("{ p {} This: is not an attribute. That: not an attribute either. }");
     t.equal(root.attributes, {}, "preceded by an empty element");
     t.equal(root.content, ["This: is not an attribute. That: not an attribute either."], "parsed as content text");
 });
 
-test("parse(): number attributes", t => {
+test("Parser: number attributes", t => {
     t.skip("2L0M Dodo: more attributes");
     const { root } = parse("{ constant e: `2.718281828459045 }");
     t.equal(root.attributes, { e: 2.718281828459045 }, "number value");
 });
 
-test("parse(): list attributes", t => {
+test("Parser: list attributes", t => {
     t.skip("2L0M Dodo: more attributes");
     const { root } = parse("{ constants `{ 1 2 3 }");
     t.equal(root.attributes, { constants: [1, 2, 3] }, "list value");
 });
 
-test("parse(): content unescaping", t => {
+test("Parser: content unescaping", t => {
     const { root } = parse("{ p Hello, \\{ \\`world\\# \\}\\ }");
     t.equal(root.content, ["Hello, { `world# } "], "{, }, ` and # in content");
 });
 
-test("parse(): whitespace handling", t => {
+test("Parser: whitespace handling", t => {
     const { root } = parse(`{ p This is a
         { em paragraph. }
     }`);
@@ -98,29 +98,29 @@ test("parse(): whitespace handling", t => {
     t.equal(root.content[2].content, ["paragraph."], "trimmed text content in child element");
 });
 
-test("parse(): comments within content", t => {
+test("Parser: comments within content", t => {
     const { root } = parse(`{ p This is some content # not this
 and \\# some more # but not this
 this is more content }`);
     t.equal(root.content, ["This is some content", " and # some more", " this is more content"], "handled comments");
 });
 
-test("parse(): escaping spaces and newlines", t => {
+test("Parser: escaping spaces and newlines", t => {
     const { root } = parse(`{ p With trailing space\\ }`);
     t.equal(root.content, ["With trailing space "], "deliberate trailing space");
 });
 
-test("parse(): unquoting", t => {
+test("Parser: unquoting", t => {
     const { root } = parse("{ define: π `3.141592653589793 (half of τ) }");
     t.equal(root.content, [3.141592653589793, " (half of τ)"], "number");
 });
 
-test("parse(): unquoting", t => {
+test("Parser: unquoting", t => {
     const { root } = parse("{ f `{ x 2 } }");
     t.equal(root.content, [["x", 2]], "list");
 });
 
-test("parse(): mixed content (unquoting)", t => {
+test("Parser: mixed content (unquoting)", t => {
     const { root } = parse("{ import { as: foo bar } `{ baz fum } }");
     t.same(root.content.length, 2, "two children");
     t.same(root.content[0].name, "as", "first child name");
@@ -129,14 +129,14 @@ test("parse(): mixed content (unquoting)", t => {
     t.equal(root.content[1], ["baz", "fum"], "second child (list)");
 });
 
-test("parse(): mixed content (empty element)", t => {
+test("Parser: mixed content (empty element)", t => {
     const { root } = parse("{ import { as: foo bar } baz {} fum }");
     t.same(root.content.length, 4, "four children");
     t.equal(root.content[0].content, ["bar"], "first child content");
     t.equal(root.content.slice(1), [" baz", " ", " fum"], "rest of content (including whitespace)");
 });
 
-test("parse(): unquoting identifier", t => {
+test("Parser: unquoting identifier", t => {
     const { root } = parse("{ f `x }");
     t.same(root.content.length, 1, "one child");
     const x = root.content[0];
@@ -144,26 +144,26 @@ test("parse(): unquoting identifier", t => {
     t.equal(x.content, ["x"], "with one argument");
 });
 
-test("parse(): CDATA in content", t => {
+test("Parser: CDATA in content", t => {
     const { root } = parse("{ p {: { dodo } ::: hello :} }");
     t.equal(root.content, [" { dodo } ::: hello "], "first child");
 });
 
-test("parse(): CDATA in content", t => {
+test("Parser: CDATA in content", t => {
     const { root } = parse("{ p CDATA\\: {: { dodo } ::: hello :} }");
     t.equal(root.content, ["CDATA:", "  { dodo } ::: hello "], "space before and after");
 });
 
-test("parse(): attribute value with CDATA", t => {
+test("Parser: attribute value with CDATA", t => {
     const { root } = parse("{ p: {:{ value }:} }");
     t.same(root.attributes.p, "{ value }", "attribute value with {}");
 });
 
-test("parse(): unterminated CDATA", t => {
+test("Parser: unterminated CDATA", t => {
     t.throws(() => parse("{ p: {:{ value } } }"), "parse error");
 });
 
-test("parse(): unexpected CDATA", t => {
+test("Parser: unexpected CDATA", t => {
     t.throws(() => parse("{ {: no CDATA section for name :} this: does not work }"), "cannot use CDATA for element name");
 });
 
@@ -222,7 +222,7 @@ test("Interpreter: application", t => {
     t.throws(() => { run("{ seq { define f `23 } { f `17 } }"); }, "not a function");
 });
 
-test("Interpreter: lambda special form", t => {
+test("Interpreter: lambda/λ special form", t => {
     t.typeof(run("{ lambda `{ x } { + `x `1 } }"), "function", "creates a function");
     t.typeof(run("{ λ x { + `x `1 } }"), "function", "short form (λ, single parameter)");
     t.same(run("{ { λ x { + `x `1 } } `17 }"), 18, "may be applied");
@@ -250,6 +250,13 @@ test("Compiler: +", t => {
         [["push", 23], ["push", 17], ["push", 31], ["push", 51], ["add", 4]], "add more than two numbers");
 });
 
+test("Compiler: -", t => {
+    t.throws(() => compile("{ - } "), "not enough arguments");
+    t.equal(compile("{ - `23 }"), [["push", 23], ["neg"]], "negate a single number");
+    t.equal(compile("{ - `23 `17 `31 `51 }"),
+        [["push", 23], ["push", 17], ["push", 31], ["push", 51], ["sub", 4]], "subtract multiple numbers");
+});
+
 test("Compiler: *", t => {
     t.equal(compile("{ * } "), [["push", 1]], "multiply no number (0)");
     t.equal(compile("{ * `23 }"), [["push", 23]], "multiply a single number (I)");
@@ -258,4 +265,22 @@ test("Compiler: *", t => {
         [["push", 23], ["push", 17], ["push", 31], ["push", 51], ["mul", 4]], "multiply more than two numbers");
     t.equal(compile("{ * { + `1 `2 } `3 }"),
         [["push", 1], ["push", 2], ["add", 2], ["push", 3], ["mul", 2]], "multiply and add");
+});
+
+test("Compiler: /", t => {
+    t.throws(() => compile("{ / } "), "not enough arguments");
+    t.equal(compile("{ / `23 }"), [["push", 23], ["inv"]], "invert a single number");
+    t.equal(compile("{ / `23 `17 `31 `51 }"),
+        [["push", 23], ["push", 17], ["push", 31], ["push", 51], ["div", 4]], "divide multiple numbers");
+});
+
+test("Compiler: if special form", t => {
+    t.equal(compile("{ if { = `23 `17 } `31 `19 }"),
+        [["push", 23], ["push", 17], ["eq", 2], ["jf", 2], ["push", 31], ["j", 1], ["push", 19]],
+        "generated code with jumps");
+});
+
+test("Compiler: lambda/λ special form", t => {
+    t.equal(compile("{ lambda `{ x } { + `x `1 } }"),
+        [{ arity: 1, body: [["load", 0], ["push", 1], ["add", 2]] }], "lambda");
 });
