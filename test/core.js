@@ -573,3 +573,34 @@ test("Multiple errors and recovery (async)", async t => {
             sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
         ));
 });
+
+// 4O02 Core: ramps with infinite duration
+
+test("Ramp with infinite duration", t => {
+    const ps = [[0, 0], [0, 888], [0, 8888], [0, 88888]];
+    const scheduler = run(new Fiber().
+        ramp(Infinity, (p, fiber) => {
+            t.equal([p, fiber.now], ps.shift(), `ramp did progress (${p})`);
+        }),
+        888
+    );
+    scheduler.clock.now = 8888;
+    scheduler.clock.now = 88888;
+    t.equal(ps, [], "ramp went through all updates");
+});
+
+test("Ramp with infinite duration (rate changes)", t => {
+    const ps = [[0, 0, 0], [0, 222, 222], [0, 333, 444], [0, 999, 1110]];
+    const fiber = new Fiber().
+        ramp(Infinity, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+        });
+    const scheduler = run(fiber, 222);
+    scheduler.setFiberRate(fiber, 0.5);
+    scheduler.clock.now = 444;
+    scheduler.setFiberRate(fiber, 0);
+    scheduler.clock.now = 777;
+    scheduler.setFiberRate(fiber, 2);
+    scheduler.clock.now = 1110;
+    t.equal(ps, [], "ramp went through all updates");
+});
