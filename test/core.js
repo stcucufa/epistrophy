@@ -590,10 +590,10 @@ test("Ramp with infinite duration", t => {
 });
 
 test("Ramp with infinite duration (rate changes)", t => {
-    const ps = [[0, 0, 0], [0, 222, 222], [0, 333, 444], [0, 999, 1110]];
+    const ps = [[0, 0, 0], [0, 222, 222], [0, 333, 444], [0, 555, 888], [0, 0, 1443]];
     const fiber = new Fiber().
         ramp(Infinity, (p, fiber, scheduler) => {
-            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p})`);
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p}/${fiber.now})`);
         });
     const scheduler = run(fiber, 222);
     scheduler.setFiberRate(fiber, 0.5);
@@ -601,6 +601,22 @@ test("Ramp with infinite duration (rate changes)", t => {
     scheduler.setFiberRate(fiber, 0);
     scheduler.clock.now = 777;
     scheduler.setFiberRate(fiber, 2);
-    scheduler.clock.now = 1110;
+    scheduler.clock.now = 888;
+    scheduler.setFiberRate(fiber, -1);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
+});
+
+test("Ramp with infinite duration (rate changes back and forth)", t => {
+    const ps = [[0, 0, 0], [0, 444, 444], [0, 111, 777], [0, 333, 999]];
+    const fiber = new Fiber().
+        ramp(Infinity, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p}/${fiber.now})`);
+        });
+    const scheduler = run(fiber, 444);
+    scheduler.setFiberRate(fiber, -1);
+    scheduler.clock.now = 777;
+    scheduler.setFiberRate(fiber, 1);
+    scheduler.clock.now = 999;
     t.equal(ps, [], "ramp went through all updates");
 });
