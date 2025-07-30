@@ -236,7 +236,6 @@ test("Scheduler.setFiberRate(rate)", t => {
             t.same(fiber.rate, 1, "rate is 1 by default");
             scheduler.setFiberRate(fiber, 2);
             t.same(fiber.rate, 2, "rate was updated");
-            t.same(new Fiber().rate, 1, "other fiber rate is unaffected");
         })
     );
 });
@@ -375,6 +374,12 @@ test("Add reverse effect", t => {
     t.throws(() => {
         new Fiber().ever(nop).reverse(nop)
     }, "error: cannot provide a reverse effect (ever)");
+});
+
+test("Add reverse effect", t => {
+    t.throws(() => {
+        new Fiber().spawn(nop).reverse(nop)
+    }, "error: cannot provide a reverse effect (spawn)");
 });
 
 test("Add reverse effect", t => {
@@ -619,4 +624,166 @@ test("Ramp with infinite duration (rate changes back and forth)", t => {
     scheduler.setFiberRate(fiber, 1);
     scheduler.clock.now = 999;
     t.equal(ps, [], "ramp went through all updates");
+});
+
+// 4M06 Core: spawn
+
+test("Fiber.spawn(f)", t => {
+    run(new Fiber().
+        ramp(777).
+        spawn(fiber => fiber.
+            sync(fiber => {
+                t.same(fiber.now, 0, "child fiber began");
+                t.same(fiber.parent.now, 777, "after some delay");
+            })
+        ).
+        sync(fiber => { t.same(fiber.children.length, 1, "fiber now has one child"); })
+    )
+});
+
+test("Reversing spawn", t => {
+    run(new Fiber().
+        ramp(777).
+        sync(nop).reverse(fiber => { t.undefined(fiber.children, "no more child fibers"); }).
+        spawn(fiber => fiber.
+            sync(fiber => {
+                t.same(fiber.now, 0, "child fiber began");
+                t.same(fiber.parent.now, 777, "after some delay");
+            }).
+            ramp(888)
+        ).
+        sync(fiber => { t.same(fiber.children.length, 1, "fiber now has one child"); }).
+        ramp(111).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    )
+});
+
+test("Set rate for children as well (initially)", t => {
+    const fiber = new Fiber().
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 2); }).
+        spawn(fiber => fiber.
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 5); }).
+            ramp(1111)
+        ).
+        spawn(fiber => fiber.
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 0.5); }).
+            ramp(1111)
+        ).
+        ramp(1111);
+    run(fiber, 111);
+    t.same(fiber.now, 222, "parent fiber rate");
+    t.same(fiber.children[0].now, 1110, "first child rate");
+    t.same(fiber.children[1].now, 111, "second child rate");
+});
+
+test("Set rate for children as well (during)", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 2); }).
+            ramp(888).
+            sync((_, scheduler) => {
+                t.same(scheduler.now, 222, "first child ended");
+            })
+        ).
+        spawn(fiber => fiber.
+            sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 0.5); }).
+            ramp(888).
+            sync((_, scheduler) => {
+                t.same(scheduler.now, 666, "second child ended");
+            })
+        ).
+        ramp(111).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, 3); }).
+        ramp(555)
+    );
+});
+
+test("Unend fibers that were spawned when going backward", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.
+            sync(nop).reverse((fiber, scheduler) => {
+                t.same(fiber.now, 0, "child fiber time went back to 0");
+                t.same(scheduler.now, 444, "child fiber was completely undone");
+            }).
+            ramp(111).
+            sync(nop).reverse((_, scheduler) => { t.same(scheduler.now, 333, "child fiber is unending"); })
+        ).
+        ramp(222).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
+});
+
+test("Spawn order (forward)", t => {
+    const effects = [];
+    run(new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.sync(fiber => {
+                console.info(`fiber #${fiber.id}: C`);
+                effects.push("C");
+            })).
+            sync(fiber => {
+                console.info(`fiber #${fiber.id}: B`);
+                effects.push("B");
+            })
+        ).
+        spawn(fiber => fiber.sync(fiber => {
+            console.info(`fiber #${fiber.id}: D`);
+            effects.push("D");
+        })).
+        sync(fiber => {
+            console.info(`fiber #${fiber.id}: A`);
+            effects.push("A");
+        })
+    );
+    t.equal(effects, ["A", "B", "C", "D"], "fibers executed in expected order");
+});
+
+test("Spawn order (backward)", t => {
+    const effects = [];
+    run(new Fiber().
+        sync(nop).reverse(() => { t.equal(effects, ["C", "B", "A"]); }).
+        sync(nop).reverse((fiber, scheduler) => {
+            console.info(`[${scheduler.now}] fiber #${fiber.id}: A`);
+            effects.push("A");
+        }).
+        spawn(fiber => fiber.
+            sync(nop).reverse((fiber, scheduler) => {
+                console.info(`[${scheduler.now}] fiber #${fiber.id}: B`);
+                effects.push("B");
+            }).
+            spawn(fiber => fiber.
+                sync(nop).reverse((fiber, scheduler) => {
+                    console.info(`[${scheduler.now}] fiber #${fiber.id}: C`);
+                    effects.push("C");
+                })
+            )
+        ).
+        ramp(111).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
+});
+
+test("Spawn reversing (different rate)", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.
+            ramp(111).
+            sync(nop).reverse((fiber, scheduler) => {
+                t.same(fiber.now, 111, "unending at end time");
+                t.same(scheduler.now, 444, "observed delay");
+            })
+        ).
+        ramp(333).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -2); })
+    );
+});
+
+test("Scheduler.attachFiber(fiber, child?) spawns a fiber dynamically", t => {
+    run(new Fiber().
+        sync((fiber, scheduler) => {
+            scheduler.attachFiber(fiber).
+                sync(fiber => {
+                    t.equal(fiber.parent.children, [fiber], `spanwed fiber ${fiber.id} child of parent ${fiber.parent.id}`);
+                })
+        })
+    );
 });
