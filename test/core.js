@@ -762,3 +762,28 @@ test("Spawn order (backward)", t => {
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
     );
 });
+
+test("Spawn reversing (different rate)", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.
+            ramp(111).
+            sync(nop).reverse((fiber, scheduler) => {
+                t.same(fiber.now, 111, "unending at end time");
+                t.same(scheduler.now, 444, "observed delay");
+            })
+        ).
+        ramp(333).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -2); })
+    );
+});
+
+test("Scheduler.attachFiber(fiber, child?) spawns a fiber dynamically", t => {
+    run(new Fiber().
+        sync((fiber, scheduler) => {
+            scheduler.attachFiber(fiber).
+                sync(fiber => {
+                    t.equal(fiber.parent.children, [fiber], `spanwed fiber ${fiber.id} child of parent ${fiber.parent.id}`);
+                })
+        })
+    );
+});
