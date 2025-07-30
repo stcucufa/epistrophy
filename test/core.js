@@ -714,23 +714,11 @@ test("Spawn order (forward)", t => {
     const effects = [];
     run(new Fiber().
         spawn(fiber => fiber.
-            spawn(fiber => fiber.sync(fiber => {
-                console.info(`fiber #${fiber.id}: C`);
-                effects.push("C");
-            })).
-            sync(fiber => {
-                console.info(`fiber #${fiber.id}: B`);
-                effects.push("B");
-            })
+            spawn(fiber => fiber.sync(fiber => { effects.push("C"); })).
+            sync(fiber => { effects.push("B"); })
         ).
-        spawn(fiber => fiber.sync(fiber => {
-            console.info(`fiber #${fiber.id}: D`);
-            effects.push("D");
-        })).
-        sync(fiber => {
-            console.info(`fiber #${fiber.id}: A`);
-            effects.push("A");
-        })
+        spawn(fiber => fiber.sync(fiber => { effects.push("D"); })).
+        sync(fiber => { effects.push("A"); })
     );
     t.equal(effects, ["A", "B", "C", "D"], "fibers executed in expected order");
 });
@@ -738,22 +726,16 @@ test("Spawn order (forward)", t => {
 test("Spawn order (backward)", t => {
     const effects = [];
     run(new Fiber().
-        sync(nop).reverse(() => { t.equal(effects, ["C", "B", "A"]); }).
-        sync(nop).reverse((fiber, scheduler) => {
-            console.info(`[${scheduler.now}] fiber #${fiber.id}: A`);
-            effects.push("A");
-        }).
+        sync(nop).reverse(() => { t.equal(effects, ["D", "C", "B", "A"]); }).
+        sync(nop).reverse((fiber, scheduler) => { effects.push("A"); }).
         spawn(fiber => fiber.
-            sync(nop).reverse((fiber, scheduler) => {
-                console.info(`[${scheduler.now}] fiber #${fiber.id}: B`);
-                effects.push("B");
-            }).
+            sync(nop).reverse((fiber, scheduler) => { effects.push("B"); }).
             spawn(fiber => fiber.
-                sync(nop).reverse((fiber, scheduler) => {
-                    console.info(`[${scheduler.now}] fiber #${fiber.id}: C`);
-                    effects.push("C");
-                })
+                sync(nop).reverse((fiber, scheduler) => { effects.push("C"); })
             )
+        ).
+        spawn(fiber => fiber.
+            sync(nop).reverse((fiber, scheduler) => { effects.push("D"); })
         ).
         ramp(111).
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
@@ -827,12 +809,25 @@ test("Join", t => {
     );
 });
 
-test("Reverse join", t => {
+test("Sync join", t => {
     t.skip();
+});
+
+test("Reverse join", t => {
+    t.skip("Sync join");
+    const effects = [];
     run(new Fiber().
-        sync(nop).reverse(fiber => { t.same(fiber.now, 0, "parent fiber returned to 0"); }).
-        spawn(fiber => fiber.ramp(888)).
-        spawn(fiber => fiber.ramp(777)).
+        sync(nop).reverse(() => { t.equal(effects, ["D", "C", "B", "A"]); }).
+        sync(nop).reverse((fiber, scheduler) => { effects.push("A"); }).
+        spawn(fiber => fiber.
+            sync(nop).reverse((fiber, scheduler) => { effects.push("B"); }).
+            spawn(fiber => fiber.
+                sync(nop).reverse((fiber, scheduler) => { effects.push("C"); })
+            )
+        ).
+        spawn(fiber => fiber.
+            sync(nop).reverse((fiber, scheduler) => { effects.push("D"); })
+        ).
         join().
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
     );
