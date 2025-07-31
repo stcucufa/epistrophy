@@ -41,16 +41,17 @@ class Test {
         this.expectations = 0;
     }
 
-    static DefaultMessage = "expectation was met";
+    static DefaultMessageOK = "expectation was met";
+    static DefaultMessageKO = "expectation was not met";
     static FailDefaultMessage = "unconditional failure";
     static SkipDefaultMessage = "skipped";
 
     report(message, expected) {
         if (expected) {
             this.passes = false;
-            this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.DefaultMessage} (expected ${expected})`;
+            this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.DefaultMessageKO} (expected ${expected})`;
         } else {
-            this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessage}`;
+            this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessageOK}`;
         }
         this.expectations += 1;
     }
