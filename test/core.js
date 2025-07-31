@@ -844,3 +844,18 @@ test("Reverse join", t => {
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
     );
 });
+
+// 4O04 Core: repeat
+
+test("Repeat (3 times)", t => {
+    let ps = [[0, 0], [1, 111], [2, 222], [3, 333]]
+    run(new Fiber().
+        repeat(fiber => fiber.ramp(111), {
+            repeatShouldEnd(n, fiber) {
+                t.equal(ps.shift(), [n, fiber.now], `repeatShouldEnd(${n}) of 3`);
+                return n === 3;
+            }
+        }).
+        sync(() => t.equal(ps, [], "exited after the expected number of iterations"))
+    );
+});
