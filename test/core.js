@@ -810,23 +810,35 @@ test("Join", t => {
 });
 
 test("Sync join", t => {
-    t.skip();
+    const effects = [];
+    run(new Fiber().
+        sync(() => { effects.push("A"); }).
+        spawn(fiber => fiber.
+            sync(() => { effects.push("B"); }).
+            spawn(fiber => fiber.sync(() => { effects.push("C"); }))
+        ).
+        spawn(fiber => fiber.sync(() => { effects.push("D"); })).
+        join().
+        sync(fiber => {
+            t.equal(effects, ["A", "B", "C", "D"], "spawned fibers ran synchronously");
+            t.equal(fiber.now, 0, "join was synchronous too");
+        })
+    );
 });
 
 test("Reverse join", t => {
-    t.skip("Sync join");
     const effects = [];
     run(new Fiber().
-        sync(nop).reverse(() => { t.equal(effects, ["D", "C", "B", "A"]); }).
-        sync(nop).reverse((fiber, scheduler) => { effects.push("A"); }).
+        sync(nop).reverse(() => { t.equal(effects, ["D", "C", "B", "A"], "children unended"); }).
+        sync(nop).reverse(() => { effects.push("A"); }).
         spawn(fiber => fiber.
-            sync(nop).reverse((fiber, scheduler) => { effects.push("B"); }).
+            sync(nop).reverse(() => { effects.push("B"); }).
             spawn(fiber => fiber.
-                sync(nop).reverse((fiber, scheduler) => { effects.push("C"); })
+                sync(nop).reverse(() => { effects.push("C"); })
             )
         ).
         spawn(fiber => fiber.
-            sync(nop).reverse((fiber, scheduler) => { effects.push("D"); })
+            sync(nop).reverse(() => { effects.push("D"); })
         ).
         join().
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
