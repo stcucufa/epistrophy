@@ -5,6 +5,7 @@ import { Fiber, Scheduler } from "../lib/core.js";
 // Utility function to run a fiber synchronously.
 function run(fiber, until = Infinity) {
     const scheduler = new Scheduler();
+    on(scheduler, "error", ({ error }) => { throw error; });
     scheduler.scheduleFiber(fiber);
     scheduler.clock.now = until;
     return scheduler;
