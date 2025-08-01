@@ -847,6 +847,18 @@ test("Reverse join", t => {
 
 // 4O04 Core: repeat
 
+test("Repeat with no delegate", t => {
+    const iterations = [];
+    const scheduler = run(new Fiber().
+        repeat(fiber => fiber.
+            ramp(111).
+            sync((fiber, scheduler) => { iterations.push([fiber.now, scheduler.now]); })
+        ),
+        400
+    );
+    t.equal(iterations, [[111, 111], [111, 222], [111, 333]], "went through three full iterations");
+});
+
 test("Repeat delegate", t => {
     const scheduler = new Scheduler();
     const delegate = {
