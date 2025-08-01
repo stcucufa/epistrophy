@@ -6,27 +6,23 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import Scheduler from "../lib/scheduler.js";
-import { First } from "../lib/fiber.js";
-import { K } from "../lib/util.js";
+import { Scheduler, Fiber } from "../lib/core.js";
 
-const span = document.querySelector("span");
-const buttons = document.querySelectorAll("button");
-
-Scheduler.run().
-    exec(K(17)).
+const scheduler = new Scheduler();
+scheduler.clock.start();
+scheduler.scheduleFiber(new Fiber().
+    sync(fiber => {
+        const span = document.querySelector("span");
+        const [minus, plus] = document.querySelectorAll("button");
+        minus.disabled = true;
+        fiber.value = { span, plus, minus, count: 0 };
+    }).
     repeat(fiber => fiber.
-        effect(({ value: count }) => span.textContent = count.toString()).
-        spawn(fiber => fiber.
-            event(buttons[0], "click").
-            exec(({ value: count }) => count -= 1)
-        ).
-        spawn(fiber => fiber.
-            event(buttons[1], "click").
-            exec(({ value: count }) => count += 1)
-        ).
-        join(First)
-    );
+        sync(({ parent: { value: { span, count } } }) => { span.textContent = count.toString(); }).
+        async(({ parent: { value: { plus } } }) => new Promise(resolve => { plus.addEventListener("click", resolve); })).
+        sync(({ parent }) => { parent.value.count += 1; })
+    )
+);
         </script>
     </head>
     <body>
@@ -38,14 +34,6 @@ Scheduler.run().
         </p>
         <p>
             Increment (▶) and decrement (◀) the counter by clicking on the corresponding button.
-        </p>
-        <p>
-            The core functionality of the counter is to initialize a fiber with the starting count, then repeat the
-            sequence of showing the current counter value, waiting on a click on the increment or decrement button, and
-            adding or subtracting 1 from the current fiber value. Here there are two buttons, so the main fiber is
-            initialized with the starting value of the counter and a fiber is spawned for each button, then the main fiber
-            joins on the first fiber to finish and gets its updated value, while the other fiber is cancelled. Note that
-            no new state variable to keep track of the counter value needs to be introduced.
         </p>
         <p>
             This example is inspired by <a href="https://eugenkiss.github.io/7guis/tasks/#counter">7GUIs: A GUI Programming
