@@ -7,8 +7,10 @@
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
 import { Scheduler, Fiber } from "../lib/core.js";
+import { on } from "../lib/util.js";
 
 const scheduler = new Scheduler();
+on(scheduler, "error", ({ error }) => { throw error; });
 scheduler.clock.start();
 scheduler.scheduleFiber(new Fiber().
     sync(fiber => {
@@ -19,7 +21,15 @@ scheduler.scheduleFiber(new Fiber().
     }).
     repeat(fiber => fiber.
         sync(({ parent: { value: { span, count } } }) => { span.textContent = count.toString(); }).
-        async(({ parent: { value: { plus } } }) => new Promise(resolve => { plus.addEventListener("click", resolve); })).
+        async(fiber => new Promise(resolve => {
+            fiber.eventHandler = resolve;
+            fiber.parent.value.plus.addEventListener("click", resolve);
+        }), {
+            asyncWillEnd(_, fiber) {
+                fiber.parent.value.plus.removeEventListener("click", fiber.eventHandler);
+                delete fiber.eventHandler;
+            }
+        }).
         sync(({ parent }) => { parent.value.count += 1; })
     )
 );
