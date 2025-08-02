@@ -11,12 +11,13 @@ import { Scheduler, Fiber } from "../lib/core.js";
 const scheduler = new Scheduler();
 scheduler.clock.start();
 scheduler.scheduleFiber(new Fiber().
-    sync(fiber => {
+    sync((fiber, scheduler) => {
         fiber.value = {
             range: document.querySelector("input"),
             button: document.querySelector("button"),
             progress: document.querySelector("progress")
         };
+        scheduler.setFiberRate(fiber, 1e-3);
     }).
     repeat(fiber => fiber.
         async(fiber => new Promise(resolve => {
@@ -30,17 +31,16 @@ scheduler.scheduleFiber(new Fiber().
         }).
         sync(({ parent: { value: { range, button, progress } } }) => { button.disabled = true; }).
         ramp(
-            ({ parent: { value: { range } } }) => 1000 * range.value,
+            ({ parent: { value: { range } } }) => range.value,
             (p, fiber) => {
                 const { progress, range } = fiber.parent.value;
-                const max = range.value * 1000;
-                progress.max = max;
+                progress.max = range.value;
                 progress.value = p * progress.max;
-                scheduler.setRampDurationForFiber(fiber, max);
+                scheduler.setRampDurationForFiber(fiber, range.value);
             }
         ).
-        ramp(333).
-        ramp(111, (p, { parent: { value: { progress } } }) => { progress.value = (1 - p) * progress.max; }).
+        ramp(0.333).
+        ramp(0.111, (p, { parent: { value: { progress } } }) => { progress.value = (1 - p) * progress.max; }).
         sync(({ parent: { value: { range, button } } }) => {
             button.disabled = false;
         })
