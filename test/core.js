@@ -992,3 +992,27 @@ test("Update ramp duration (paused, cutoff)", t => {
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all updates");
 });
+
+test("Update ramp (from indefinite to finite)", t => {
+    let ps = [[0, 0], [0, 222], [1, 444]];
+    const fiber = new Fiber().
+        ramp(Infinity, (p, fiber) => {
+            t.equal([p, fiber.now], ps.shift(), `ramp did progress (${p}/${fiber.now})`);
+        });
+    const scheduler = run(fiber, 222);
+    scheduler.setRampDurationForFiber(fiber, 444);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
+});
+
+test("Update ramp (from finite to indefinite)", t => {
+    let ps = [[0, 0], [0.5, 222], [0, 444]];
+    const fiber = new Fiber().
+        ramp(444, (p, fiber) => {
+            t.equal([p, fiber.now], ps.shift(), `ramp did progress (${p}/${fiber.now})`);
+        });
+    const scheduler = run(fiber, 222);
+    scheduler.setRampDurationForFiber(fiber, Infinity);
+    scheduler.clock.now = 444;
+    t.equal(ps, [], "ramp went through all updates");
+});
