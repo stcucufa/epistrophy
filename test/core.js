@@ -977,3 +977,18 @@ test("Update ramp duration (paused)", t => {
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all updates");
 });
+
+test("Update ramp duration (paused, cutoff)", t => {
+    let ps = [[0, 0, 0], [0.5, 444, 444], [1, 444, 1444]];
+    const fiber = new Fiber().
+        ramp(888, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p}/${fiber.now})`);
+        });
+    const scheduler = run(fiber, 444);
+    scheduler.setFiberRate(fiber, 0);
+    scheduler.clock.now = 1444;
+    scheduler.setRampDurationForFiber(fiber, 222);
+    scheduler.setFiberRate(fiber, 1);
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
+});
