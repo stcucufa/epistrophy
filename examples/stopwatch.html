@@ -18,23 +18,32 @@ scheduler.scheduleFiber(new Fiber().
             progress: document.querySelector("progress")
         };
     }).
-    async(fiber => new Promise(resolve => {
-        fiber.eventHandler = resolve;
-        fiber.value.button.addEventListener("click", resolve);
-    }), {
-        asyncWillEnd(_, fiber) {
-            fiber.value.button.removeEventListener("click", fiber.eventHandler);
-            delete fiber.eventHandler;
-        }
-    }).
-    sync(({ value: { range, button, progress } }) => {
-        range.disabled = true;
-        button.disabled = true
-        progress.max = range.value * 1000;
-    }).
-    ramp(fiber => fiber.value.progress.max, (p, { value: { progress } }) => { progress.value = p * progress.max; }).
-    ramp(333).
-    ramp(111, (p, { value: { progress } }) => { progress.value = (1 - p) * progress.max; })
+    repeat(fiber => fiber.
+        async(fiber => new Promise(resolve => {
+            fiber.eventHandler = resolve;
+            fiber.parent.value.button.addEventListener("click", resolve);
+        }), {
+            asyncWillEnd(_, fiber) {
+                fiber.parent.value.button.removeEventListener("click", fiber.eventHandler);
+                delete fiber.eventHandler;
+            }
+        }).
+        sync(({ parent: { value: { range, button, progress } } }) => {
+            range.disabled = true;
+            button.disabled = true;
+            progress.max = range.value * 1000;
+        }).
+        ramp(
+            fiber => fiber.parent.value.progress.max,
+            (p, { parent: { value: { progress } } }) => { progress.value = p * progress.max; }
+        ).
+        ramp(333).
+        ramp(111, (p, { parent: { value: { progress } } }) => { progress.value = (1 - p) * progress.max; }).
+        sync(({ parent: { value: { range, button } } }) => {
+            range.disabled = false;
+            button.disabled = false;
+        })
+    )
 );
 
         </script>

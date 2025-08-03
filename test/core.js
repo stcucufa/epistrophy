@@ -5,6 +5,7 @@ import { Fiber, Scheduler } from "../lib/core.js";
 // Utility function to run a fiber synchronously.
 function run(fiber, until = Infinity) {
     const scheduler = new Scheduler();
+    on(scheduler, "error", ({ error }) => { throw error; });
     scheduler.scheduleFiber(fiber);
     scheduler.clock.now = until;
     return scheduler;
@@ -841,6 +842,62 @@ test("Reverse join", t => {
             sync(nop).reverse(() => { effects.push("D"); })
         ).
         join().
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
+});
+
+// 4O04 Core: repeat
+
+test("Repeat with no delegate", t => {
+    const iterations = [];
+    const scheduler = run(new Fiber().
+        repeat(fiber => fiber.
+            ramp(111).
+            sync((fiber, scheduler) => { iterations.push([fiber.now, scheduler.now]); })
+        ),
+        400
+    );
+    t.equal(iterations, [[111, 111], [111, 222], [111, 333]], "went through three full iterations");
+});
+
+test("Repeat delegate", t => {
+    const scheduler = new Scheduler();
+    const delegate = {
+        repeatShouldEnd(...args) {
+            t.equal(args, [0, fiber, scheduler], "repeatShouldEnd(n, fiber, scheduler)");
+            t.same(this, delegate, "is called with the delegate itself as this");
+            return true;
+        }
+    };
+    const fiber = new Fiber().
+        repeat(nop, delegate).
+        sync(() => t.pass("return true to break"));
+    scheduler.scheduleFiber(fiber);
+    scheduler.clock.now = Infinity;
+});
+
+test("Repeat (3 times)", t => {
+    let ps = [[0, 0], [1, 111], [2, 222], [3, 333]]
+    run(new Fiber().
+        repeat(fiber => fiber.ramp(111), {
+            repeatShouldEnd(n, fiber) {
+                t.equal(ps.shift(), [n, fiber.now], `repeatShouldEnd(${n}) of 3`);
+                return n === 3;
+            }
+        }).
+        sync(() => t.equal(ps, [], "exited after the expected number of iterations"))
+    );
+});
+
+test("Repeat and reverse", t => {
+    run(new Fiber().
+        sync(nop).reverse((fiber, scheduler) => {
+            t.same(fiber.now, 0, "fiber time went back to 0");
+            t.same(scheduler.now, 888, "repeats were undone");
+        }).
+        repeat(fiber => fiber.ramp(111), {
+            repeatShouldEnd: n => n === 4
+        }).
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
     );
 });
