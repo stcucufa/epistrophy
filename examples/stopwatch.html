@@ -12,38 +12,31 @@ const scheduler = new Scheduler();
 scheduler.clock.start();
 scheduler.scheduleFiber(new Fiber().
     sync((fiber, scheduler) => {
-        fiber.value = {
-            range: document.querySelector("input"),
-            button: document.querySelector("button"),
-            progress: document.querySelector("progress")
-        };
+        fiber.scope.range = document.querySelector("input");
+        fiber.scope.button = document.querySelector("button");
+        fiber.scope.progress = document.querySelector("progress");
         scheduler.setFiberRate(fiber, 1e-3);
     }).
     repeat(fiber => fiber.
-        async(fiber => new Promise(resolve => {
-            fiber.eventHandler = resolve;
-            fiber.parent.value.button.addEventListener("click", resolve);
+        async(({ scope }) => new Promise(resolve => {
+            scope.eventHandler = resolve;
+            scope.button.addEventListener("click", resolve);
         }), {
-            asyncWillEnd(_, fiber) {
-                fiber.parent.value.button.removeEventListener("click", fiber.eventHandler);
-                delete fiber.eventHandler;
-            }
+            asyncWillEnd: (_, { scope }) => { scope.button.removeEventListener("click", scope.eventHandler); }
         }).
-        sync(({ parent: { value: { range, button, progress } } }) => { button.disabled = true; }).
+        sync(({ scope: { button } }) => { button.disabled = true; }).
         ramp(
-            ({ parent: { value: { range } } }) => range.value,
+            ({ scope: { range } }) => range.value,
             (p, fiber) => {
-                const { progress, range } = fiber.parent.value;
+                const { progress, range } = fiber.scope;
                 progress.max = range.value;
                 progress.value = p * progress.max;
                 scheduler.setRampDurationForFiber(fiber, range.value);
             }
         ).
         ramp(0.333).
-        ramp(0.111, (p, { parent: { value: { progress } } }) => { progress.value = (1 - p) * progress.max; }).
-        sync(({ parent: { value: { range, button } } }) => {
-            button.disabled = false;
-        })
+        ramp(0.111, (p, { scope: { progress } }) => { progress.value = (1 - p) * progress.max; }).
+        sync(({ scope: { range, button } }) => { button.disabled = false; })
     )
 );
 

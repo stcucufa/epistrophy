@@ -1034,3 +1034,26 @@ test("Update ramp (from finite to indefinite)", t => {
     scheduler.clock.now = 1444;
     t.equal(ps, [], "ramp went through all updates");
 });
+
+// 4Q05 Core: scope
+
+test("Fiber.scope", t => {
+    run(new Fiber().
+        sync(fiber => { fiber.scope.value = 17; }).
+        sync(fiber => { t.same(fiber.scope.value, 17, "is created at runtime"); })
+    );
+});
+
+test("Scope inheritance", t => {
+    run(new Fiber().
+        sync(({ scope }) => { scope.value = 17; }).
+        spawn(fiber => fiber.
+            sync(({ scope }) => {
+                t.same(scope.value, 17, "child fiber inherits scope");
+                scope.value = 37;
+            })
+        ).
+        join({ childFiberDidJoin: (({ parent, scope }) => { parent.scope.value += scope.value }) }).
+        sync(({ scope }) => { t.same(scope.value, 54, "updated value with child value"); })
+    );
+});
