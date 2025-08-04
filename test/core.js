@@ -902,6 +902,24 @@ test("Repeat and reverse", t => {
     );
 });
 
+test("Nesting repeats", t => {
+    run(new Fiber().
+        sync(({ scope }) => { scope.value = ""; }).
+        repeat(fiber => fiber.
+            repeat(fiber => fiber.
+                sync(({ scope }) => { scope.value += "*"; }), {
+                    repeatShouldEnd: n => n === 4,
+                    childFiberDidJoin: ({ parent, scope }) => { parent.scope.value = scope.value; }
+                }
+            ), {
+                repeatShouldEnd: n => n === 3,
+                childFiberDidJoin: ({ parent, scope }) => { parent.scope.value = scope.value; }
+            }
+        ).
+        sync(({ scope }) => { t.same(scope.value, "************", "3×4 repeats"); })
+    );
+});
+
 // 4N01 Core: update ramp duration
 
 test("No change in ramp duration", t => {
