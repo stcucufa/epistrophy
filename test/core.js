@@ -1075,3 +1075,28 @@ test("Scope inheritance", t => {
         sync(({ scope }) => { t.same(scope.value, 54, "updated value with child value"); })
     );
 });
+
+// 4Q03 Core: cancel fiber
+
+test("Cancel ramp", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.ramp(222)).
+        spawn(fiber => fiber.
+            sync(nop).reverse((fiber, scheduler) => {
+                t.same(fiber.now, 0, "cancelled ramp went back to the beginning");
+                t.same(scheduler.now, 444, "in the expected amount of time");
+            }).
+            ramp(777)
+        ).
+        join({
+            childFiberDidJoin(child, scheduler) {
+                for (const sibling of child.parent.children) {
+                    if (!(Object.hasOwn(sibling, "observedEnd"))) {
+                        scheduler.cancelFiber(sibling);
+                    }
+                }
+            }
+        }).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+    );
+});
