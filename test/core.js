@@ -1109,7 +1109,9 @@ test("Cancel async", async t => {
             t.same(fiber.error, Fiber.Cancelled, "fiber was cancelled");
             t.same(fiber.now, 17, "at the expected time");
             resolve();
-        }, 31); }))).
+        }, 31); }), {
+            asyncWillEnd() { t.fail("async delegate method should not be called"); }
+        })).
         join({
             childFiberDidJoin(child, scheduler) {
                 for (const sibling of child.parent.children) {
