@@ -1101,3 +1101,25 @@ test("Cancel ramp", t => {
     scheduler.clock.now = Infinity;
     t.equal(ps, [], "ramp went through all updates");
 });
+
+test("Cancel async", async t => {
+    return runAsync(new Fiber().
+        spawn(fiber => fiber.ramp(17)).
+        spawn(fiber => fiber.async((fiber, scheduler) => new Promise(resolve => { window.setTimeout(() => {
+            t.same(fiber.error, Fiber.Cancelled, "fiber was cancelled");
+            t.same(fiber.now, 17, "at the expected time");
+            resolve();
+        }, 31); }))).
+        join({
+            childFiberDidJoin(child, scheduler) {
+                for (const sibling of child.parent.children) {
+                    if (!(Object.hasOwn(sibling, "observedEnd"))) {
+                        scheduler.cancelFiber(sibling);
+                    }
+                }
+            }
+        }).
+        ramp(29).
+        sync(fiber => { t.same(fiber.now, 46, "fiber ended with first child"); })
+    );
+});

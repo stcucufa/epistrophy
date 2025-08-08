@@ -6,11 +6,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { fiber, First } from "../lib/prelude.js";
+import { run, First } from "../lib/prelude.js";
 
 const getCountFromChildFiber = child => { child.parent.scope.count = child.scope.count; };
 
-fiber().
+run().
     sync(({ scope }) => {
         scope.span = document.querySelector("span");
         const [minus, plus] = document.querySelectorAll("button");
