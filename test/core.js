@@ -1079,15 +1079,12 @@ test("Scope inheritance", t => {
 // 4Q03 Core: cancel fiber
 
 test("Cancel ramp", t => {
-    run(new Fiber().
-        spawn(fiber => fiber.ramp(222)).
-        spawn(fiber => fiber.
-            sync(nop).reverse((fiber, scheduler) => {
-                t.same(fiber.now, 0, "cancelled ramp went back to the beginning");
-                t.same(scheduler.now, 444, "in the expected amount of time");
-            }).
-            ramp(777)
-        ).
+    const ps = [[0, 0, 0], [0.125, 111, 111], [0.625, 555, 555], [0.125, 111, 999], [0, 0, 1110]];
+    const scheduler = run(new Fiber().
+        spawn(fiber => fiber.ramp(555)).
+        spawn(fiber => fiber.ramp(888, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p}/${fiber.now})`);
+        })).
         join({
             childFiberDidJoin(child, scheduler) {
                 for (const sibling of child.parent.children) {
@@ -1097,6 +1094,10 @@ test("Cancel ramp", t => {
                 }
             }
         }).
-        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); }),
+        111
     );
+    scheduler.clock.now = 999;
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
 });
