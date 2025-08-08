@@ -1123,3 +1123,20 @@ test("Cancel async", async t => {
         sync(fiber => { t.same(fiber.now, 46, "fiber ended with first child"); })
     );
 });
+
+test("Cancel and ever", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.ramp(111)).
+        spawn(fiber => fiber.ever(fiber => fiber.ramp(444))).
+        join({
+            childFiberDidJoin(child, scheduler) {
+                for (const sibling of child.parent.children) {
+                    if (!(Object.hasOwn(sibling, "observedEnd"))) {
+                        scheduler.cancelFiber(sibling);
+                    }
+                }
+            }
+        }).
+        sync(fiber => { t.same(fiber.now, 444, "cancelled child still finished its ramp"); })
+    );
+});
