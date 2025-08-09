@@ -6,7 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { run, First } from "../lib/prelude.js";
+import { run, cancelSiblings } from "../lib/prelude.js";
 
 const getCountFromChildFiber = child => { child.parent.scope.count = child.scope.count; };
 
@@ -30,7 +30,7 @@ run().
         ).
         join({
             childFiberDidJoin(child, scheduler) {
-                First.childFiberDidJoin.call(this, child, scheduler);
+                cancelSiblings(child, scheduler);
                 getCountFromChildFiber(child);
             }
         }),

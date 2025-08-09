@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>ABRO example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <style>
+
+span.O.on {
+    background-color: lime;
+}
+
+        </style>
+        <script type="module">
+import { run, First } from "../lib/prelude.js";
+
+const [A, B, C, R] = document.querySelectorAll("button");
+const O = document.querySelector("span.O");
+
+run().repeat(fiber => fiber.
+    spawn(fiber => fiber.
+        spawn(fiber => fiber.event(A, "click").sync(() => { A.disabled = true; })).
+        spawn(fiber => fiber.event(B, "click").sync(() => { B.disabled = true; })).
+        spawn(fiber => fiber.event(C, "click").sync(() => { C.disabled = true; })).
+        join().
+        sync(() => { O.classList.add("on"); }).
+        ramp(Infinity)
+    ).
+    spawn(fiber => fiber.event(R, "click")).
+    join(First).
+    sync(() => {
+        A.disabled = false;
+        B.disabled = false;
+        C.disabled = false;
+        O.classList.remove("on");
+    })
+);
+        </script>
+    </head>
+    <body>
+        <h1>ABRO example</h1>
+        <p class="example">
+            <button type="button">A</button>
+            <button type="button">B</button>
+            <button type="button">C</button>
+            <button type="button">R</button>
+            <span class="O">O</span>
+        </p>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>
