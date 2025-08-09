@@ -762,9 +762,14 @@ test("Scheduler.attachFiber(fiber, child?) spawns a fiber dynamically", t => {
         sync((fiber, scheduler) => {
             scheduler.attachFiber(fiber).
                 sync(fiber => {
-                    t.equal(fiber.parent.children, [fiber], `spanwed fiber ${fiber.id} child of parent ${fiber.parent.id}`);
+                    t.equal(
+                        fiber.parent.children,
+                        [fiber],
+                        `spawned fiber #${fiber.id}, child of parent #${fiber.parent.id}`
+                    );
                 })
-        })
+        }).
+        join()
     );
 });
 
