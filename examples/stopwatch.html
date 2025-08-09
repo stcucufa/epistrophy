@@ -6,7 +6,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { Scheduler, Fiber } from "../lib/core.js";
+import Fiber from "../lib/fiber.js";
+import Scheduler from "../lib/scheduler.js";
 
 const scheduler = new Scheduler();
 scheduler.clock.start();
