@@ -1075,3 +1075,70 @@ test("Scope inheritance", t => {
         sync(({ scope }) => { t.same(scope.value, 54, "updated value with child value"); })
     );
 });
+
+// 4Q03 Core: cancel fiber
+
+test("Cancel ramp", t => {
+    const ps = [[0, 0, 0], [0.125, 111, 111], [0.625, 555, 555], [0.125, 111, 999], [0, 0, 1110]];
+    const scheduler = run(new Fiber().
+        spawn(fiber => fiber.ramp(555)).
+        spawn(fiber => fiber.ramp(888, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress (${p}/${fiber.now})`);
+        })).
+        join({
+            childFiberDidJoin(child, scheduler) {
+                for (const sibling of child.parent.children) {
+                    if (!(Object.hasOwn(sibling, "observedEnd"))) {
+                        scheduler.cancelFiber(sibling);
+                    }
+                }
+            }
+        }).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); }),
+        111
+    );
+    scheduler.clock.now = 999;
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
+});
+
+test("Cancel async", async t => {
+    return runAsync(new Fiber().
+        spawn(fiber => fiber.ramp(17)).
+        spawn(fiber => fiber.async((fiber, scheduler) => new Promise(resolve => { window.setTimeout(() => {
+            t.same(fiber.error, Fiber.Cancelled, "fiber was cancelled");
+            t.same(fiber.now, 17, "at the expected time");
+            resolve();
+        }, 31); }), {
+            asyncWillEnd() { t.fail("async delegate method should not be called"); }
+        })).
+        join({
+            childFiberDidJoin(child, scheduler) {
+                for (const sibling of child.parent.children) {
+                    if (!(Object.hasOwn(sibling, "observedEnd"))) {
+                        scheduler.cancelFiber(sibling);
+                    }
+                }
+            }
+        }).
+        ramp(29).
+        sync(fiber => { t.same(fiber.now, 46, "fiber ended with first child"); })
+    );
+});
+
+test("Cancel and ever", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.ramp(111)).
+        spawn(fiber => fiber.ever(fiber => fiber.ramp(444))).
+        join({
+            childFiberDidJoin(child, scheduler) {
+                for (const sibling of child.parent.children) {
+                    if (!(Object.hasOwn(sibling, "observedEnd"))) {
+                        scheduler.cancelFiber(sibling);
+                    }
+                }
+            }
+        }).
+        sync(fiber => { t.same(fiber.now, 444, "cancelled child still finished its ramp"); })
+    );
+});
