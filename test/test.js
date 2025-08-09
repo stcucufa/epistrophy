@@ -1,6 +1,5 @@
 import { K, show, typeOf, isAsync } from "../lib/util.js";
-import Scheduler from "../lib/scheduler.js";
-import Fiber from "../lib/fiber.js";
+import { Scheduler, Fiber } from "../lib/prelude.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
@@ -219,17 +218,17 @@ class Test {
 
 const scheduler = new Scheduler();
 const fiber = new Fiber().
-    exec(() => {
+    sync(({ scope }) => {
         const parentElement = document.querySelector("div.tests") ?? document.body;
         const ol = parentElement.appendChild(document.createElement("ol"));
         if (!isNaN(targetIndex)) {
             ol.setAttribute("start", targetIndex);
         }
         const p = parentElement.appendChild(document.createElement("p"));
-        return summary({ count: 0, fail: 0, skip: 0, ol, p });
+        scope.tests = summary({ count: 0, fail: 0, skip: 0, ol, p });
     }).
     join({
-        childFiberDidEnd({ value: test, parent: { value: tests } }) {
+        childFiberDidJoin({ scope: { test, tests } }) {
             tests.count += 1;
             if (test.skipped) {
                 tests.skip += 1;
@@ -239,10 +238,9 @@ const fiber = new Fiber().
             summary(tests);
         }
     }).
-    effect(({ value: tests }) => { summary(tests, true); });
+    sync(({ scope: { tests } }) => { summary(tests, true); });
 scheduler.clock.start();
-scheduler.resetFiber(fiber);
-scheduler.resumeFiber(fiber);
+scheduler.scheduleFiber(fiber);
 
 // Update the p element with the test summary.
 function summary(tests, done = false) {
@@ -267,11 +265,12 @@ let index = 0;
 export default function test(title, f) {
     index += 1;
     if (isNaN(targetIndex) || index === targetIndex) {
+        const t = new Test(title, index, f);
         scheduler.attachFiber(fiber).
-            exec(K(new Test(title, index, f))).
-            exec(isAsync(f) ?
-                async ({ value: test, parent: { value: { ol } } }) => await test.runAsync(ol) :
-                ({ value: test, parent: { value: { ol } } }) => test.run(ol)
+            sync(({ scope }) => { scope.test = t; }).
+            macro(fiber => isAsync(f) ?
+                fiber.async(async ({ scope }) => { await scope.test.runAsync(scope.tests.ol); }) :
+                fiber.sync(({ scope }) => { scope.test.run(scope.tests.ol); })
             );
     }
 }
