@@ -1151,12 +1151,19 @@ test("Cancel and ever", t => {
 // 4R05 ABRO example
 
 test("Cancelling an infinite ramp", t => {
-    run(new Fiber().
-        spawn(fiber => fiber.ramp(Infinity)).
+    const ps = [[0, 0, 0], [0, 444, 444], [0, 777, 777], [0, 555, 999], [0, 0, 1554]];
+    const scheduler = run(new Fiber().
+        spawn(fiber => fiber.ramp(Infinity, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress [${p}, ${fiber.now}, ${scheduler.now}]`);
+        })).
         spawn(fiber => fiber.ramp(777)).
         join(First).
-        sync(fiber => { t.same(fiber.now, 777, "fiber ends as expected"); })
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); }),
+        444
     );
+    scheduler.clock.now = 999;
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
 });
 
 test("Cancelling a join", t => {
