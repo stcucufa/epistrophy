@@ -1,7 +1,6 @@
 import test from "./test.js";
 import { nop, on } from "../lib/util.js";
-import Fiber from "../lib/fiber.js";
-import Scheduler from "../lib/scheduler.js";
+import { Fiber, Scheduler, First } from "../lib/prelude.js";
 
 // Utility function to run a fiber synchronously.
 function run(fiber, until = Infinity) {
@@ -1146,5 +1145,36 @@ test("Cancel and ever", t => {
             }
         }).
         sync(fiber => { t.same(fiber.now, 444, "cancelled child still finished its ramp"); })
+    );
+});
+
+// 4R05 ABRO example
+
+test("Cancelling an infinite ramp", t => {
+    const ps = [[0, 0, 0], [0, 444, 444], [0, 777, 777], [0, 555, 999], [0, 0, 1554]];
+    const scheduler = run(new Fiber().
+        spawn(fiber => fiber.ramp(Infinity, (p, fiber, scheduler) => {
+            t.equal([p, fiber.now, scheduler.now], ps.shift(), `ramp did progress [${p}, ${fiber.now}, ${scheduler.now}]`);
+        })).
+        spawn(fiber => fiber.ramp(777)).
+        join(First).
+        sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); }),
+        444
+    );
+    scheduler.clock.now = 999;
+    scheduler.clock.now = Infinity;
+    t.equal(ps, [], "ramp went through all updates");
+});
+
+test("Cancelling a join", t => {
+    run(new Fiber().
+        spawn(fiber => fiber.
+            spawn(fiber => fiber.ramp(777)).
+            spawn(fiber => fiber.ramp(888)).
+            join()
+        ).
+        spawn(fiber => fiber.ramp(333)).
+        join(First).
+        sync(fiber => { t.same(fiber.now, 333, "fiber ends as expected"); })
     );
 });

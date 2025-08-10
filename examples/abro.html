@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>ABRO example | Epistrophy</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <style>
+
+span.O {
+    display: inline-block;
+    padding: 0.2em 0.5em;
+    margin-left: 0.5em;
+    border-radius: 0.2em;
+    background-color: var(--picotron-light-yellow);
+}
+
+span.O.on {
+    background-color: var(--picotron-green);
+}
+
+        </style>
+        <script type="module">
+import { run, First } from "../lib/prelude.js";
+
+const [A, B, R] = document.querySelectorAll("button");
+const O = document.querySelector("span.O");
+
+run().repeat(fiber => fiber.
+    spawn(fiber => fiber.
+        spawn(fiber => fiber.event(A, "click").sync(() => { A.disabled = true; })).
+        spawn(fiber => fiber.event(B, "click").sync(() => { B.disabled = true; })).
+        join().
+        sync(() => { O.classList.add("on"); }).
+        ramp(Infinity).
+        ever(fiber => fiber.
+            sync(() => {
+                A.disabled = false;
+                B.disabled = false;
+                O.classList.remove("on");
+            })
+        )
+    ).
+    spawn(fiber => fiber.event(R, "click")).
+    join(First)
+);
+        </script>
+    </head>
+    <body>
+        <h1>ABRO example</h1>
+        <p class="example">
+            <button type="button">A</button>
+            <button type="button">B</button>
+            <button type="button">R</button>
+            <span class="O">O</span>
+        </p>
+        <p>
+            The <a href="https://en.wikipedia.org/wiki/Esterel#Example_(ABRO)">classic example from the synchronous
+            programming language Esterel</a>: O turns on when both A and B have been pressed, in any order; R resets
+            the system. These two behaviours are implemented by the two top-level spawns. The first one is the most
+            complex, as it consists of a sequence of two spawns as well (for buttons A and B) and a join, meaning that
+            the first spawned fiber will progress only when both buttons have been clicked. O will turn on and stay on
+            forever, thanks to the ramp with infinite duration. Clicking R on the other hand will end the second spawned
+            fiber, and because the top-level join uses the First join delegate, it will end as soon as that fiber ends
+            and cancel the other one. Regardless of whether it was waiting for A and/or B to be clicked or waiting forever,
+            cancelling it moves to the ever block at the end which resets A, B and O to their original state.
+        </p>
+        <h2>Source</h2>
+        <pre></pre>
+        <p><a href="index.html">Back</a></p>
+        <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
+    </body>
+</html>
