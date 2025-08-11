@@ -1,31 +1,30 @@
-export const backtick = Symbol.for("`");
+export const Backtick = Symbol.for("Backtick");
+export const Space = Symbol.for("Space");
 
 const Token = {
-    Space: Symbol.for("Space"),
-    OpenBrace: Symbol.for("{"),
-    CloseBrace: Symbol.for("}"),
+    Backtick,
+    Space,
+    OpenBrace: Symbol.for("Opening brace"),
+    CloseBrace: Symbol.for("Closing brace"),
     Attribute: Symbol.for("Attribute"),
     Value: Symbol.for("Value"),
     String: Symbol.for("String"),
-    Backtick: backtick,
     Text: Symbol.for("Text"),
-    OpenCDATA: Symbol.for("{:"),
-    CDATASection: Symbol.for(":}"),
+    OpenCDATA: Symbol.for("Opening CDATA"),
+    CDATASection: Symbol.for("Closing CDATA"),
 };
 
 const State = {
     Begin: Symbol.for("Begin"),
-    Empty: Symbol.for("Empty"),
+    EmptyElement: Symbol.for("Empty element"),
     Attribute: Symbol.for("Attribute"),
-    AttributeCDATA: Symbol.for("Attribute/CDATA"),
+    AttributeCDATA: Symbol.for("Attribute (CDATA)"),
     Name: Symbol.for("Name"),
     Content: Symbol.for("Content"),
-    ContentWithSpace: Symbol.for("Content/space"),
     ContentCDATA: Symbol.for("CDATA"),
-    ContentCDATAWithSpace: Symbol.for("CDATA/space"),
     Unquote: Symbol.for("Unquote"),
     List: Symbol.for("List"),
-    ClosedList: Symbol.for("List/closed"),
+    ClosedList: Symbol.for("List (closed)"),
 };
 
 function addChild(stack) {
@@ -36,23 +35,19 @@ function addChild(stack) {
     stack.at(-1).content.push(child);
 }
 
-function addText(stack, value) {
-    stack.at(-1).content.push(value);
+function addText(stack, ...values) {
+    stack.at(-1).content.push(...values);
 }
 
-function addTextWithSpace(stack, value) {
-    addText(stack, stack.at(-1).content.length === 0 ? value : ` ${value}`);
-}
-
-function attributeName(stack, value) {
+function setAttributeName(stack, value) {
     stack.pendingAttributeName = value;
 }
 
-function newElement(stack) {
+function pushNewElement(stack) {
     stack.push(this.createElement());
 }
 
-function newList(stack) {
+function pushNewList(stack) {
     stack.push([]);
 }
 
@@ -79,75 +74,87 @@ function setAttribute(stack, value) {
 const unescape = x => x.replace(/\\(.)/gs, "$1");
 
 function unquote(value) {
-    const n = this.createElement(Token.Backtick);
+    const n = this.createElement();
+    n.name = Token.Backtick;
     n.content.push(value);
     return n;
 }
 
 const Transitions = {
+
+    // Beginning of the document: expect an element.
     [State.Begin]: {
         [Token.Space]: [State.Begin],
-        [Token.OpenBrace]: [State.Empty, newElement]
+        [Token.OpenBrace]: [State.EmptyElement, pushNewElement]
     },
-    [State.Empty]: {
-        [Token.Space]: [State.Empty],
-        [Token.OpenBrace]: [State.Empty, newElement],
+
+    // Empty element (after the opening brace).
+    [State.EmptyElement]: {
+        [Token.Space]: [State.EmptyElement],
+        [Token.OpenBrace]: [State.EmptyElement, pushNewElement],
         [Token.CloseBrace]: [State.Content, stack => { stack.pop(); }],
         [Token.Value]: [State.Name, (stack, name) => { stack.at(-1).name = name }],
-        [Token.Attribute]: [State.Attribute, attributeName],
+        [Token.Attribute]: [State.Attribute, setAttributeName],
     },
+
     [State.Attribute]: {
         [Token.Space]: [State.Attribute],
         [Token.String]: [State.Name, setAttribute],
         [Token.Value]: [State.Name, setAttribute],
         [Token.OpenCDATA]: [State.AttributeCDATA]
     },
+
     [State.AttributeCDATA]: {
         [Token.CDATASection]: [State.Name, setAttribute]
     },
+
     [State.Name]: {
         [Token.Space]: [State.Name],
-        [Token.OpenBrace]: [State.Empty, newElement],
+        [Token.OpenBrace]: [State.EmptyElement, pushNewElement],
         [Token.CloseBrace]: [State.Content, addChild],
-        [Token.Attribute]: [State.Attribute, attributeName],
+        [Token.Attribute]: [State.Attribute, setAttributeName],
         [Token.Backtick]: [State.Unquote],
         [Token.Text]: [State.Content, addText],
+        [Token.String]: [State.Content, addText],
         [Token.OpenCDATA]: [State.ContentCDATA],
     },
+
     [State.Content]: {
         [Token.Space]: [State.ContentWithSpace],
-        [Token.OpenBrace]: [State.Empty, newElement],
+        [Token.OpenBrace]: [State.EmptyElement, pushNewElement],
         [Token.CloseBrace]: [State.Content, addChild],
         [Token.Backtick]: [State.Unquote],
         [Token.Text]: [State.Content, addText],
         [Token.OpenCDATA]: [State.ContentCDATA],
     },
+
     [State.ContentWithSpace]: {
-        [Token.Space]: [State.ContentWithSpace],
-        [Token.OpenBrace]: [State.Empty, function(stack) {
-            stack.at(-1).content.push(" ");
-            newElement.call(this, stack);
+        [Token.OpenBrace]: [State.EmptyElement, function(stack) {
+            stack.at(-1).content.push(Space);
+            pushNewElement.call(this, stack);
         }],
         [Token.CloseBrace]: [State.Content, addChild],
         [Token.Backtick]: [State.Unquote],
-        [Token.Text]: [State.Content, addTextWithSpace],
-        [Token.OpenCDATA]: [State.ContentCDATAWithSpace],
+        [Token.Text]: [State.Content, (stack, value) => { addText(stack, Space, value); }],
+        [Token.OpenCDATA]: [State.ContentCDATA],
     },
+
     [State.ContentCDATA]: {
         [Token.CDATASection]: [State.Content, addText]
     },
-    [State.ContentCDATAWithSpace]: {
-        [Token.CDATASection]: [State.ContentWithSpace, addTextWithSpace]
-    },
+
     [State.Unquote]: {
-        [Token.OpenBrace]: [State.List, newList],
+        [Token.OpenBrace]: [State.List, pushNewList],
         [Token.Value]: [State.Content, function(stack, value) {
             stack.at(-1).content.push(parseNumber(value) ?? unquote.call(this, value));
         }],
     },
+
+    // Read a list, which may contain numbers, single values, strings, and
+    // other lists.
     [State.List]: {
         [Token.Space]: [State.List],
-        [Token.OpenBrace]: [State.List, newList],
+        [Token.OpenBrace]: [State.List, pushNewList],
         [Token.CloseBrace]: [State.Content, stack => {
             const list = stack.pop();
             const top = stack.at(-1);
@@ -158,9 +165,8 @@ const Transitions = {
                 return State.List;
             }
         }],
-        [Token.Value]: [State.List, (stack, value) => {
-            stack.at(-1).push(parseNumber(value) ?? value);
-        }],
+        [Token.Value]: [State.List, (stack, value) => { stack.at(-1).push(parseNumber(value) ?? value); }],
+        [Token.String]: [State.List, (stack, value) => { stack.at(-1).push(value); }],
     },
 };
 
@@ -170,7 +176,7 @@ class Parser {
     }
 
     createElement(name) {
-        return { document: this.document, name, attributes: {}, content: [] };
+        return { document: this.document, attributes: {}, content: [] };
     }
 
     parse() {
@@ -286,9 +292,7 @@ class Parser {
                             throw Error(`Parse error, line ${this.line}: ill-formed attribute value`);
                         }
                     } else {
-                        const match = this.input.match(
-                            /^([^\\\s\{\}#\u0060]|\\.)+(\s+([^\\\s\{\}#\u0060]|\\.)+)*/s
-                        );
+                        const match = this.input.match(/^([^\\\s\{\}#\u0060]|\\.)+(\s+([^\\\s\{\}#\u0060]|\\.)+)*/s);
                         if (match) {
                             this.input = this.input.substring(match[0].length);
                             this.line += match[0].match(/\n/g)?.length ?? 0;

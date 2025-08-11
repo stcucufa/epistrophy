@@ -1,5 +1,5 @@
 import test from "./test.js";
-import parse from "../dodo/parser.js";
+import parse, { Backtick } from "../dodo/parser.js";
 import run from "../dodo/interpreter.js";
 
 test("parse()", t => {
@@ -89,12 +89,13 @@ test("parse(): content unescaping", t => {
 
 test("parse(): whitespace handling", t => {
     const { root } = parse(`{ p This is a
-        { em paragraph. }
+        { em paragraph }.
     }`);
-    t.same(root.content.length, 3, "content count");
+    t.same(root.content.length, 4, "content count");
     t.same(root.content[0], "This is a", "text");
     t.same(root.content[1], " ", "whitespace");
-    t.equal(root.content[2].content, ["paragraph."], "trimmed text content in child element");
+    t.equal(root.content[2].content, ["paragraph"], "trimmed text content in child element");
+    t.equal(root.content[3], ".", "and at the end");
 });
 
 test("parse(): comments within content", t => {
@@ -115,8 +116,8 @@ test("parse(): unquoting", t => {
 });
 
 test("parse(): unquoting", t => {
-    const { root } = parse("{ f `{ x 2 } }");
-    t.equal(root.content, [["x", 2]], "list");
+    const { root } = parse("{ f `{ x 2 \"x 2\" y } }");
+    t.equal(root.content, [["x", 2, "x 2", "y"]], "list");
 });
 
 test("parse(): mixed content (unquoting)", t => {
@@ -139,13 +140,13 @@ test("parse(): unquoting identifier", t => {
     const { root } = parse("{ f `x }");
     t.same(root.content.length, 1, "one child");
     const x = root.content[0];
-    t.same(x.name, Symbol.for("`"), "unquote special form");
+    t.same(x.name, Backtick, "unquote special form");
     t.equal(x.content, ["x"], "with one argument");
 });
 
 test("parse(): CDATA in content", t => {
-    const { root } = parse("{ p {: { dodo } ::: hello :} }");
-    t.equal(root.content, [" { dodo } ::: hello "], "first child");
+    const { root } = parse("{ p {: { dodo } ::{}: hello :} }");
+    t.equal(root.content, [" { dodo } ::{}: hello "], "first child");
 });
 
 test("parse(): CDATA in content", t => {
@@ -164,6 +165,13 @@ test("parse(): unterminated CDATA", t => {
 
 test("parse(): unexpected CDATA", t => {
     t.throws(() => parse("{ {: no CDATA section for name :} this: does not work }"), "cannot use CDATA for element name");
+});
+
+// 4P08 Dodo: whitespace review
+
+test("Parser: string in content", t => {
+    const { root } = parse(`{ p " Hello, world! " is a string }`);
+    t.equal(root.content, [" Hello, world! ", " ", "is a string"], "is a content element of its own");
 });
 
 // 2K05 Dodo: eval
