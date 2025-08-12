@@ -1221,3 +1221,15 @@ test("Cancelling a paused fiber (sync)", t => {
     scheduler.setFiberRate(pausedFiber, 1);
     scheduler.clock.now = Infinity;
 });
+
+// 4R0C Better events
+
+test("Event", t => {
+    const scheduler = run(new Fiber().
+        event(window, "hello").
+        sync(fiber => t.same(fiber.now, 777, "event occurred")),
+        777
+    );
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
