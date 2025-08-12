@@ -1220,5 +1220,4 @@ test("Cancelling a paused fiber (sync)", t => {
     scheduler.clock.now = 999;
     scheduler.setFiberRate(pausedFiber, 1);
     scheduler.clock.now = Infinity;
-
 });
