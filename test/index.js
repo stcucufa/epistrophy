@@ -1178,3 +1178,46 @@ test("Cancelling a join", t => {
         sync(fiber => { t.same(fiber.now, 333, "fiber ends as expected"); })
     );
 });
+
+// 4R0B Cancel a paused fiber
+
+test("Cancelling a paused fiber (ramp)", t => {
+    let pausedFiber;
+    const scheduler = run(new Fiber().
+        spawn(fiber => fiber.
+            sync(fiber => { pausedFiber = fiber; }).
+            ramp(1111)
+        ).
+        spawn(fiber => fiber.ramp(555)).
+        join(First).
+        sync(fiber => {
+            t.same(fiber.now, 999, "fiber joined after cancelled child was unpaused");
+        }),
+        333
+    );
+    scheduler.setFiberRate(pausedFiber, 0);
+    scheduler.clock.now = 999;
+    scheduler.setFiberRate(pausedFiber, 1);
+    scheduler.clock.now = Infinity;
+});
+
+test("Cancelling a paused fiber (sync)", t => {
+    let pausedFiber;
+    const scheduler = run(new Fiber().
+        spawn(fiber => fiber.
+            sync((fiber, scheduler) => {
+                pausedFiber = fiber;
+                scheduler.setFiberRate(fiber, 0);
+            }).
+            ramp(Infinity)
+        ).
+        spawn(fiber => fiber.ramp(555)).
+        join(First).
+        sync(fiber => {
+            t.same(fiber.now, 999, "fiber joined after cancelled child was unpaused");
+        })
+    );
+    scheduler.clock.now = 999;
+    scheduler.setFiberRate(pausedFiber, 1);
+    scheduler.clock.now = Infinity;
+});
