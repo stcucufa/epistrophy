@@ -1226,6 +1226,25 @@ test("Cancelling a paused fiber (sync)", t => {
 
 // 4R0C Better events
 
+test("asyncWasCancelled delegate method", t => {
+    let fib;
+    const delegate = {
+        asyncWasCancelled(...args) {
+            t.equal(args, [fib, scheduler], "gets called with fiber and scheduler as arguments");
+            t.equal(this, delegate, "and the delegate as this");
+        }
+    };
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        spawn(fiber => fiber.
+            sync(fiber => { fib = fiber; }).
+            async(() => new Promise(resolve => { window.setTimeout(resolve(7777777)); }), delegate)).
+        spawn(fiber => fiber.sync(nop)).
+        join(First)
+    );
+    scheduler.clock.now = Infinity;
+});
+
 test("Event", t => {
     const scheduler = run(new Fiber().
         event(window, "hello").
