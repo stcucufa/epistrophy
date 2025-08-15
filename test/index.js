@@ -455,7 +455,6 @@ test("Reverse async (when done)", async t => new Promise(resolve => {
 }));
 
 test("Reverse async (custom)", async t => new Promise(resolve => {
-    // TODO Fix assertion failure
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         sync(nop).reverse((fiber, scheduler) => {
@@ -463,9 +462,9 @@ test("Reverse async (custom)", async t => new Promise(resolve => {
             t.undefined(fiber.data, "data was removed");
         }).
         async(async fiber => { fiber.response = await fetch("data.json"); }).
-        reverse(fiber => { delete fiber.response; }).
+            reverse(fiber => { delete fiber.response; }).
         async(async fiber => { fiber.data = (await fiber.response.json()).data; }).
-        reverse(fiber => { delete fiber.data; }).
+            reverse(fiber => { delete fiber.data; }).
         sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); });
     scheduler.scheduleFiber(fiber);
     on(scheduler, "update", ({ idle }) => {
