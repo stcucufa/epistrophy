@@ -1,5 +1,5 @@
 import test from "./test.js";
-import { nop, on } from "../lib/util.js";
+import { message, nop, on } from "../lib/util.js";
 import { Fiber, Scheduler, First } from "../lib/prelude.js";
 
 // Utility function to run a fiber synchronously.
@@ -11,12 +11,13 @@ function run(fiber, until = Infinity) {
     return scheduler;
 }
 
-function runWithErrors(t, fiber) {
+function runWithErrors(t, fiber, until = Infinity) {
     const scheduler = new Scheduler();
     t.expectsError = true;
     on(scheduler, "error", () => { t.errors += 1; });
     scheduler.scheduleFiber(fiber);
-    scheduler.clock.now = Infinity;
+    scheduler.clock.now = until;
+    return scheduler;
 }
 
 // Utility function to run a fiber asynchronously until the scheduler becomes
@@ -454,6 +455,7 @@ test("Reverse async (when done)", async t => new Promise(resolve => {
 }));
 
 test("Reverse async (custom)", async t => new Promise(resolve => {
+    // TODO Fix assertion failure
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         sync(nop).reverse((fiber, scheduler) => {
@@ -1219,5 +1221,120 @@ test("Cancelling a paused fiber (sync)", t => {
     );
     scheduler.clock.now = 999;
     scheduler.setFiberRate(pausedFiber, 1);
+    scheduler.clock.now = Infinity;
+});
+
+// 4R0C Better events
+
+test("Event", t => {
+    const scheduler = run(new Fiber().
+        event(window, "hello").
+        sync(fiber => t.same(fiber.now, 777, "event occurred")),
+        777
+    );
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Event: eventShouldBeIgnored delegate method", t => {
+    const delegate = {
+        eventShouldBeIgnored(event, ...args) {
+            if (args[0].now < 888) {
+                t.same(event.type, "hello", "is called with the event as first argument");
+                t.equal(args, [fiber, scheduler], "as well as fiber and scheduler");
+                t.same(this, delegate, "and the delegate as this");
+                return true;
+            }
+        }
+    };
+    const fiber = new Fiber().
+        event(window, "hello", delegate).
+        sync(fiber => t.same(fiber.now, 999, "event finally occurred"));
+    const scheduler = run(fiber, 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = 999;
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Event: eventWasHandled delegate method", t => {
+    const delegate = {
+        eventWasHandled(event, ...args) {
+            t.same(event.type, "hello", "is called with the event as first argument");
+            t.equal(args, [fiber, scheduler], "as well as fiber and scheduler");
+            t.same(this, delegate, "and the delegate as this");
+        }
+    };
+    const fiber = new Fiber().
+        event(window, "hello", delegate);
+    const scheduler = run(fiber, 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Error handling in event handler", t => {
+    const scheduler = runWithErrors(t, new Fiber().
+        event(window, "hello", {
+            eventWasHandled() { throw Error("AUGH"); }
+        }).
+        ever(fiber => fiber.
+            sync(fiber => {
+                t.same(fiber.error.message, "AUGH", "error was caught");
+                t.same(fiber.now, 777, "at expected time");
+            })
+        ),
+        777
+    );
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Event cancellation", t => {
+    const scheduler = run(new Fiber().
+        spawn(fiber => fiber.
+            event(window, "hello").
+            sync(() => { t.fail("event listener should be cancelled"); })
+        ).
+        spawn(fiber => fiber.ramp(444)).
+        join(First).
+        sync(() => { t.same(t.errors, 0, "event listener was cancelled"); }),
+        777
+    );
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
+test("Undo event", t => {
+    t.skip("4S05 Async is a kind of infinite ramp");
+    const fiber = new Fiber().
+        ramp(333).
+        sync(nop).reverse((fiber, scheduler) => {
+            t.same(fiber.now, 333, "event unoccrred");
+            t.same(scheduler.now, 1665, "at the expected time");
+        }).
+        event(window, "hello").
+        sync(fiber => t.same(fiber.now, 777, "event occurred")).
+        ramp(Infinity);
+    const scheduler = run(fiber, 777);
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = 999;
+    scheduler.setFiberRate(fiber, -1);
+    scheduler.clock.now = Infinity;
+});
+
+test("Events are ignored when paused", t => {
+    t.skip("4S05 Async is a kind of infinite ramp");
+    const fiber = new Fiber().
+        event(window, "hello").
+        sync((_, scheduler) => t.same(scheduler.now, 999, "event finally occurred")).
+        sync(fiber => t.same(fiber.now, 444, "event finally occurred"));
+    const scheduler = run(fiber, 333);
+    scheduler.setFiberRate(fiber, 0);
+    scheduler.clock.now = 777;
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = 888;
+    scheduler.setFiberRate(fiber, 1);
+    scheduler.clock.now = 999;
+    window.dispatchEvent(new CustomEvent("hello"));
     scheduler.clock.now = Infinity;
 });
