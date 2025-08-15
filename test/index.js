@@ -11,12 +11,13 @@ function run(fiber, until = Infinity) {
     return scheduler;
 }
 
-function runWithErrors(t, fiber) {
+function runWithErrors(t, fiber, until = Infinity) {
     const scheduler = new Scheduler();
     t.expectsError = true;
     on(scheduler, "error", () => { t.errors += 1; });
     scheduler.scheduleFiber(fiber);
-    scheduler.clock.now = Infinity;
+    scheduler.clock.now = until;
+    return scheduler;
 }
 
 // Utility function to run a fiber asynchronously until the scheduler becomes
@@ -454,6 +455,7 @@ test("Reverse async (when done)", async t => new Promise(resolve => {
 }));
 
 test("Reverse async (custom)", async t => new Promise(resolve => {
+    // TODO Fix assertion failure
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         sync(nop).reverse((fiber, scheduler) => {
@@ -1270,20 +1272,36 @@ test("Event: eventWasHandled delegate method", t => {
     scheduler.clock.now = Infinity;
 });
 
+test("Error handling in event handler", t => {
+    const scheduler = runWithErrors(t, new Fiber().
+        event(window, "hello", {
+            eventWasHandled() { throw Error("AUGH"); }
+        }).
+        ever(fiber => fiber.
+            sync(fiber => {
+                t.same(fiber.error.message, "AUGH", "error was caught");
+                t.same(fiber.now, 777, "at expected time");
+            })
+        ),
+        777
+    );
+    window.dispatchEvent(new CustomEvent("hello"));
+    scheduler.clock.now = Infinity;
+});
+
 test("Event cancellation", t => {
-    t.skip();
     const scheduler = run(new Fiber().
         spawn(fiber => fiber.
             event(window, "hello").
             sync(() => { t.fail("event listener should be cancelled"); })
         ).
         spawn(fiber => fiber.ramp(444)).
-        join(First),
+        join(First).
+        sync(() => { t.same(t.errors, 0, "event listener was cancelled"); }),
         777
     );
     window.dispatchEvent(new CustomEvent("hello"));
     scheduler.clock.now = Infinity;
-    t.pass("event listener was cancelled");
 });
 
 test("Undo event", t => {
