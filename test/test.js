@@ -3,6 +3,17 @@ import { Scheduler, Fiber } from "../lib/prelude.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
+// Turn assertion failures into exceptions.
+
+const assert = console.assert;
+
+console.assert = (...args) => {
+    assert.apply(console, args);
+    if (!args[0]) {
+        throw Error("Assertion Failed");
+    }
+};
+
 // Deep equality test, using special comparisons by type.
 const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(x)]?.(x, y));
 
@@ -72,13 +83,6 @@ class Test {
         this.li = ol.appendChild(document.createElement("li"));
         this.li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
         this.passes = true;
-        const assert = console.assert;
-        console.assert = (...args) => {
-            assert.apply(console, args);
-            if (!args[0]) {
-                this.fail("assertion failed");
-            }
-        };
         const error = console.error;
         this.errors = 0;
         console.error = (...args) => {
@@ -99,7 +103,7 @@ class Test {
                 this.warnings += 1;
             }
         };
-        this.console = { assert, error, warn };
+        this.console = { error, warn };
     }
 
     cleanup() {
