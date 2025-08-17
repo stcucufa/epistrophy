@@ -3,10 +3,8 @@ import { Scheduler, Fiber } from "../lib/prelude.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
-// Turn assertion failures into exceptions.
-
+// FIXME 4L0N Test: assertion failures are contagious
 const assert = console.assert;
-
 console.assert = (...args) => {
     assert.apply(console, args);
     if (!args[0]) {

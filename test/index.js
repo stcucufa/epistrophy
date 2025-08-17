@@ -1118,15 +1118,7 @@ test("Cancel async", async t => {
         }, 31); }), {
             asyncWillEnd() { t.fail("async delegate method should not be called"); }
         })).
-        join({
-            childFiberDidJoin(child, scheduler) {
-                for (const sibling of child.parent.children) {
-                    if (!(Object.hasOwn(sibling, "observedEnd"))) {
-                        scheduler.cancelFiber(sibling);
-                    }
-                }
-            }
-        }).
+        join(First).
         ramp(29).
         sync(fiber => { t.same(fiber.now, 46, "fiber ended with first child"); })
     );
