@@ -553,10 +553,12 @@ test("Multiple errors and recovery", t => {
         ever(fiber => fiber.
             sync(fiber => { t.same(fiber.error.message, "WHOA", "second error (forward)"); }).
             sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
-        ));
+        )
+    );
 });
 
 test("Multiple errors and recovery (async)", async t => {
+    // TODO fix assertion failure
     await runAsyncWithErrors(t, new Fiber().
         sync(nop).reverse((fiber, scheduler) => {
             t.undefined(fiber.error, "no error in the end");
@@ -575,7 +577,8 @@ test("Multiple errors and recovery (async)", async t => {
         ever(fiber => fiber.
             sync(fiber => { t.same(fiber.error.message, "WHOA", "second error (forward)"); }).
             sync((fiber, scheduler) => { scheduler.setFiberRate(fiber, -1); })
-        ));
+        )
+    );
 });
 
 // 4O02 Core: ramps with infinite duration

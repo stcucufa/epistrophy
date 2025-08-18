@@ -77,9 +77,13 @@ class Test {
         throw Error("skipped");
     }
 
-    prepare(ol) {
+    prepare(ol, asyncTest = false) {
         this.li = ol.appendChild(document.createElement("li"));
-        this.li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
+        if (asyncTest) {
+            // FIXME 4S08 Show tests as pending
+            this.li.classList.add("async");
+        }
+        this.li.innerHTML = `<a class="test${asyncTest ? " async" : ""}" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
         this.passes = true;
         const error = console.error;
         this.errors = 0;
@@ -105,6 +109,8 @@ class Test {
     }
 
     cleanup() {
+        // FIXME 4S08 Show tests as pending
+        this.li.classList.remove("async");
         for (const [key, value] of Object.entries(this.console)) {
             console[key] = value;
         }
@@ -131,7 +137,7 @@ class Test {
     }
 
     async runAsync(ol) {
-        this.prepare(ol);
+        this.prepare(ol, true);
         try {
             await this.f(this);
         } catch (error) {
