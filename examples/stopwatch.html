@@ -8,6 +8,7 @@
         <script type="module">
 import Fiber from "../lib/fiber.js";
 import Scheduler from "../lib/scheduler.js";
+import TransportBar from "../lib/transport-bar.js";
 
 const scheduler = new Scheduler();
 scheduler.clock.start();
@@ -40,6 +41,10 @@ scheduler.scheduleFiber(new Fiber().
         sync(({ scope: { range, button } }) => { button.disabled = false; })
     )
 );
+
+const transport = new TransportBar();
+scheduler.scheduleFiber(transport.fiber);
+document.querySelector(".example").appendChild(transport.element);
 
         </script>
     </head>
