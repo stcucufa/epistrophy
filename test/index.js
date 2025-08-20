@@ -1356,3 +1356,21 @@ test("Events are ignored when paused", t => {
     window.dispatchEvent(new CustomEvent("hello"));
     scheduler.clock.now = Infinity;
 });
+
+// 4R09 Transport bar
+
+test("Infinite ramps keep the scheduler updating", async t => new Promise(resolve => {
+    let updated = false;
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().ramp(Infinity));
+    on(scheduler, "update", ({ idle }) => {
+        if (updated) {
+            t.same(idle, false, "scheduler is not idle and was updated");
+            // FIXME Why is this necessary?
+            scheduler.clock.stop();
+            resolve();
+        }
+        updated = true;
+    });
+    scheduler.clock.start();
+}));
