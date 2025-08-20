@@ -1356,3 +1356,45 @@ test("Events are ignored when paused", t => {
     window.dispatchEvent(new CustomEvent("hello"));
     scheduler.clock.now = Infinity;
 });
+
+// 4T01 Prelude: timescale
+
+test("Prelude: timescale (inverse of rate)", t => {
+    run(new Fiber().
+        sync(fiber => { t.same(fiber.rate, 1, "default rate"); }).
+        timescale(1000).
+        sync(fiber => { t.same(fiber.rate, 0.001, "scale(1000) = rate(0.001)"); }).
+        timescale("50ms").
+        sync(fiber => { t.same(fiber.rate, 0.02, `scale("0.5s") = rate(0.02)`); }).
+        timescale(0).
+        sync(fiber => { t.same(fiber.rate, Infinity, `scale(Infinity) = rate(0)`); }).
+        sync(nop).reverse(fiber => { t.same(fiber.rate, -1, "scale(-1) = rate(-1)"); }).
+        timescale(-1)
+    );
+});
+
+test("Prelude: timescale throws on error", t => {
+    t.throws(() => { new Fiber().timescale(NaN); }, "not a number");
+    t.throws(() => { new Fiber().timescale("inf"); }, "cannot parse");
+    t.throws(() => { new Fiber().timescale([1, 2, 3]); }, "really not a number");
+});
+
+test("Prelude: pause (rate 0)", t => {
+    const fiber = new Fiber().
+        ramp(222).
+        pause().
+        sync((fiber, scheduler) => {
+            t.above(scheduler.now, fiber.now, `fiber was paused (${scheduler.now} > ${fiber.now})`);
+        });
+    const scheduler = run(fiber, 777);
+    scheduler.setFiberRate(fiber, 1);
+    scheduler.clock.now = Infinity;
+});
+
+test("Prelude: undo (rate -1)", t => {
+    run(new Fiber().
+        sync(nop).reverse((_, scheduler) => { t.same(scheduler.now, 888, "fiber was undone"); }).
+        ramp(444).
+        undo()
+    );
+});
