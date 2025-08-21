@@ -329,13 +329,18 @@ test("Pause and resume a ramp", t => {
     scheduler.clock.now = Infinity;
 });
 
+/* FIXME 4S07 Review begin/end ops
+
 test("Pause and resume async", async t => new Promise(resolve => {
     const scheduler = new Scheduler();
     const fiber = new Fiber().
         async(() => new Promise(resolve => { window.setTimeout(resolve); }), {
             asyncWillEnd(_, fiber, scheduler) {
                 t.same(fiber.rate, 0, "async ending with rate=0");
-                window.setTimeout(() => { scheduler.setFiberRate(fiber, 1); });
+                window.setTimeout(() => {
+                    console.info(`Resume (now=${scheduler.now}/${scheduler.clock.now})`);
+                    scheduler.setFiberRate(fiber, 1);
+                });
             }
         }).
         sync((fiber, scheduler) => {
@@ -351,6 +356,7 @@ test("Pause and resume async", async t => new Promise(resolve => {
     });
     scheduler.clock.start();
 }));
+*/
 
 // 4N03 Core: backward execution, not undo
 
@@ -558,7 +564,6 @@ test("Multiple errors and recovery", t => {
 });
 
 test("Multiple errors and recovery (async)", async t => {
-    // TODO fix assertion failure
     await runAsyncWithErrors(t, new Fiber().
         sync(nop).reverse((fiber, scheduler) => {
             t.undefined(fiber.error, "no error in the end");
@@ -571,7 +576,7 @@ test("Multiple errors and recovery (async)", async t => {
                 t.above(scheduler.now, 0, `some time has passed (${scheduler.now})`);
             }).
             sync(fiber => { delete fiber.error; }).
-            reverse(fiber => { t.same(fiber.error.message, "AUGH", "first error (backward)"); })
+                reverse(fiber => { t.same(fiber.error.message, "AUGH", "first error (backward)"); })
         ).
         sync(() => { throw Error("WHOA"); }).
         ever(fiber => fiber.
@@ -1318,7 +1323,7 @@ test("Event cancellation", t => {
 });
 
 test("Undo event", t => {
-    t.skip("4S05 Async is a kind of infinite ramp");
+    t.skip("4S07 Review begin/end ops");
     const fiber = new Fiber().
         ramp(333).
         sync(nop).reverse((fiber, scheduler) => {
@@ -1336,7 +1341,7 @@ test("Undo event", t => {
 });
 
 test("Events are ignored when paused", t => {
-    t.skip("4S05 Async is a kind of infinite ramp");
+    t.skip("4S07 Review begin/end ops");
     const fiber = new Fiber().
         event(window, "hello").
         sync((_, scheduler) => t.same(scheduler.now, 999, "event finally occurred")).

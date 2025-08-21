@@ -19,12 +19,7 @@ scheduler.scheduleFiber(new Fiber().
         scheduler.setFiberRate(fiber, 1e-3);
     }).
     repeat(fiber => fiber.
-        async(({ scope }) => new Promise(resolve => {
-            scope.eventHandler = resolve;
-            scope.button.addEventListener("click", resolve);
-        }), {
-            asyncWillEnd: (_, { scope }) => { scope.button.removeEventListener("click", scope.eventHandler); }
-        }).
+        event(({ scope: { button } }) => button, "click").
         sync(({ scope: { button } }) => { button.disabled = true; }).
         ramp(
             ({ scope: { range } }) => range.value,
