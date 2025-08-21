@@ -63,3 +63,8 @@ div.tests span.pending {
 div.tests p.report {
     padding-bottom: 4em;
 }
+
+div.tests li.async a.test {
+    font-style: italic;
+    opacity: 0.5;
+}

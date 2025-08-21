@@ -3,6 +3,15 @@ import { Scheduler, Fiber } from "../lib/prelude.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
+// FIXME 4L0N Test: assertion failures are contagious
+const assert = console.assert;
+console.assert = (...args) => {
+    assert.apply(console, args);
+    if (!args[0]) {
+        throw Error("Assertion Failed");
+    }
+};
+
 // Deep equality test, using special comparisons by type.
 const equal = (x, y) => (x === y) || (typeOf(x) === typeOf(y) && !!Equal[typeOf(x)]?.(x, y));
 
@@ -68,17 +77,14 @@ class Test {
         throw Error("skipped");
     }
 
-    prepare(ol) {
+    prepare(ol, asyncTest = false) {
         this.li = ol.appendChild(document.createElement("li"));
-        this.li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
+        if (asyncTest) {
+            // FIXME 4S08 Show tests as pending
+            this.li.classList.add("async");
+        }
+        this.li.innerHTML = `<a class="test${asyncTest ? " async" : ""}" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
         this.passes = true;
-        const assert = console.assert;
-        console.assert = (...args) => {
-            assert.apply(console, args);
-            if (!args[0]) {
-                this.fail("assertion failed");
-            }
-        };
         const error = console.error;
         this.errors = 0;
         console.error = (...args) => {
@@ -99,10 +105,12 @@ class Test {
                 this.warnings += 1;
             }
         };
-        this.console = { assert, error, warn };
+        this.console = { error, warn };
     }
 
     cleanup() {
+        // FIXME 4S08 Show tests as pending
+        this.li.classList.remove("async");
         for (const [key, value] of Object.entries(this.console)) {
             console[key] = value;
         }
@@ -129,7 +137,7 @@ class Test {
     }
 
     async runAsync(ol) {
-        this.prepare(ol);
+        this.prepare(ol, true);
         try {
             await this.f(this);
         } catch (error) {
