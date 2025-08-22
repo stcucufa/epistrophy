@@ -1,4 +1,4 @@
-import { K, show, typeOf, isAsync } from "../lib/util.js";
+import { K, show, typeOf } from "../lib/util.js";
 import { Scheduler, Fiber } from "../lib/prelude.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
@@ -77,13 +77,9 @@ class Test {
         throw Error("skipped");
     }
 
-    prepare(ol, asyncTest = false) {
+    prepare(ol) {
         this.li = ol.appendChild(document.createElement("li"));
-        if (asyncTest) {
-            // FIXME 4S08 Show tests as pending
-            this.li.classList.add("async");
-        }
-        this.li.innerHTML = `<a class="test${asyncTest ? " async" : ""}" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
+        this.li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
         this.passes = true;
         const error = console.error;
         this.errors = 0;
@@ -109,8 +105,6 @@ class Test {
     }
 
     cleanup() {
-        // FIXME 4S08 Show tests as pending
-        this.li.classList.remove("async");
         for (const [key, value] of Object.entries(this.console)) {
             console[key] = value;
         }
@@ -134,18 +128,6 @@ class Test {
             this.report("error running test", `no exception but got: <em>${error.message ?? error}</em>`);
             this.passes = false;
         }
-    }
-
-    async runAsync(ol) {
-        this.prepare(ol, true);
-        try {
-            await this.f(this);
-        } catch (error) {
-            this.reportTestError(error);
-        } finally {
-            this.cleanup();
-        }
-        return this;
     }
 
     run(ol) {
@@ -276,9 +258,6 @@ export default function test(title, f) {
         const t = new Test(title, index, f);
         scheduler.attachFiber(fiber).
             sync(({ scope }) => { scope.test = t; }).
-            macro(fiber => isAsync(f) ?
-                fiber.async(async ({ scope }) => { await scope.test.runAsync(scope.tests.ol); }) :
-                fiber.sync(({ scope }) => { scope.test.run(scope.tests.ol); })
-            );
+            macro(fiber => fiber.sync(({ scope }) => { scope.test.run(scope.tests.ol); }));
     }
 }
