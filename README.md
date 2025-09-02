@@ -36,7 +36,8 @@ and can help accessibility by giving more control to users.
 
 Clone this repository, then start a web server from the root of the repo
 (_e.g._ by running `python -m http.server 7890`) and visit
-[the examples directory](http://localhost:7890/examples/).
+[the examples directory](http://localhost:7890/examples/). Epistrophy has
+no dependency and requires no build step.
 
 ## An introduction to Epistrophy
 
@@ -46,6 +47,8 @@ O turns on when both A and B buttons have been pressed, in any order; the R
 button resets the system.
 
 ```js
+import { run, First } from "../lib/shell.js";
+
 const [A, B, R] = document.querySelectorAll("button");
 const O = document.querySelector("span.O");
 
@@ -78,56 +81,79 @@ and schedules the main fiber to begin immediately.
 
 Here the main fiber has a single `repeat` instruction, which creates a fiber,
 runs it to completion, then begins the same fiber again immediately. That
-repeated fiber itself spawns two child fibers: the first handles the A and B
-button, while the second simply waits for a click event from the R button. The
-`join` instruction then makes the fiber yield while it waits for these two
-child fibers to end (we will come back to the `First` parameter below). The
+repeated fiber itself spawns two child fibers: the first one handles the A and
+B button, while the second one just waits for a click event from the R button.
+The `join` instruction then makes the fiber _yield_ while it waits for these
+two child fibers to end (we will come back to the `First` parameter below). The
 first child fiber itself spawns two new fibers, one that listens to click
 events from the A button, and one that listens to click events from the B
-button, before waiting for them for end as well.
+button, before waiting for them for end as well with another `join`.
 
 When this program starts running, all these fibers are spawned and start
-running immediately in depth-first order; then they all yield, waiting for
-either an event to occur or their child fibers to end. The `event` instruction
-waits for an event from a target, and ends when that event occurs. So if the
-user presses the A button, the corresponding event instruction will end and the
-scheduler will resume the execution of its fiber. The next instruction is
-`sync`, which executes a function synchronously. In this case, since A was
-pressed, it becomes disabled. A sync instruction ends immediately so the fiber
-keeps executing, but now it reaches its end as there are no more instructions
-to execute. Its parent fiber is notified, but because it has another child that
-has not ended yet, nothing more happens.
+running successively in depth-first order, each eventually yielding in order to
+wait for either an event to occur, or their child fibers to end. The `event`
+instruction waits for an event from a target, and ends when that event occurs.
+If the user presses the A button first, the corresponding `event` instruction
+ends, and the scheduler resumes the execution of its fiber. The next
+instruction is `sync`, which executes a function synchronously, ending as the
+function returns. In this case, after the A button was pressed, it becomes
+disabled, and the fiber keeps executing; but now it reaches its end as there
+are no more instructions to execute. Its parent fiber is notified, but because
+it has another child that has not ended yet, nothing more happens.
 
-If the user then presses the B button, the second event instruction ends and
-the B button gets disabled as well. The fiber ends and notifies its parent.
-Now that both of its children have ended, the parent’s `join` instruction ends
-as well, and execution of the fiber resumes: the O light gets turned on
-synchronously, then the `ramp` instruction begins. A ramp is a delay of a given
-duration that can also execute a callback function at regular intervals; here,
-it does nothing and has an inifinite duration, so that fiber is suspended
-indefinitely.
+If the user presses the B button next, the corresponding `event` instruction
+ends and the B button gets disabled as well. That fiber ends and notifies its
+parent. Now that _both_ of its children have ended, the parent’s `join`
+instruction ends as well, and execution of the fiber resumes: the O light gets
+turned on synchronously, then a `ramp` instruction begins. A ramp is a delay of
+a given duration that can also execute a callback function at regular
+intervals; here, it does nothing and has an inifinite duration, resulting in
+the fiber being suspended indefinitely (leaving the buttons in their disabled
+state, and the O light being on).
 
-If the user then presses the R button, the second fiber in the repeat body ends
-and notifies its parent. This time the `join` instruction as an extra parameter
-(`First`), which is a _join delegate_. Delegates have methods that get called
-when a join begins or when a child fiber ends; in this case, `First` has a
-method that gets called when the first child ends and then _cancels_ all the
-other siblings. In this case, this means that the sibling fiber that was
-suspended indefinitely gets cancelled.
+Once the user presses the R button, the second fiber in the repeat body ends
+and notifies its parent. This time, the `join` instruction has an extra
+parameter (`First`), which is a _join delegate_. Delegates have methods that
+get called when a join begins or when a child fiber ends; `First` is a common
+delegate that has a method that gets called when the first child ends and then
+_cancels_ all the remaining siblings. In this case, this means that the sibling
+fiber that was suspended indefinitely gets cancelled.
 
-Cancellation is a kind of error. Since fibers can run arbitrary computations,
-errors may occur. When an error occurs, the fiber is in an error state and
-resumes execution, but instructions are skipped if the fiber is in error, which
-results in fibers ending immediately on error. However, it is possible to
-ensure that an instruction (or a sequence of instructions) runs even when the
-fiber has an error by wrapping it in `ever`, which is a mechanism for error
-recovery (sort of similar to a `finally` block after a try).
+Cancellation is a kind of _error_. Since fibers can run arbitrary computations,
+errors may occur during execution. The fiber then enters an error state and
+resumes execution, except that instructions are skipped when the fiber is in
+error; this results in fibers ending immediately on error by default. However,
+it is possible to ensure that an instruction (or a sequence of instructions)
+still runs even when the fiber has an error by wrapping it in `ever`, which is
+a mechanism for error recovery (sort of similar to a `finally` block after a
+try).
 
 When the suspended fiber gets cancelled, this means that its error is set to a
 Cancel error, so execution resumes, effectively ending the infinite ramp. The
 next instruction is indeed wrapped in `ever` so it does run normally; its
-effect is to restore the the initial state of the A, B and O elements. Then the
+effect is to restore the initial state of the A, B and O elements. Then the
 fiber ends and the parent is notified; the `join(First)` instruction ends as
 well, and that fiber ends. Because it is wrapped in a `repeat` instruction,
-it immediately begins again, setting up event listeners for A, B, and R and
-waiting for clicks on this buttons to resume execution.
+it immediately begins again, setting up event listeners for A, B, and R again
+and waiting for clicks on this buttons to resume execution.
+
+In the second iteration, let’s say that the user clicks on B, then A.
+Everything happens in the same way than before because the inner `join`
+instruction waits for the A and B buttons to be pressed in any order. Now in
+the third iteration, the user presses A, then R. Pressing R results in the
+fiber waiting for A and B to be cancelled; since only A was pressed, it is
+still waiting on the `join` to end, with one child fiber still waiting for a
+click event on B. Cancellation propagates to child fibers, so that fiber gets
+cancelled as well; the B button does not get disabled, and the fiber ends as
+well as its parent, which still runs the last `sync` instruction to reset the
+state of the A button.
+
+The structure of the Epistrophy program is very similar to that of the Esterel
+program, but less succinct and more complex; more imperative. There are two
+reasons to that: first, it does more than Esterel, which only handles signals
+(the `sync` instructions have no equivalent in the Esterel program); second,
+Epistrophy works at a much lower level than Esterel, so a construct like
+`[await A || await B]` requires spawning two fibers, setting up event
+listeners, and joining. The solution to both of these problems is higher-level
+timing and synchrnonization constructs that will enhance the expressivity of
+Epistrophy, and which are under active development.
