@@ -20,7 +20,7 @@ adding an explicit hierarchy of tasks running concurrently.
 
 This approach benefits both developers and end users. Time can be freely
 manipulated through the runtime clock, so that a program can be paused, run
-slower, faster, or even backward. This is achieved by having the scheduler keep
+slower, faster, or even backward. This is achieved by having a scheduler keep
 track not only of the times at which a fiber resumes execution, but also
 keeping track of when a fiber _was_ previously resumed; and by providing
 primitives for pure, instantaneous computations (that have no side effect and
@@ -36,197 +36,124 @@ and can help accessibility by giving more control to users.
 
 Clone this repository, then start a web server from the root of the repo
 (_e.g._ by running `python -m http.server 7890`) and visit
-[the examples directory](http://localhost:7890/examples/). If you are curious,
-you can also [run the test suite](http://localhost:7890/test/).
+[the examples directory](http://localhost:7890/examples/). Epistrophy has
+no dependency and requires no build step.
 
 ## An introduction to Epistrophy
 
-This project is an effort to build a synchronous programming environment in a
-bottom up manner, starting from basic primitives and building layers of
-powerful and expressive abstractions on top. Here is a short example of using
-these low-level primitives to implement a counter, given two HTML elements: a
-`span` that displays the counter value, and a `button` that can be clicked to
-increment it. The complete example is:
+This is a complete Epistrophy program that implements the [classic example from
+the programming language Esterel](https://en.wikipedia.org/wiki/Esterel#Example_(ABRO)):
+O turns on when both A and B buttons have been pressed, in any order; the R
+button resets the system.
 
 ```js
-Scheduler.run().
-    exec(() => 0).
-    repeat(fiber => fiber.
-        effect(({ value: count }) => { span.textContent = count.toString(); }).
-        event(button, "click").
-        exec(({ value: count }) => count + 1)
-    );
+import { run, First } from "../lib/shell.js";
+
+const [A, B, R] = document.querySelectorAll("button");
+const O = document.querySelector("span.O");
+
+run().repeat(fiber => fiber.
+    spawn(fiber => fiber.
+        spawn(fiber => fiber.event(A, "click").sync(() => { A.disabled = true; })).
+        spawn(fiber => fiber.event(B, "click").sync(() => { B.disabled = true; })).
+        join().
+        sync(() => { O.classList.add("on"); }).
+        ramp(Infinity).
+        ever(fiber => fiber.
+            sync(() => {
+                A.disabled = false;
+                B.disabled = false;
+                O.classList.remove("on");
+            })
+        )
+    ).
+    spawn(fiber => fiber.event(R, "click")).
+    join(First)
+);
 ```
 
-Let’s go through it line by line to explain how it works.
+In Epistrophy, all computations are organized in fibers that are run by a
+scheduler. The `run()` function creates both a scheduler and a fiber that can
+act as the main fiber, and returns that fiber. Instructions such as `repeat`,
+`spawn`, `event`, `sync`, `join` or `ramp` are added in sequence to the fibers
+to define their runtime behaviour. `run()` also starts the scheduler’s clock
+and schedules the main fiber to begin immediately.
 
-```js
-Scheduler.run().
-```
+Here the main fiber has a single `repeat` instruction, which creates a fiber,
+runs it to completion, then begins the same fiber again immediately. That
+repeated fiber itself spawns two child fibers: the first one handles the A and
+B button, while the second one just waits for a click event from the R button.
+The `join` instruction then makes the fiber _yield_ while it waits for these
+two child fibers to end (we will come back to the `First` parameter below). The
+first child fiber itself spawns two new fibers, one that listens to click
+events from the A button, and one that listens to click events from the B
+button, before waiting for them for end as well with another `join`.
 
-initializes the runtime by creating a `Scheduler` object that starts running
-immediately, and an initial `Fiber` object. These are the two most important
-objects of Epistrophy: fibers carry values and computations, and the scheduler
-schedules the execution of the fibers in time. `Scheduler.run` returns the fiber
-that it created, and new instructions are added to that fiber.
+When this program starts running, all these fibers are spawned and start
+running successively in depth-first order, each eventually yielding in order to
+wait for either an event to occur, or their child fibers to end. The `event`
+instruction waits for an event from a target, and ends when that event occurs.
+If the user presses the A button first, the corresponding `event` instruction
+ends, and the scheduler resumes the execution of its fiber. The next
+instruction is `sync`, which executes a function synchronously, ending as the
+function returns. In this case, after the A button was pressed, it becomes
+disabled, and the fiber keeps executing; but now it reaches its end as there
+are no more instructions to execute. Its parent fiber is notified, but because
+it has another child that has not ended yet, nothing more happens.
 
-```js
-    exec(() => 0).
-```
+If the user presses the B button next, the corresponding `event` instruction
+ends and the B button gets disabled as well. That fiber ends and notifies its
+parent. Now that _both_ of its children have ended, the parent’s `join`
+instruction ends as well, and execution of the fiber resumes: the O light gets
+turned on synchronously, then a `ramp` instruction begins. A ramp is a delay of
+a given duration that can also execute a callback function at regular
+intervals; here, it does nothing and has an inifinite duration, resulting in
+the fiber being suspended indefinitely (leaving the buttons in their disabled
+state, and the O light being on).
 
-is an instruction that wraps a function and sets the value of the fiber to the
-value returned by that function when it gets executed. Here, the intent is to
-initialize the fiber with the value 0. Calling `exec()` adds an instruction to
-the fiber but does not call the wrapped function; this will only happen when the
-scheduler lets that fiber execute. The fiber itself is returned so that other
-instructions can be added to it.
+Once the user presses the R button, the second fiber in the repeat body ends
+and notifies its parent. This time, the `join` instruction has an extra
+parameter (`First`), which is a _join delegate_. Delegates have methods that
+get called when a join begins or when a child fiber ends; `First` is a common
+delegate that has a method that gets called when the first child ends and then
+_cancels_ all the remaining siblings. In this case, this means that the sibling
+fiber that was suspended indefinitely gets cancelled.
 
-```js
-    repeat(fiber => fiber.
-```
+Cancellation is a kind of _error_. Since fibers can run arbitrary computations,
+errors may occur during execution. The fiber then enters an error state and
+resumes execution, except that instructions are skipped when the fiber is in
+error; this results in fibers ending immediately on error by default. However,
+it is possible to ensure that an instruction (or a sequence of instructions)
+still runs even when the fiber has an error by wrapping it in `ever`, which is
+a mechanism for error recovery (sort of similar to a `finally` block after a
+try).
 
-creates an infinite loop (there are ways to break out of a loop based on
-duration, number of iterations, or some condition being met, but here the
-program will run until the page is closed). The body of the loop is described by
-a function of the fiber that adds more instructions.
+When the suspended fiber gets cancelled, this means that its error is set to a
+Cancel error, so execution resumes, effectively ending the infinite ramp. The
+next instruction is indeed wrapped in `ever` so it does run normally; its
+effect is to restore the initial state of the A, B and O elements. Then the
+fiber ends and the parent is notified; the `join(First)` instruction ends as
+well, and that fiber ends. Because it is wrapped in a `repeat` instruction,
+it immediately begins again, setting up event listeners for A, B, and R again
+and waiting for clicks on this buttons to resume execution.
 
-```js
-        effect(({ value: count }) => { span.textContent = count.toString(); }).
-```
+In the second iteration, let’s say that the user clicks on B, then A.
+Everything happens in the same way than before because the inner `join`
+instruction waits for the A and B buttons to be pressed in any order. Now in
+the third iteration, the user presses A, then R. Pressing R results in the
+fiber waiting for A and B to be cancelled; since only A was pressed, it is
+still waiting on the `join` to end, with one child fiber still waiting for a
+click event on B. Cancellation propagates to child fibers, so that fiber gets
+cancelled as well; the B button does not get disabled, and the fiber ends as
+well as its parent, which still runs the last `sync` instruction to reset the
+state of the A button.
 
-is the first instruction in the loop. It is almost identical to `exec`, with the
-difference that it does not affect the value of the fiber; as its name implies,
-it is only used for the effect(s) of the wrapped function. That function gets
-called with two arguments: the fiber object itself, and the scheduler that is
-running it. Here only the `value` property of the fiber is of interest; as it
-is the value of the counter we give it a more specific name. The effect is to
-set the text content of the `span` element to display the current count on the
-page.
-
-```js
-        event(button, "click").
-```
-
-is next, and suspends execution until a specific event is received. Here, the
-intent is to wait for a `click` event from `button`. Once this event happens,
-execution resumes with the next instruction,
-
-```js
-        exec(({ value: count }) => count + 1)
-```
-
-another instance of `exec`, which increments the fiber’s value, _i.e._ the
-count, by one.
-
-Since the scheduler is running, it will start executing the fiber right away,
-starting from the first instruction. Executing the function wrapped by `exec`,
-the fiber value is set to 0. Then we enter the loop and run the `effect`
-instruction, which sets the content of the `span` to the value of the fiber,
-which is now `0`: this initializes the display of the counter to its initial
-value. Then we wait for a click event from the button.
-
-Waiting means that the scheduler suspends the execution of the fiber, and only
-resumes it once the event happens. Other fibers can get their turn executing
-once a fiber is suspended, but here there is no other fiber so nothing happens
-until the user clicks the button.
-
-Then execution resumes with the next instruction, which sets the value of the
-fiber to its current value plus one; after the first click, the value of the
-fiber changes from 0 to 1. Because the end of the loop is reached, execution
-jumps back to the beginning of the loop and executes the effect, updating the
-display of the counter to 1, and waiting for a new click event from the button.
-This goes on indefinitely, increasing the counter by one on each button click.
-
-This example may seem convoluted, but it introduces some of the main concepts
-of the runtime, like mixing synchronous computations and asynchronous events
-seamlessly, and avoid introducing unnecessary state variables (for instance to
-keep track of the counter value). Let’s make this example more interesting by
-adding a second button to decrement the counter; instead of having a single
-`button` element, we now have an array of two buttons. The first one will
-decrement the value of the counter by one, and the second one will increment
-it by one.
-
-```js
-Scheduler.run().
-    exec(() => 0).
-    repeat(fiber => fiber.
-        effect(({ value: count }) => span.textContent = count.toString()).
-        spawn(fiber => fiber.
-            event(buttons[0], "click").
-            exec(({ value: count }) => count -= 1)
-        ).
-        spawn(fiber => fiber.
-            event(buttons[1], "click").
-            exec(({ value: count }) => count += 1)
-        ).
-        join(First)
-    );
-```
-
-The first few lines are identical but then we reach:
-
-```js
-        spawn(fiber => fiber.
-```
-
-which creates a new child fiber from the main fiber. The instructions that this
-fiber runs are:
-
-```js
-            event(buttons[0], "click").
-            exec(({ value: count }) => count -= 1)
-```
-
-which we now understand as waiting for a click from the first button, then
-decrementing the value of the fiber. Unlike the main fiber, which started with
-no value and was explicitly initialized to zero, this fiber starts with its
-parent value, that is the current value of the counter. This is followed by
-spawning a second child fiber that increments the value when the second button
-is clicked.
-
-These two `spawn`s are followed by:
-
-```js
-        join(First)
-```
-
-which waits until the child fibers end. In its simplest form, `join()` waits for
-all of its children to end before resuming execution. But here this would mean
-that if the user clicked on the “increment” button, they would also have to
-click on the “decrement” button before execution of the main fiber would resume.
-In general, we also want to be able to do something with the values of the child
-fibers, so `join()` accepts a delegate object as its parameter, with a
-`childFiberDidEnd()` method that gets called when a child fiber ends. We see
-a first abstraction built on top of the primitives of the runtime here with the
-call to `First`, which provides a delegate for `join()` that allows the fiber
-to resume as soon as the first of its child fiber ends execution, and cancels
-all the other siblings, and setting the value of the fiber to the end value of
-its child.
-
-When this example runs, the main fiber gets an initial value of 0 as in the
-first example, then spawns two child fibers. These two fibers do not begin
-their execution until the parent yields, which it does when calling `join()`
-(it is thus possible for the parent to *not* call `join()` and keep running,
-letting its children run independently when they get the chance).
-
-Now that the parent fiber is suspended, the scheduler starts executing the
-child fibers in turn. The first one begins with its parent value of 0, and
-immediately yields, waiting for a click event from the first button. The
-scheduler now starts executing the second fiber, which also begins with a value
-of 0, and also yields immediately. All three fibers are now suspended until
-one of the buttons is clicked.
-
-Let’s say that the user eventually clicks on the first button. This causes the
-first child fiber to resume execution, decrementing its value by one, and then
-ending with a value of -1 as it runs out of instructions. Because the fiber has
-a parent that is joining, the scheduler handles the ending of the fiber by
-keeping track of how many children are still running, and calling the relevant
-delegate method. As described above, the `First` delegate handles the first
-fiber ending by cancelling all other fibers, effectively meaning that the
-second child fiber, currently suspended, will not resume. The delegate method
-also sets the parent fiber value to that of the child that just ended, so the
-parent fiber value is now -1. Execution of the parent resumes with this new
-value, and since `join()` was the last instruction in the loop, the loop
-continues from the start, updating the display of the counter value to -1, and
-spawning again two new fibers waiting for button events to increment or
-decrement that new value.
+The structure of the Epistrophy program is very similar to that of the Esterel
+program, but less succinct and more complex; more imperative. There are two
+reasons to that: first, it does more than Esterel, which only handles signals
+(the `sync` instructions have no equivalent in the Esterel program); second,
+Epistrophy works at a much lower level than Esterel, so a construct like
+`[await A || await B]` requires spawning two fibers, setting up event
+listeners, and joining. The solution to both of these problems is higher-level
+timing and synchrnonization constructs that will enhance the expressivity of
+Epistrophy, and which are under active development.

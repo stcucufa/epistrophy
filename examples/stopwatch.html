@@ -6,39 +6,35 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import Fiber from "../lib/fiber.js";
-import Scheduler from "../lib/scheduler.js";
+import { Fiber, Scheduler, on } from "../lib/unrated.js";
 
 const scheduler = new Scheduler();
 scheduler.clock.start();
+on(scheduler, "error", ({ error }) => { console.error(error); });
+
 scheduler.scheduleFiber(new Fiber().
     sync((fiber, scheduler) => {
         fiber.scope.range = document.querySelector("input");
         fiber.scope.button = document.querySelector("button");
         fiber.scope.progress = document.querySelector("progress");
-        scheduler.setFiberRate(fiber, 1e-3);
     }).
     repeat(fiber => fiber.
-        async(({ scope }) => new Promise(resolve => {
-            scope.eventHandler = resolve;
-            scope.button.addEventListener("click", resolve);
-        }), {
-            asyncWillEnd: (_, { scope }) => { scope.button.removeEventListener("click", scope.eventHandler); }
-        }).
+        event(({ scope: { button } }) => button, "click").
         sync(({ scope: { button } }) => { button.disabled = true; }).
         ramp(
-            ({ scope: { range } }) => range.value,
+            ({ scope: { range } }) => 1000 * range.value,
             (p, fiber) => {
                 const { progress, range } = fiber.scope;
                 progress.max = range.value;
                 progress.value = p * progress.max;
-                scheduler.setRampDurationForFiber(fiber, range.value);
+                scheduler.setRampDurationForFiber(fiber, 1000 * range.value);
             }
         ).
-        ramp(0.333).
-        ramp(0.111, (p, { scope: { progress } }) => { progress.value = (1 - p) * progress.max; }).
+        ramp(333).
+        ramp(111, (p, { scope: { progress } }) => { progress.value = (1 - p) * progress.max; }).
         sync(({ scope: { range, button } }) => { button.disabled = false; })
-    )
+    ),
+    0
 );
 
         </script>
