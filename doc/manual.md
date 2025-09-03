@@ -181,7 +181,29 @@ current ramp of `fiber` to the new duration `dur` (a number of milliseconds).
 This has no effect if there is no ongoing fiber. If the new duration is shorter
 than the elapsed time of the ramp, it ends immediately.
 
+The scheduler also sends messages during execution:
+
+* `error` is sent when an error occur during execution (such as an exception
+being thrown, or a Promise being rejected). Arguments of the message are
+`target` (the scheduler), `type` (the string `"error"`), `fiber` (the fiber
+instance that is being executed), and `error` (the error object itself).
+* `update` is sent after the scheduler has run all fibers in the interval
+between the last and current clock tick. Arguments of the message are
+`target` (the scheduler), `type` (the string `"update"`), `begin` and `end`
+(the time interval during which fibers did run), and `idle` (true when the
+clock is idle, meaning that no further is currently planned).
+
 ## Shell
 
-* run
-* First and cancelSiblings
+The core of Epistrophy is kept deliberately small in order to manage
+complexity. However, to make it more user-friendly, a _shell_ adds additional
+convenience for useful patterns built on top of the core library.
+
+* `run()` creates a scheduler and a top-level fiber, starts the clock, and
+returns the fiber.
+* `First` is a delegate object that can be used as a parameter for `Fiber.join`
+which cancels all sibling fibers as soon as the fiber child fiber joins.
+* `cancelSiblings(child, scheduler)` is used by the `First` delegate to cancel
+the sibling fibers of the `child` fiber (in the context of `scheduler`). This
+can be used for a join delegate that needs to do more than just cancel these
+fibers.
