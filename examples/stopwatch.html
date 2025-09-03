@@ -6,11 +6,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { Fiber, Scheduler, on } from "../lib/unrated.js";
+import { Fiber, Scheduler } from "../lib/unrated.js";
 
 const scheduler = new Scheduler();
 scheduler.clock.start();
-on(scheduler, "error", ({ error }) => { console.error(error); });
+scheduler.addEventListener("error", ({ detail: { error } }) => { console.error(error.message ?? error); });
 
 scheduler.scheduleFiber(new Fiber().
     sync((fiber, scheduler) => {
