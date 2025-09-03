@@ -1,6 +1,14 @@
 # The Epistrophy manual
 
+Epistrophy has no dependency and no build or installation step. The `lib`
+directory contains all the files needed. The `Fiber` and `Scheduler` objects
+are exported by `lib/unrated.js`, but it is simpler to import `run` from
+`lib/shell.js` instead.
+
 ## Concepts
+
+Epistrophy is a concurrency model implemented as a small DSL (domain-specific
+language) in vanilla JS.
 
 ## Creating and scheduling fibers
 
