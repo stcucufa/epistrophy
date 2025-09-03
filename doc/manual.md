@@ -181,17 +181,19 @@ current ramp of `fiber` to the new duration `dur` (a number of milliseconds).
 This has no effect if there is no ongoing fiber. If the new duration is shorter
 than the elapsed time of the ramp, it ends immediately.
 
-The scheduler also sends messages during execution:
+The scheduler also sends events (using the DOM `CustomEvent` API) during
+execution, which can be listened to with `Scheduler.addEventListener` (as
+`Scheduler` is a DOM `EventTarget`). All events have a `detail` property
+with specific information for the event:
 
 * `error` is sent when an error occur during execution (such as an exception
-being thrown, or a Promise being rejected). Arguments of the message are
-`target` (the scheduler), `type` (the string `"error"`), `fiber` (the fiber
-instance that is being executed), and `error` (the error object itself).
+being thrown, or a Promise being rejected). Details of the event are `fiber`
+(the fiber instance that is being executed), and `error` (the error object
+itself).
 * `update` is sent after the scheduler has run all fibers in the interval
-between the last and current clock tick. Arguments of the message are
-`target` (the scheduler), `type` (the string `"update"`), `begin` and `end`
-(the time interval during which fibers did run), and `idle` (true when the
-clock is idle, meaning that no further is currently planned).
+between the last and current clock tick. Details of the event are `begin` and
+`end` (the time interval during which fibers did run), and `idle` (true when
+the clock is idle, meaning that no further is currently planned).
 
 ## Shell
 
