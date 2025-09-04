@@ -12,7 +12,7 @@ language) in vanilla JS. It introduces a cooperative threading model in which
 sequences of _instructions_ are executed on _fibers_ which can run concurrently
 with the help of a _scheduler_. The model also introduces an abstract _logical
 time_ to make the runtime behaviour of a program more deterministic and
-predictable than when using raw asynchronous primitves and APIs like Promises,
+predictable than using raw asynchronous primitves and APIs like Promises,
 `async/await` or `fetch`: synchronous operations have no duration and all
 happen within the same instant; only delays and asynchronous function calls
 move time forward.
@@ -31,15 +31,16 @@ scheduler.scheduleFiber(fiber, 0);
 scheduler.clock.start();
 ```
 
-The first line creates a new fiber and adds instructions to it (a one second
-delay, followed by a call to `console.log()`). This is the program that will
-run. To run it, we need a Scheduler, then to schedule the fiber we created to
-run as soon as the scheduler starts running. The scheduler is driven by a clock
-which needs to be started, then computes updates at regular intervals, running
-every fiber that is scheduled within that interval (the clock is driven by
+The first threee lines create a new fiber and adds instructions to it (a
+one-second delay, followed by a call to `console.log()`). This is the program
+that will run. To run it, we need a Scheduler, then to schedule the fiber we
+created to run as soon as the scheduler starts running. The scheduler is driven
+by a clock, then computes updates at regular intervals, running every fiber
+that is scheduled within that interval (the clock is driven by
 `requestAnimationFrame()` to make Epistrophy suitable for visual-driven
 applications like complex graphical user interfaces, games, or multimedia
-presentations).
+presentations). The final line starts the clock so that the program actually
+begins.
 
 Epistrophy is built around a minimal core of seven instructions:
 
@@ -48,24 +49,25 @@ Epistrophy is built around a minimal core of seven instructions:
 * _event_ waits until a DOM event is received;
 * _async_ starts an asynchronous function calls and waits until a value or an
 error is returned;
-* _spawn_ begins a new child fiber (with its own sequence of instructions);
+* _spawn_ schedules a new child fiber (with its own sequence of instructions)
+to begin in the same instant;
 * _join_ waits until all spawned children have ended;
 * _repeat_ spawns a new child fiber, waits until it ends, then spawns the
 fiber again.
 
 When a fiber is running, it keeps executing instructions one after the other
-until it reaches the end of the sequence (and ends), or an instruction that
-needs to wait (_ramp_, if the duration is greater than zero; _event_, _async_,
-and _join_, if child fibers have been spawned). In that case, the scheduler
-reschedules the fiber at a definite time (in the case of a ramp), or sets up
-the necessary mechanism (such as an event listener for an event) to schedule
-the fiber again when the condition that it is waiting on is fulfilled.
+until it reaches the end of the sequence (which ends the fiber), or an
+instruction that needs to wait (_ramp_, if the duration is greater than zero;
+_event_, _async_, and _join_, if child fibers have been spawned). In that case,
+the scheduler reschedules the fiber at a definite time (in the case of a ramp),
+or sets up the necessary mechanism (such as an event listener for an event) to
+schedule the fiber again when the condition that it is waiting on is fulfilled.
 
 ## Creating and scheduling fibers
 
 A fiber object is created with `new Fiber()`, which returns a fiber with an
 empty list of instructions. Instructions can then be added with the following
-methods.
+methods. The runtime behaviour of these instructions is detailed below.
 
 `Fiber.sync(f)` adds a `sync` instruction to the fiber and returns the fiber.
 `f` should be a synchronous function of two parameters (a fiber instance and
@@ -83,8 +85,8 @@ the ramp is progressing.
 and returns the fiber. `target` should be an EventTarget object or a function
 of two parameters (a fiber instance and scheduler) that returns an EventTarget
 object, `type` should be a string or a function of two parameters (a fiber
-isntance and scheduler) that returns a string, and `delegate` an optional
-object with methods for customizing event handling (see below).
+instance and scheduler) that returns a string, and `delegate` an optional
+object with methods for customizing event handling.
 
 `Fiber.async(f, delegate)` adds an `async` instruction to the fiber and returns
 the fiber. `f` should be an asynchronous function (or a function returning a
@@ -116,14 +118,14 @@ be a function of one argument that gets called immediately with the fiber.
 
 A fiber needs instructions to run, but also needs to be scheduled. A new
 scheduler is created with `new Scheduler()`, which returns a scheduler object
-with a default clock and an empty schedule.
+with a stopped clock and an empty schedule.
 
 `Scheduler.scheduleFiber(fiber, t)` schedules a new runtime instance of the
 fiber to run at time t (in milliseconds). The original fiber is returned.
 
-`Scheduler.clock` accesses the clock of the scheduler; the main methods of the
-clock are: `Clock.start()` to start the clock, `Clock.stop()` to stop the clock,
-and `Clock.now` to access the current clock time (total running time in
+`Scheduler.clock` returns the scheduler’s clock; the main methods of the clock
+are: `Clock.start()` to start the clock, `Clock.stop()` to stop the clock, and
+`Clock.now` to access the current clock time (total running time in
 milliseconds since the clock started).
 
 ## Runtime
@@ -138,68 +140,75 @@ subsequent instruction is then skipped, unless wrapped inside an `ever` block.
 
 * `sync(f)` calls the function `f` with the current fiber instance and
 scheduler as arguments and resumes execution as soon as `f` returns.
-* `ramp(dur, f)` begins the ramp and yields for `dur` milliseconds. If `dur`
-is a function, it first gets called with the fiber instance and scheduler as
-arguments to get the duration for this specific ramp. If `f` is provided, it
-gets called with a progress value _p_, the fiber instance, and the scheduler
-    * when the ramp begins, with _p_ = 0;
-    * when the ramp ends, with _p_ = 1, unless the duration is infinite (since
-    the ramp then never ends);
-    * on every scheduler update with 0 < _p_ < 1 (if duration is finite) or
-    _p_ = 0 (if the duration is infinite). The _p_ value indicates the
-    ratio of elapsed time to the total duration of the fiber.
+* `ramp(dur, f)` begins the ramp and yields for `dur` milliseconds (unless
+`dur` is zero; `f` still gets called with _p_ = 0 and 1 synchronously before
+execution resumes). If `dur` is a function, it first gets called with the fiber
+instance and scheduler as arguments to get the duration for this specific ramp.
+If `f` is provided, it gets called with a progress value _p_ (the ratio of
+elapsed time to the duration of the ramp), the fiber instance, and the
+scheduler:
+    * once when the ramp begins, with _p_ = 0;
+    * once when the ramp ends, with _p_ = 1, unless the duration is infinite
+    (because the ramp never ends);
+    * zero or more times on every scheduler update, with 0 < _p_ < 1 (if the
+    duration is finite) or _p_ = 0 (if the duration is infinite).
 * `event(target, type, delegate)` sets up an event listener for events of
-`type` on `target` and yields until the event is received. If either is a
+`type` on `target` and yields until an event is received. If either is a
 function, that function gets called with the fiber instance and scheduler as
 arguments to provide the current target and/or type for this specific event
 listener. The following delegate methods, if provided, are called:
-    * `eventShouldBeIgnored`: when the event occurs, this gets called with the
-    event, fiber instance, and scheduler (and the delegate object itself as
-    `this`). If this method returns `true`, then that specific event is ignored
-    and the fiber keeps yielding until another event is received.
-    * `eventWasHandled`: if the event was not ignored, this gets called with
-    the event, fiber instance, and scheduler (and the delegate object itself
-    as `this`), allowing custom handling of the event, such as calling
-    `preventDefault` or accessing properties of the event before the fiber
-    resumes.
+    * `eventShouldBeIgnored(event, fiber, scheduler)`: when the event occurs,
+    this gets called with the event, fiber instance, and scheduler (and the
+    delegate object itself as `this`). If this method returns `true`, then that
+    specific event is ignored and the fiber keeps yielding until another event
+    is received.
+    * `eventWasHandled(event, fiber, scheduler)`: if the event was not ignored,
+    this gets called with the event, fiber instance, and scheduler (and the
+    delegate object itself as `this`), allowing custom handling of the event,
+    such as calling `preventDefault` or accessing properties of the event
+    before the fiber resumes.
 * `async(f, delegate)` calls the function `f` with the current fiber instance
 and scheduler as arguments, and yields until the returned Promise or thenable
 gets resolved or rejected. The following delegate methods, if present, are
 called:
-    * `asyncWillEndWithValue`: when the promise is resolved, this gets called
-    with the eventual value, fiber instance, and scheduler (and the delegate
-    object itself as `this`).
-    * `asyncWillEndWithError`: when the promise is rejected, this gets called
-    with the eventual error, fiber instance, and scheduler (and the delegate
-    object itself as `this`). The fiber `error` property is also set.
-    * `asyncWasCancelled`: if the parent fiber gets cancelled, this gets
-    called with the fiber instance and scheduler (and the delegate object
-    as `this`). Note that the promise may still get resolved or rejected
-    _after_ the fiber was cancelled, but this will not affect the fiber.
-* `spawn` schedules a child fiber to begin as soon as this fiber yields. The
-child instance is added to the `children` property of the parent fiber, while
-the `parent` property of the child instance is set to this fiber instance.
-Note that `spawn` itself does _not_ yield so execution continues before the
-child fiber actually begins.
+    * `asyncWillEndWithValue(value, fiber, scheduler)`: when the promise is
+    resolved, this gets called with the eventual value, fiber instance, and
+    scheduler (and the delegate object itself as `this`).
+    * `asyncWillEndWithError(error, fiber, scheduler)`: when the promise is
+    rejected, this gets called with the eventual error, fiber instance, and
+    scheduler (and the delegate object itself as `this`). The fiber `error`
+    property is also set.
+    * `asyncWasCancelled(fiber, scheduler)`: if the parent fiber gets
+    cancelled, this gets called with the fiber instance and scheduler (and the
+    delegate object as `this`). Note that the promise may still get resolved or
+    rejected _after_ the fiber was cancelled, but this will not affect the
+    fiber.
+* `spawn` schedules a child fiber to begin in the same instant, that is as soon
+as this fiber yields. The child instance is added to the `children` property of
+the parent fiber, while the `parent` property of the child instance is set to
+this fiber instance. Note that `spawn` itself does _not_ yield so execution
+continues before the child fiber actually begins; this allows for more than one
+fiber to be spawned in the same instant (the children then begin in the same
+instant, but in the order in which they were spawned).
 * `join(delegate)` does yield until all fibers in the `children` array have
 ended, after having cleared the `children` property. The following delegate
 methods, if present, are called:
-    * `fiberWillJoin`: when the join begins, before yielding, this gets called
-    with the fiber instance and scheduler as arguments (and the delegate object
-    itself as `this`).
-    * `childFiberDidJoin`: when a child fiber ends, this gets called with the
-    child fiber instance and scheduler as arguments (and the delegate object
-    itself as `this`). Recall that the fiber instance itself is the parent of
-    the child fiber.
+    * `fiberWillJoin(fiber, scheduler)`: when the join begins, before yielding,
+    this gets called with the fiber instance and scheduler as arguments (and
+    the delegate object itself as `this`).
+    * `childFiberDidJoin(child, scheduler)`: when a child fiber ends, this gets
+    called with the child fiber instance and scheduler as arguments (and the
+    delegate object itself as `this`). Recall that the fiber instance itself is
+    the parent of the child fiber.
 * `repeat(delegate)` behaves like a combination of spawn and join for a single
 fiber, but a new instance of the child fiber is spawned immediately after the
 previous instance ends. The same delegate methods as join are called, in
 addition to:
-    * `repeatShouldEnd`: before spawning a new instance of the child fiber,
-    this gets called with the current number of iterations (starting at 0
-    before the first iteration), the fiber instance, and the scheduler (with
-    the delegate itself as `this`). If this method returns true, then no
-    new instance is spawned and the repeat immediately ends.
+    * `repeatShouldEnd(i, fiber, scheduler)`: before spawning a new instance of
+    the child fiber, this gets called with the current number of iterations
+    (starting at 0 before the first iteration begins), the fiber instance, and
+    the scheduler (with the delegate itself as `this`). If this method returns
+    true, then no new instance is spawned and the repeat immediately ends.
 
 At runtime, fiber instances have the following additional properties and
 methods:
@@ -212,14 +221,21 @@ not directly created and scheduled.
 execution; if the fiber has a parent, its scope is created from the parent’s
 scope, otherwise it is initialized as an empty object.
 
-When running, the scheduler provides the following methods that fibers can
+When running, the scheduler provides the following properties that fibers can
 make use of to affect the runtime of the program:
 
+* `Scheduler.now` is the local time of the scheduler, _i.e._, the number of
+milliseconds elapsed since the scheduler started running. This is the global
+instant in which fibers are running. It is only defined during an update
+interval.
 * `Scheduler.attachFiber(fiber, child)` creates and schedule an instance of the
 `child` fiber and adds it as a child of `fiber`. This is the runtime version of
 `Fiber.spawn`.
 * `Scheduler.cancelFiber(fiber)` cancels `fiber` by setting its error to a
-special Cancel error.
+special Cancel error and scheduling the fiber to resume in the current instant
+(unless the current instruction of the fiber is inside an `ever` block, in
+which case the fiber continues running normally). If the fiber is joining,
+child fibers are cancelled as well.
 * `Scheduler.setRampDurationForFiber(fiber, dur)` updates the duration of the
 current ramp of `fiber` to the new duration `dur` (a number of milliseconds).
 This has no effect if there is no ongoing fiber. If the new duration is shorter
@@ -228,16 +244,16 @@ than the elapsed time of the ramp, it ends immediately.
 The scheduler also sends events (using the DOM `CustomEvent` API) during
 execution, which can be listened to with `Scheduler.addEventListener` (as
 `Scheduler` is a DOM `EventTarget`). All events have a `detail` property
-with specific information for the event:
+with specific information about the event:
 
 * `error` is sent when an error occur during execution (such as an exception
 being thrown, or a Promise being rejected). Details of the event are `fiber`
-(the fiber instance that is being executed), and `error` (the error object
+(the fiber instance that is being executed), and `error` (the error value
 itself).
 * `update` is sent after the scheduler has run all fibers in the interval
 between the last and current clock tick. Details of the event are `begin` and
 `end` (the time interval during which fibers did run), and `idle` (true when
-the clock is idle, meaning that no further is currently planned).
+the clock is idle, meaning that no further update is currently planned).
 
 ## Shell
 
