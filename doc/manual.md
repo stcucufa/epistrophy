@@ -5,10 +5,61 @@ directory contains all the files needed. The `Fiber` and `Scheduler` objects
 are exported by `lib/unrated.js`, but it is simpler to import `run` from
 `lib/shell.js` instead.
 
-## Concepts
+## The Epistrophy model
 
 Epistrophy is a concurrency model implemented as a small DSL (domain-specific
-language) in vanilla JS.
+language) in vanilla JS. It introduces a cooperative threading model in which
+sequences of _instructions_ are executed on _fibers_ which can run concurrently
+with the help of a _scheduler_. The model also introduces an abstract _logical
+time_ to make the runtime behaviour of a program more deterministic and
+predictable than when using raw asynchronous primitves and APIs like Promises,
+`async/await` or `fetch`: synchronous operations have no duration and all
+happen within the same instant; only delays and asynchronous function calls
+move time forward.
+
+As a DSL, Epistrophy can be thought of like any other programming language: a
+program (as represented by fibers and their instructions) is first created,
+then executed by the scheduler (by scheduling fibers to run at a certain time).
+Here is a tiny Epistrophy program:
+
+```js
+const fiber = new Fiber().
+    ramp(1000).
+    sync(() => { console.log("Hello, world!"); });
+const scheduler = new Scheduler();
+scheduler.scheduleFiber(fiber, 0);
+scheduler.clock.start();
+```
+
+The first line creates a new fiber and adds instructions to it (a one second
+delay, followed by a call to `console.log()`). This is the program that will
+run. To run it, we need a Scheduler, then to schedule the fiber we created to
+run as soon as the scheduler starts running. The scheduler is driven by a clock
+which needs to be started, then computes updates at regular intervals, running
+every fiber that is scheduled within that interval (the clock is driven by
+`requestAnimationFrame()` to make Epistrophy suitable for visual-driven
+applications like complex graphical user interfaces, games, or multimedia
+presentations).
+
+Epistrophy is built around a minimal core of seven instructions:
+
+* _sync_ runs a synchronous function;
+* _ramp_ waits until some amount of time (given in milliseconds) has elapsed;
+* _event_ waits until a DOM event is received;
+* _async_ starts an asynchronous function calls and waits until a value or an
+error is returned;
+* _spawn_ begins a new child fiber (with its own sequence of instructions);
+* _join_ waits until all spawned children have ended;
+* _repeat_ spawns a new child fiber, waits until it ends, then spawns the
+fiber again.
+
+When a fiber is running, it keeps executing instructions one after the other
+until it reaches the end of the sequence (and ends), or an instruction that
+needs to wait (_ramp_, if the duration is greater than zero; _event_, _async_,
+and _join_, if child fibers have been spawned). In that case, the scheduler
+reschedules the fiber at a definite time (in the case of a ramp), or sets up
+the necessary mechanism (such as an event listener for an event) to schedule
+the fiber again when the condition that it is waiting on is fulfilled.
 
 ## Creating and scheduling fibers
 
@@ -74,21 +125,6 @@ fiber to run at time t (in milliseconds). The original fiber is returned.
 clock are: `Clock.start()` to start the clock, `Clock.stop()` to stop the clock,
 and `Clock.now` to access the current clock time (total running time in
 milliseconds since the clock started).
-
-The typical setup for an Epistrophy program is thus:
-
-```js
-const scheduler = new Scheduler();
-const fiber = scheduler.schedule(
-    new Fiber().
-        sync(...).
-        ramp(...).
-        spawn(...).
-        ...,
-    0
-);
-scheduler.clock.start();
-```
 
 ## Runtime
 
