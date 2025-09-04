@@ -34,10 +34,10 @@ and can help accessibility by giving more control to users.
 
 ## See Epistrophy in action
 
-Clone this repository, then start a web server from the root of the repo
-(_e.g._ by running `python -m http.server 7890`) and visit
-[the examples directory](http://localhost:7890/examples/). Epistrophy has
-no dependency and requires no build step.
+Epistrophy has no dependency and requires no build step. To run locally, clone
+this repository, then start a web server from the root of the repo (_e.g._ by
+running `python -m http.server 7890`) and visit [the examples
+directory](http://localhost:7890/examples/).
 
 ## An introduction to Epistrophy
 
@@ -155,5 +155,5 @@ reasons to that: first, it does more than Esterel, which only handles signals
 Epistrophy works at a much lower level than Esterel, so a construct like
 `[await A || await B]` requires spawning two fibers, setting up event
 listeners, and joining. The solution to both of these problems is higher-level
-timing and synchrnonization constructs that will enhance the expressivity of
+timing and synchronization constructs that will enhance the expressivity of
 Epistrophy, and which are under active development.
