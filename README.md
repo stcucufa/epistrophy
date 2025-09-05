@@ -37,7 +37,8 @@ and can help accessibility by giving more control to users.
 Epistrophy has no dependency and requires no build step. To run locally, clone
 this repository, then start a web server from the root of the repo (_e.g._ by
 running `python -m http.server 7890`) and visit [the examples
-directory](http://localhost:7890/examples/).
+directory](http://localhost:7890/examples/). A [complete manual](doc/manual.md)
+is available in the `doc` directory.
 
 ## An introduction to Epistrophy
 
