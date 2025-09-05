@@ -15,6 +15,7 @@ const loadImage = src => async () => new Promise((resolve, reject) => {
 
 const Width = 800;
 const Height = 600;
+const Lanes =  [50, 200, 350];
 const Danger = [-100, 250];
 const GameDuration = 5000;
 const N = [7, 12];
@@ -25,7 +26,6 @@ function setup() {
     return {
         canvas: document.querySelector("canvas"),
         progress: document.querySelector("progress"),
-        lanes: [50, 200, 350],
         cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }],
         images: {}
     };
@@ -70,12 +70,12 @@ const splash = fiber => fiber.
 
 // Draw loop: on every update, draw the game objects.
 const drawLoop = fiber => fiber.
-    ramp(Infinity, (_, { scope: { canvas, cars, images, lanes } }) => {
+    ramp(Infinity, (_, { scope: { canvas, cars, images } }) => {
         canvas.width = Width;
         canvas.height = Height;
         const context = canvas.getContext("2d");
         for (const car of cars) {
-            context.drawImage(images[car.images[car.frame]], car.x, lanes[car.lane]);
+            context.drawImage(images[car.images[car.frame]], car.x, Lanes[car.lane]);
         }
     });
 
@@ -91,22 +91,20 @@ const animationLoop = fiber => fiber.
         })
     );
 
-// Update the progress bar for the duration of the game.
-const progress = fiber => fiber.
-    ramp(GameDuration, (p, { scope: { progress } }) => { progress.value = p * GameDuration; });
-
-// Controls run for the duration of the game and ends with the
-// checkered flag since the player survived to the end.
+// The player loop (updating the lane of the player car based on keyboard
+// input) runs for the duration of the game and ends with the checkered flag,
+// since the player survived to the end. Crashing will cancel this loop. Update
+// the progress bar as well to show the time remaining.
 const playerLoop = fiber => fiber.
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             event(window, "keydown", {
-                eventWasHandled(event, { scope: { cars: [car], lanes } }) {
+                eventWasHandled(event, { scope: { cars: [car] } }) {
                     if (event.key === "ArrowUp") {
                         car.lane = Math.max(0, car.lane - 1);
                         event.preventDefault();
                     } else if (event.key === "ArrowDown") {
-                        car.lane = Math.min(lanes.length - 1, car.lane + 1);
+                        car.lane = Math.min(Lanes.length - 1, car.lane + 1);
                         event.preventDefault();
                     }
                 }
@@ -114,75 +112,60 @@ const playerLoop = fiber => fiber.
         )
     ).
     spawn(fiber => fiber.
-        ramp(GameDuration).
-        sync(({ scope }) => {
-            scope.cars.length = 1;
-            scope.cars[0].images = ["flag1.png", "flag2.png"];
-            scope.cars[0].x = 200;
-            scope.cars[0].lane = 1;
+        ramp(GameDuration, (p, { scope: { progress } }) => { progress.value = p * GameDuration; }).
+        sync(({ scope: { cars } }) => {
+            cars.length = 1;
+            cars[0].images = ["flag1.png", "flag2.png"];
+            cars[0].x = 200;
+            cars[0].lane = 1;
         })
     ).
     join(First);
+
+// Random integer in the [min, max] range
+const random = (min, max) => min + Math.floor(Math.random() * (1 + max - min));
+
+// Spawn a new fiber for a random number of other cars. Each car begins with a
+// random delay and lane, and moves backward; if it collides with the player,
+// then fiber ends with a crash.
+const otherCars = fiber => {
+    for (let n = random(...N), i = 0; i < n; ++i) {
+        const car = {
+            images: ["gray1.png", "gray2.png"],
+            lane: random(0, Lanes.length - 1),
+            frame: 0,
+            x: Width,
+            v: -50
+        };
+        fiber.spawn(fiber => fiber.
+            ramp(random(0.1 * GameDuration, 0.9 * GameDuration)).
+            sync(({ parent: { scope: { cars } } }) => { cars.push(car); }).
+            repeat(fiber => fiber.
+                ramp(50).
+                sync(() => { car.x += car.v; }),
+                {
+                    repeatShouldEnd: (_, { parent: { scope: { cars: [player] } } }) => car.lane === player.lane &&
+                        car.x > Danger[0] && car.x < Danger[1]
+                }
+            )
+        )
+    }
+    fiber.join(First).sync(({ scope: { cars } }) => {
+        cars.length = 1;
+        cars[0].images = ["crash1.png", "crash2.png"];
+        cars[0].x = 200;
+    });
+}
 
 // Run the game.
 run().
     sync(({ scope }) => { Object.assign(scope, setup()); }).
     macro(loadImages).
     macro(splash).
-
     spawn(drawLoop).
     spawn(animationLoop).
     spawn(fiber => fiber.
-        spawn(progress).
-        spawn(fiber => fiber.macro(playerLoop))
+        spawn(fiber => fiber.macro(playerLoop)).
+        spawn(otherCars).
+        join(First)
     );
-
-    /*
-    spawn(fiber => fiber.
-
-        // Setup other cars: introduce a car after its delay, and setup its
-        // update loop to update position and check for collision with the
-        // player car every 50ms. End when a collision occurs.
-        spawn(fiber => {
-            const n = Math.floor(Math.random() * (N[1] - N[0])) + N[0]
-            for (let i = 0; i < n; ++i) {
-                fiber.spawn(fiber => fiber.
-                    ramp(Math.random() * GameDuration).
-                    sync(({ scope }) => {
-                        scope.car = {
-                            images: ["gray1.png", "gray2.png"],
-                            lane: Math.floor(Math.random() * scope.lanes.length),
-                            frame: 0,
-                            x: Width,
-                            v: -50
-                        };
-                    }).
-                    repeat(fiber => fiber.
-                        ramp(50).
-                        sync(({ scope: { car } }) => { car.x += car.v; }),
-                        {
-                            repeatShouldEnd: (_, { scope: { car, cars } }) => car.x > Danger[0] && car.x < Danger[1] &&
-                                car.lane === cars[0].lane
-                        }
-                    )
-                );
-            }
-            fiber.
-                join({
-                    childFiberDidJoin(child) {
-                        child.parent.scope.cars.push(child.scope.car);
-                    }
-                }).
-                sync(({ scope }) => {
-                    // If a car fiber ended, then there was a crash.
-                    scope.cars.length = 1;
-                    scope.cars[0].images = ["crash1.png", "crash2.png"];
-                    scope.cars[0].x = 200;
-                })
-        }).
-
-
-        join()
-    ).
-
-    */
