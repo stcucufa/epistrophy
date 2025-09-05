@@ -262,10 +262,76 @@ complexity. However, to make it more user-friendly, a _shell_ adds additional
 convenience for useful patterns built on top of the core library.
 
 * `run()` creates a scheduler and a top-level fiber, starts the clock, and
-returns the fiber.
+returns the fiber. Error messages from the scheduler are also logged to the
+console. With this function, the “Hello, world!” program shown above becomes:
+
+```js
+import { run } from "./lib/shell.js";
+run().ramp(1000).sync(() => { console.log("Hello, world!"); });
+```
+
 * `First` is a delegate object that can be used as a parameter for `Fiber.join`
-which cancels all sibling fibers as soon as the fiber child fiber joins.
+which cancels all sibling fibers as soon as the fiber child fiber joins. This
+is a common pattern to handle one of several possible outcomes; for example,
+waiting for a button to be clicked but also setting a timeout for 3 seconds:
+
+```js
+fiber.
+    spawn(fiber => fiber.event(button, "click")).
+    spawn(fiber => fiber.ramp(3000)).
+    join(First);
+```
+
+If the button is clicked before the ramp ends, then the ramp is cancelled; if
+the button is not clicked by the time the click end, then the event listener
+on the button is removed. If no delegate was specified, the behaviour here
+would be to wait _at least_ 3 seconds before continuing, even if the button was
+clicked earlier.
+
 * `cancelSiblings(child, scheduler)` is used by the `First` delegate to cancel
 the sibling fibers of the `child` fiber (in the context of `scheduler`). This
 can be used for a join delegate that needs to do more than just cancel these
-fibers.
+fibers. In the example below, two fibers are spawned for buttons that can
+increment or decrement a counter; the join delegate calls `cancelSiblings` to
+cancel the fiber with the button that was not clicked, but also updates the
+counter value carried by the parent fiber, based on which button was clicked:
+
+```js
+fiber.
+    sync(fiber => { fiber.scope.count = 0; }).
+    repeat(fiber => fiber.
+        spawn(fiber => fiber.
+            event(PlusButton, "click").
+            sync(fiber => { fiber.scope.increment = 1; })
+        ).
+        spawn(fiber => fiber.
+            event(MinusButton, "click").
+            sync(fiber => { fiber.scope.increment = -1; })
+        ).
+        join({
+            childFiberDidJoin(child, scheduler) {
+                cancelSiblings(child, scheduler);
+                child.parent.scope.count += child.scope.increment;
+            }
+        })
+    );
+```
+
+### Fiber utilities
+
+The shell adds convenience methods to fibers:
+
+* `Fiber.macro(f)` calls the function `f` with the fiber as its argument and
+returns the fiber. This allows setting up more complex chains of operations
+in the same manner as adding a single instruction. For example, given a
+`loadImage` function that creates a Promise of a DOM Image for a given URL,
+any number of images can be loaded concurrently from a list of URLs by spawning
+a new fiber for each URL, then joining to wait for all images to be loaded:
+
+```js
+fiber.macro(fiber => {
+    for (const src of ImageURLs) {
+        fiber.spawn(fiber.async(loadImage(src)));
+    }
+}).join();
+```

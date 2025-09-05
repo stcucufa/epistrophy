@@ -32,22 +32,21 @@ run().
                 const image = new Image();
                 image.onload = () => { resolve(image); };
                 image.onerror = () => reject(`Could not load image ${src}`);
-                image.dataset.key = src;
                 image.src = src;
                 if (image.complete) {
                     resolve(image);
                 }
             }), {
                 asyncWillEndWithValue(image, { scope }) {
-                    scope.image = image;
+                    scope.value = [src, image];
                 }
             }
             ));
         }
         fiber.join({
             childFiberDidJoin(child) {
-                const image = child.scope.image;
-                child.parent.scope.images[image.dataset.key] = image;
+                const [src, image] = child.scope.value;
+                child.parent.scope.images[src] = image;
             }
         });
     }).
