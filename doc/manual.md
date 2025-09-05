@@ -23,6 +23,7 @@ then executed by the scheduler (by scheduling fibers to run at a certain time).
 Here is a tiny Epistrophy program:
 
 ```js
+import { Fiber, Scheduler } from "./lib/unrated.js";
 const fiber = new Fiber().
     ramp(1000).
     sync(() => { console.log("Hello, world!"); });
@@ -31,20 +32,20 @@ scheduler.scheduleFiber(fiber, 0);
 scheduler.clock.start();
 ```
 
-The first threee lines create a new fiber and adds instructions to it (a
-one-second delay, followed by a call to `console.log()`). This is the program
-that will run. To run it, we need a Scheduler, then to schedule the fiber we
-created to run as soon as the scheduler starts running. The scheduler is driven
-by a clock, then computes updates at regular intervals, running every fiber
-that is scheduled within that interval (the clock is driven by
-`requestAnimationFrame()` to make Epistrophy suitable for visual-driven
-applications like complex graphical user interfaces, games, or multimedia
-presentations). The final line starts the clock so that the program actually
-begins.
+The first threee lines after the `import` create a new fiber and add
+instructions to it (a one-second delay, followed by a call to `console.log()`).
+This is the program that will run. To run it, we need to create a Scheduler,
+then schedule the fiber we created to run as soon as the scheduler starts
+running. The scheduler is driven by a clock and updates the state of the fibers
+that it manages at regular intervals, running every fiber that is scheduled
+within that interval (the clock is using `requestAnimationFrame()` internally,
+making Epistrophy suitable for visual-driven applications like graphical user
+interfaces, games, or multimedia presentations). The final line starts the
+clock so that the program actually begins.
 
 Epistrophy is built around a minimal core of seven instructions:
 
-* _sync_ runs a synchronous function;
+* _sync_ executes a synchronous function;
 * _ramp_ waits until some amount of time (given in milliseconds) has elapsed;
 * _event_ waits until a DOM event is received;
 * _async_ starts an asynchronous function calls and waits until a value or an
@@ -268,6 +269,15 @@ console. With this function, the “Hello, world!” program shown above becomes
 ```js
 import { run } from "./lib/shell.js";
 run().ramp(1000).sync(() => { console.log("Hello, world!"); });
+```
+
+* `PreventDefault` is a delegate object that calls `preventDefault()` on an
+event that was just handled. For example, to wait for any key to be pressed
+without any other side effect (like scrolling the window if an arrow key is
+pressed):
+
+```js
+fiber.event(window, "keydown", PreventDefault);
 ```
 
 * `First` is a delegate object that can be used as a parameter for `Fiber.join`
