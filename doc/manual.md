@@ -281,9 +281,9 @@ fiber.event(window, "keydown", PreventDefault);
 ```
 
 * `First` is a delegate object that can be used as a parameter for `Fiber.join`
-which cancels all sibling fibers as soon as the fiber child fiber joins. This
-is a common pattern to handle one of several possible outcomes; for example,
-waiting for a button to be clicked but also setting a timeout for 3 seconds:
+which cancels all sibling fibers as soon as the child fiber joins. This is a
+common pattern to handle one of several possible outcomes. For example, waiting
+for a button to be clicked while setting a timeout for 3 seconds:
 
 ```js
 fiber.
