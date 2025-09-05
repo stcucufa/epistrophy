@@ -322,7 +322,7 @@ fiber.
             childFiberDidJoin(child, scheduler) {
                 if (!child.error) {
                     cancelSiblings(child, scheduler);
-                    child.setValue(
+                    child.setOriginalValue(
                         "count",
                         child.scope.count + child.scope.increment
                     );
@@ -332,7 +332,7 @@ fiber.
     );
 ```
 
-See the defition of `ScheduledFiber.setValue()` below.
+See the defition of `ScheduledFiber.setOriginalValue()` below.
 
 ### Fiber utilities
 
@@ -355,8 +355,8 @@ fiber.macro(fiber => {
 
 These additional methods are available at runtime:
 
-* `ScheduledFiber.setValue(name, value)`: sets the value of a property named
-`name` to `value` _in its original scope_, that is, the scope of the fiber
-in which this property was originally defined (see example usage above). If
-this property was not previously defined, then it is set on the fiber’s own
+* `ScheduledFiber.setOriginalValue(name, value)`: sets the value of a property
+named `name` to `value` _in its original scope_, that is, the scope of the
+fiber in which this property was originally defined (see example usage above).
+If this property was not previously defined, then it is set on the fiber’s own
 scope.

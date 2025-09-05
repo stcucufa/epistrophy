@@ -30,7 +30,7 @@ run().
             childFiberDidJoin(child, scheduler) {
                 if (!child.error) {
                     cancelSiblings(child, scheduler);
-                    child.setValue("count", child.scope.count + child.scope.increment);
+                    child.setOriginalValue("count", child.scope.count + child.scope.increment);
                 }
             }
         })
