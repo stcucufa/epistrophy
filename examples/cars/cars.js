@@ -26,7 +26,6 @@ function setup() {
     return {
         canvas: document.querySelector("canvas"),
         progress: document.querySelector("progress"),
-        cars: [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }],
         images: {}
     };
 }
@@ -66,7 +65,8 @@ const splash = fiber => fiber.
         context.fillText("RACE!", Width / 2, Height / 2);
         context.restore();
     }).
-    event(window, "keydown", PreventDefault);
+    event(window, "keydown", PreventDefault).
+    sync(({ scope }) => { scope.cars = [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }]; });
 
 // Draw loop: on every update, draw the game objects.
 const drawLoop = fiber => fiber.
@@ -157,7 +157,8 @@ const otherCars = fiber => {
     });
 }
 
-// Run the game.
+// Run the game once.
+// FIXME 4H0H Restart cars game
 run().
     sync(({ scope }) => { Object.assign(scope, setup()); }).
     macro(loadImages).
