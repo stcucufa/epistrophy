@@ -42,7 +42,7 @@ function loadImages(fiber) {
     fiber.join({
         childFiberDidJoin(child) {
             const [src, image] = child.scope.value;
-            child.parent.scope.images[src] = image;
+            child.scope.images[src] = image;
         }
     });
 }
@@ -139,12 +139,12 @@ const otherCars = fiber => {
         };
         fiber.spawn(fiber => fiber.
             ramp(random(0.1 * GameDuration, 0.9 * GameDuration)).
-            sync(({ parent: { scope: { cars } } }) => { cars.push(car); }).
+            sync(({ scope: { cars } }) => { cars.push(car); }).
             repeat(fiber => fiber.
                 ramp(50).
                 sync(() => { car.x += car.v; }),
                 {
-                    repeatShouldEnd: (_, { parent: { scope: { cars: [player] } } }) => car.lane === player.lane &&
+                    repeatShouldEnd: (_, { scope: { cars: [player] } }) => car.lane === player.lane &&
                         car.x > Danger[0] && car.x < Danger[1]
                 }
             )

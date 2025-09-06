@@ -211,16 +211,16 @@ addition to:
     the scheduler (with the delegate itself as `this`). If this method returns
     true, then no new instance is spawned and the repeat immediately ends.
 
-At runtime, fiber instances have the following additional properties and
-methods:
+At runtime, fiber instances are not `Fiber` objects but rather `ScheduledFiber`
+objects, and have the following additional properties and methods:
 
-* `now` is the local time of the fiber, _i.e._, the number of milliseconds
-elapsed since the fiber first started running.
-* `parent` is the parent fiber, if the fiber was spawned from a fiber, and
-not directly created and scheduled.
-* `scope` is an object that can hold any data that the fiber needs during its
-execution; if the fiber has a parent, its scope is created from the parent’s
-scope, otherwise it is initialized as an empty object.
+* `ScheduledFiber.now` is the local time of the fiber, _i.e._, the number of
+milliseconds elapsed since the fiber first started running.
+* `ScheduledFiber.parent` is the parent fiber, if the fiber was spawned from a
+fiber, and not directly created and scheduled.
+* `ScheduledFiber.scope` is an object that can hold any data that the fiber
+needs during its execution; if the fiber has a parent, its scope is created
+from the parent’s scope, otherwise it is initialized as an empty object.
 
 When running, the scheduler provides the following properties that fibers can
 make use of to affect the runtime of the program:
@@ -320,12 +320,19 @@ fiber.
         ).
         join({
             childFiberDidJoin(child, scheduler) {
-                cancelSiblings(child, scheduler);
-                child.parent.scope.count += child.scope.increment;
+                if (!child.error) {
+                    cancelSiblings(child, scheduler);
+                    child.setOriginalValue(
+                        "count",
+                        child.scope.count + child.scope.increment
+                    );
+                }
             }
         })
     );
 ```
+
+See the defition of `ScheduledFiber.setOriginalValue()` below.
 
 ### Fiber utilities
 
@@ -345,3 +352,11 @@ fiber.macro(fiber => {
     }
 }).join();
 ```
+
+These additional methods are available at runtime:
+
+* `ScheduledFiber.setOriginalValue(name, value)`: sets the value of a property
+named `name` to `value` _in its original scope_, that is, the scope of the
+fiber in which this property was originally defined (see example usage above).
+If this property was not previously defined, then it is set on the fiber’s own
+scope.

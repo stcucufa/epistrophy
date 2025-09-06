@@ -8,8 +8,6 @@
         <script type="module">
 import { run, cancelSiblings } from "../lib/shell.js";
 
-const getCountFromChildFiber = child => { child.parent.scope.count = child.scope.count; };
-
 run().
     sync(({ scope }) => {
         scope.span = document.querySelector("span");
@@ -22,21 +20,20 @@ run().
         sync(({ scope }) => { scope.span.textContent = scope.count.toString(); }).
         spawn(fiber => fiber.
             event(({ scope }) => scope.plus, "click").
-            sync(({ scope }) => { scope.count += 1; })
+            sync(({ scope }) => { scope.increment = 1; })
         ).
         spawn(fiber => fiber.
             event(({ scope }) => scope.minus, "click").
-            sync(({ scope }) => { scope.count -= 1; })
+            sync(({ scope }) => { scope.increment = -1; })
         ).
         join({
             childFiberDidJoin(child, scheduler) {
-                cancelSiblings(child, scheduler);
-                getCountFromChildFiber(child);
+                if (!child.error) {
+                    cancelSiblings(child, scheduler);
+                    child.setOriginalValue("count", child.scope.count + child.scope.increment);
+                }
             }
-        }),
-        {
-            childFiberDidJoin: getCountFromChildFiber
-        }
+        })
     );
         </script>
     </head>
