@@ -1,32 +1,31 @@
 export const Backtick = Symbol.for("Backtick");
 export const Space = Symbol.for("Space");
 
+// Token types.
 const Token = {
     Backtick,
     Space,
     OpenBrace: Symbol.for("Opening brace"),
     CloseBrace: Symbol.for("Closing brace"),
     Attribute: Symbol.for("Attribute"),
-    Value: Symbol.for("Value"),
     String: Symbol.for("String"),
-    Text: Symbol.for("Text"),
-    OpenCDATA: Symbol.for("Opening CDATA"),
-    CDATASection: Symbol.for("Closing CDATA"),
+    Word: Symbol.for("Word"),
 };
 
+// Parser states.
 const State = {
     Begin: Symbol.for("Begin"),
-    EmptyElement: Symbol.for("Empty element"),
+    OpenElement: Symbol.for("Empty element"),
     Attribute: Symbol.for("Attribute"),
-    AttributeCDATA: Symbol.for("Attribute (CDATA)"),
     Name: Symbol.for("Name"),
     Content: Symbol.for("Content"),
-    ContentCDATA: Symbol.for("CDATA"),
     Unquote: Symbol.for("Unquote"),
     List: Symbol.for("List"),
     ClosedList: Symbol.for("List (closed)"),
 };
 
+// Pop the last element from the stack and add it as a child of the element now
+// at the top.
 function addChild(stack) {
     const child = stack.pop();
     if (stack.length === 0) {
@@ -35,22 +34,37 @@ function addChild(stack) {
     stack.at(-1).content.push(child);
 }
 
-function addText(stack, ...values) {
+// Add content as is to the current element (words and space).
+function addContent(stack, ...values) {
     stack.at(-1).content.push(...values);
 }
 
+// Add a String object to the current element (creating a new String object to
+// differentiate from plain text).
+function addString(stack, string) {
+    stack.at(-1).content.push(new String(string));
+}
+
+// Create a pending attribute with a name in the stack; it should be followed
+// by a value so that the attribute can be set for the top element.
 function setAttributeName(stack, value) {
     stack.pendingAttributeName = value;
 }
 
+// Push a new element to the stack.
 function pushNewElement(stack) {
     stack.push(this.createElement());
 }
 
+// Push a new list to the stack.
 function pushNewList(stack) {
     stack.push([]);
 }
 
+// Parse a number. Return nothing if the number is not formatted correctly.
+// FIXME 3I02 Dodo: Binary numbers
+// FIXME 3I03 Dodo: Hexadecimal numbers
+// FIXME 3I04 Dodo: Scientific notation for numbers
 function parseNumber(value) {
     const match = value.match(/^[+-]?\d+(\.\d+)?$/);
     if (match) {
@@ -58,6 +72,8 @@ function parseNumber(value) {
     }
 }
 
+// Set an attribute (which now has a value) on the top element. Use it as a
+// name (default attribute) if the element still does not have one.
 function setAttribute(stack, value) {
     const element = stack.at(-1);
     const name = stack.pendingAttributeName;
@@ -71,8 +87,10 @@ function setAttribute(stack, value) {
 }
 
 // Unescape string content.
+// FIXME 4V04 Dodo: newlines and tabs in strings
 const unescape = x => x.replace(/\\(.)/gs, "$1");
 
+// Create a special unquote element from a backtick.
 function unquote(value) {
     const n = this.createElement();
     n.name = Token.Backtick;
@@ -82,70 +100,59 @@ function unquote(value) {
 
 const Transitions = {
 
-    // Beginning of the document: expect an element.
+    // Beginning of the document: expect an element, skip whitespace until
+    // reaching an opening brace.
     [State.Begin]: {
         [Token.Space]: [State.Begin],
-        [Token.OpenBrace]: [State.EmptyElement, pushNewElement]
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement]
     },
 
-    // Empty element (after the opening brace).
-    [State.EmptyElement]: {
-        [Token.Space]: [State.EmptyElement],
-        [Token.OpenBrace]: [State.EmptyElement, pushNewElement],
-        [Token.CloseBrace]: [State.Content, stack => { stack.pop(); }],
-        [Token.Value]: [State.Name, (stack, name) => { stack.at(-1).name = name }],
+    // Open element: expect a name or attribute after the opening brace, or
+    // another opening brace (anonymous element, without name or attributes).
+    [State.OpenElement]: {
+        [Token.Space]: [State.OpenElement],
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
+        [Token.Word]: [State.ElementAttributes, (stack, name) => { stack.at(-1).name = name }],
         [Token.Attribute]: [State.Attribute, setAttributeName],
     },
 
+    // Reading the attributes of a named element, waiting for content (word,
+    // string, or element).
+    [State.ElementHead]: {
+        [Token.Space]: [State.ElementAttributes],
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
+        [Token.CloseBrace]: [State.ElementContent, addChild],
+        [Token.Attribute]: [State.Attribute, setAttributeName],
+        [Token.Backtick]: [State.Unquote],
+        [Token.String]: [State.ElementContent, addString],
+        [Token.Word]: [State.ElementContent, addContent],
+    },
+
+    // Attribute: an attribute name (with a : suffix) was read, to be followed
+    // by a value for the attribute.
+    // FIXME 2L0M Dodo: more attributes
     [State.Attribute]: {
         [Token.Space]: [State.Attribute],
-        [Token.String]: [State.Name, setAttribute],
-        [Token.Value]: [State.Name, setAttribute],
-        [Token.OpenCDATA]: [State.AttributeCDATA]
+        [Token.String]: [State.ElementAttributes, setAttribute],
+        [Token.Word]: [State.ElementAttributes, setAttribute],
     },
 
-    [State.AttributeCDATA]: {
-        [Token.CDATASection]: [State.Name, setAttribute]
-    },
-
-    [State.Name]: {
-        [Token.Space]: [State.Name],
-        [Token.OpenBrace]: [State.EmptyElement, pushNewElement],
-        [Token.CloseBrace]: [State.Content, addChild],
-        [Token.Attribute]: [State.Attribute, setAttributeName],
-        [Token.Backtick]: [State.Unquote],
-        [Token.Text]: [State.Content, addText],
-        [Token.String]: [State.Content, addText],
-        [Token.OpenCDATA]: [State.ContentCDATA],
-    },
-
-    [State.Content]: {
-        [Token.Space]: [State.ContentWithSpace],
-        [Token.OpenBrace]: [State.EmptyElement, pushNewElement],
+    // Element content: the head is complete, so add content (words, strings,
+    // and other elements).
+    [State.ElementContent]: {
+        [Token.Space]: [State.ElementContent, addContent],
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
         [Token.CloseBrace]: [State.Content, addChild],
         [Token.Backtick]: [State.Unquote],
-        [Token.Text]: [State.Content, addText],
-        [Token.OpenCDATA]: [State.ContentCDATA],
+        [Token.String]: [State.ElementContent, addString],
+        [Token.Word]: [State.ElementContent, addContent],
     },
 
-    [State.ContentWithSpace]: {
-        [Token.OpenBrace]: [State.EmptyElement, function(stack) {
-            stack.at(-1).content.push(Space);
-            pushNewElement.call(this, stack);
-        }],
-        [Token.CloseBrace]: [State.Content, addChild],
-        [Token.Backtick]: [State.Unquote],
-        [Token.Text]: [State.Content, (stack, value) => { addText(stack, Space, value); }],
-        [Token.OpenCDATA]: [State.ContentCDATA],
-    },
-
-    [State.ContentCDATA]: {
-        [Token.CDATASection]: [State.Content, addText]
-    },
-
+    // Unquote attribute value or content. Lists or numbers are treated
+    // specially, otherwise an unquote element is added.
     [State.Unquote]: {
         [Token.OpenBrace]: [State.List, pushNewList],
-        [Token.Value]: [State.Content, function(stack, value) {
+        [Token.Word]: [State.Content, function(stack, value) {
             stack.at(-1).content.push(parseNumber(value) ?? unquote.call(this, value));
         }],
     },
@@ -165,20 +172,26 @@ const Transitions = {
                 return State.List;
             }
         }],
-        [Token.Value]: [State.List, (stack, value) => { stack.at(-1).push(parseNumber(value) ?? value); }],
         [Token.String]: [State.List, (stack, value) => { stack.at(-1).push(value); }],
+        [Token.Word]: [State.List, (stack, value) => { stack.at(-1).push(parseNumber(value) ?? value); }],
     },
 };
 
 class Parser {
+    // Create a parser for a given document (which only has unparsed text so
+    // far).
     constructor(document) {
         this.document = document;
     }
 
+    // Create a new element within the current document.
     createElement(name) {
         return { document: this.document, attributes: {}, content: [] };
     }
 
+    // Parse the input text into a tree, keeping a stack of currently open
+    // elements. Follow the parser state machine transitions for each
+    // subsequent token, updating the stack along the way.
     parse() {
         this.input = this.document.text;
         this.state = State.Begin;
@@ -214,25 +227,16 @@ class Parser {
         return this.document;
     }
 
+    // Generate tokens from the input text.
     *tokens() {
         while (this.input.length > 0) {
             const transitions = Transitions[this.state];
-
-            if (Object.hasOwn(transitions, Token.CDATASection)) {
-                const match = this.input.match(/^((?:[^:]|:[^}])*):}/);
-                if (!match) {
-                    throw Error(`Unterminated CDATA section starting at ${this.line}: "${this.input}"`);
-                }
-                this.line += match[0].match(/\n/g)?.length ?? 0;
-                this.input = this.input.substring(match[0].length);
-                yield [Token.CDATASection, match[1]];
-            }
 
             const match = this.input.match(/^\s+/);
             if (match) {
                 this.line += match[0].match(/\n/g)?.length ?? 0;
                 this.input = this.input.substring(match[0].length);
-                yield [Token.Space, match[0]];
+                yield [Token.Space];
                 continue;
             }
 
@@ -240,40 +244,44 @@ class Parser {
                 case "#":
                     this.input = this.input.replace(/.*\n/, "");
                     this.line += 1;
+                    yield [Token.Space];
                     break;
                 case "{":
-                    if (this.input[1] === ":") {
-                        this.input = this.input.substring(2);
-                        yield [Token.OpenCDATA];
-                    } else {
-                        this.input = this.input.substring(1);
-                        yield [Token.OpenBrace];
-                    }
+                    this.input = this.input.substring(1);
+                    yield [Token.OpenBrace];
                     break;
                 case "}":
                     this.input = this.input.substring(1);
                     yield [Token.CloseBrace];
                     break;
                 default:
-                    if (Object.hasOwn(transitions, Token.Backtick)) {
-                        const match = this.input.match(/^\u0060\S/);
-                        if (match) {
-                            this.input = this.input.substring(1);
-                            yield [Token.Backtick];
-                            break;
-                        }
+                    // Unquote (`foo); \u0060 = `
+                    let match = this.input.match(/^\u0060\S/);
+                    if (match) {
+                        this.input = this.input.substring(1);
+                        yield [Token.Backtick];
+                        break;
                     }
-                    if (Object.hasOwn(transitions, Token.String)) {
-                        const match = this.input.match(/^"((?:[^"\\]|\\.)*)"/);
-                        if (match) {
-                            this.input = this.input.substring(match[0].length);
-                            this.line += match[0].match(/\n/g)?.length ?? 0;
-                            yield [Token.String, unescape(match[1])];
-                            break;
-                        }
+                    // String ("Hello, world!"); \u0022 = "
+                    // FIXME 4V04 Dodo: newlines and tabs in strings
+                    match = this.input.match(/^"((?:[^\u0022\\]|\\.)*)"/);
+                    if (match) {
+                        this.input = this.input.substring(match[0].length);
+                        this.line += match[0].match(/\n/g)?.length ?? 0;
+                        yield [Token.String, unescape(match[1])];
+                        break;
                     }
+                    // Verbatim ("""Whatever "content""""), no escaping inside)
+                    match = this.input.match(/^"""(.*)"""/);
+                    if (match) {
+                        this.input = this.input.substring(match[0].length);
+                        this.line += match[0].match(/\n/g)?.length ?? 0;
+                        yield [Token.String, match[1]];
+                        break;
+                    }
+                    // Attribute (foo:)
                     if (Object.hasOwn(transitions, Token.Attribute)) {
-                        const match = this.input.match(/^((?:[^\s\{\}#\u0060:\\]|\\.)+):/s);
+                        match = this.input.match(/^((?:[^\s\{\}#\u0022\u0060:\\]|\\.)+):(?=[\s#])/s);
                         if (match) {
                             this.input = this.input.substring(match[0].length);
                             this.line += match[0].match(/\n/g)?.length ?? 0;
@@ -281,36 +289,28 @@ class Parser {
                             break;
                         }
                     }
-                    if (Object.hasOwn(transitions, Token.Value)) {
-                        const match = this.input.match(/^((?:[^\s\{\}#\u0060\\]|\\.)+)/s);
-                        if (match) {
-                            this.input = this.input.substring(match[0].length);
-                            this.line += match[0].match(/\n/g)?.length ?? 0;
-                            yield [Token.Value, unescape(match[1])];
-                            break;
-                        } else {
-                            throw Error(`Parse error, line ${this.line}: ill-formed attribute value`);
-                        }
-                    } else {
-                        const match = this.input.match(/^([^\\\s\{\}#\u0060]|\\.)+(\s+([^\\\s\{\}#\u0060]|\\.)+)*/s);
-                        if (match) {
-                            this.input = this.input.substring(match[0].length);
-                            this.line += match[0].match(/\n/g)?.length ?? 0;
-                            yield [Token.Text, unescape(match[0])];
-                            break;
-                        } else {
-                            throw Error(`Parse error, line ${this.line}: ill-formed text`);
-                        }
+                    // Word (does not start with {}`"#, and does not contain
+                    // unescaped space.
+                    match = this.input.match(/^((?:[^\s\{\}#\u0060\\]|\\.)+)/s);
+                    if (match) {
+                        this.input = this.input.substring(match[0].length);
+                        this.line += match[0].match(/\n/g)?.length ?? 0;
+                        yield [Token.Word, unescape(match[1])];
+                        break;
                     }
+                    throw Error(`Parse error, line ${this.line}: ill-formed text`);
             }
         }
     }
 }
 
+// Parse a complete document and return a document object with the input `text`
+// and the `root` of the tree of elements.
 export default function parse(text) {
     return new Parser({ text }).parse();
 }
 
+// Unparse the tree into text. This is just a stub at the moment.
 // FIXME 4O0A Dodo: unparse
 export function unparse(element) {
     return `{ ${element.name} ... }`;

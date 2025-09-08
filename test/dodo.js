@@ -94,9 +94,9 @@ test("parse(): whitespace handling", t => {
 
 test("parse(): comments within content", t => {
     const { root } = parse(`{ p This is some content # not this
-and \\# some more # but not this
+and \\# some more, # but not this
 this is more content }`);
-    t.equal(root.content, ["This is some content", " and # some more", " this is more content"], "handled comments");
+    t.equal(root.content, ["This is some content and # some more, this is more content"], "handled comments");
 });
 
 test("parse(): escaping spaces and newlines", t => {
