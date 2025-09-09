@@ -16,12 +16,111 @@ const Token = {
 const State = {
     Begin: Symbol.for("Begin"),
     OpenElement: Symbol.for("Empty element"),
-    Attribute: Symbol.for("Attribute"),
-    Name: Symbol.for("Name"),
-    Content: Symbol.for("Content"),
+    ElementHead: Symbol.for("Element head"),
+    ElementContent: Symbol.for("Element content"),
+    ElementContentWithTrailingSpace: Symbol.for("Element content with trailing space"),
+    ElementAttribute: Symbol.for("Element attribute"),
     Unquote: Symbol.for("Unquote"),
     List: Symbol.for("List"),
-    ClosedList: Symbol.for("List (closed)"),
+};
+
+// Call two functions in sequence with the same arguments.
+const seq = (f, g) => function(...args) {
+    f.call(this, ...args);
+    g.call(this, ...args);
+}
+
+// Parser state machine transitions: given a state and a token, move to a new
+// state, and execute some related action, if any. Missing transitions are
+// parse errors.
+const Transitions = {
+
+    // Beginning of the document: expect an element, skipping whitespace until
+    // an opening brace is reached.
+    [State.Begin]: {
+        [Token.Space]: [State.Begin],
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement]
+    },
+
+    // Open element: expect a name or attribute after the opening brace, or
+    // another opening brace (anonymous element, without name or attributes).
+    [State.OpenElement]: {
+        [Token.Space]: [State.OpenElement],
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
+        [Token.Word]: [State.ElementHead, (stack, name) => { stack.at(-1).name = name }],
+        [Token.Attribute]: [State.ElementAttribute, setAttributeName],
+    },
+
+    // Reading the attributes of a named element, waiting for content (word,
+    // string, or element).
+    [State.ElementHead]: {
+        [Token.Space]: [State.ElementHead],
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
+        [Token.CloseBrace]: [State.ElementContent, addChild],
+        [Token.Attribute]: [State.ElementAttribute, setAttributeName],
+        [Token.Backtick]: [State.Unquote],
+        [Token.String]: [State.ElementContent, addString],
+        [Token.Word]: [State.ElementContent, addWord],
+    },
+
+    // Attribute: an attribute name (with a : suffix) was read, to be followed
+    // by a value for the attribute.
+    // FIXME 2L0M Dodo: more attributes
+    [State.ElementAttribute]: {
+        [Token.Space]: [State.ElementAttribute],
+        [Token.String]: [State.ElementHead, setAttribute],
+        [Token.Word]: [State.ElementHead, setAttribute],
+    },
+
+    // Element content: the head is complete, so add content (words, strings,
+    // and other elements).
+    [State.ElementContent]: {
+        [Token.Space]: [State.ElementContentWithTrailingSpace],
+        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
+        [Token.CloseBrace]: [State.ElementContent, addChild],
+        [Token.Backtick]: [State.Unquote],
+        [Token.String]: [State.ElementContent, addString],
+        [Token.Word]: [State.ElementContent, addWord],
+    },
+
+    // Element content with a trailing space. Do not add a trailing space at
+    // the end of an element, but add space between non-space content.
+    [State.ElementContentWithTrailingSpace]: {
+        [Token.Space]: [State.ElementContentWithTrailingSpace],
+        [Token.OpenBrace]: [State.OpenElement, seq(addSpace, pushNewElement)],
+        [Token.CloseBrace]: [State.ElementContent, addChild],
+        [Token.Backtick]: [State.Unquote, addSpace],
+        [Token.String]: [State.ElementContent, seq(addSpace, addString)],
+        [Token.Word]: [State.ElementContent, seq(addSpace, addWord)],
+    },
+
+    // Unquote attribute value or content. Lists or numbers are treated
+    // specially, otherwise an unquote element is added.
+    [State.Unquote]: {
+        [Token.OpenBrace]: [State.List, pushNewList],
+        [Token.Word]: [State.ElementContent, function(stack, value) {
+            stack.at(-1).content.push(parseNumber(value) ?? unquote.call(this, value));
+        }],
+    },
+
+    // Read a list, which may contain numbers, single values, strings, and
+    // other lists.
+    [State.List]: {
+        [Token.Space]: [State.List],
+        [Token.OpenBrace]: [State.List, pushNewList],
+        [Token.CloseBrace]: [State.ElementContent, stack => {
+            const list = stack.pop();
+            const top = stack.at(-1);
+            if (top.content) {
+                top.content.push(list);
+            } else {
+                top.push(list);
+                return State.List;
+            }
+        }],
+        [Token.String]: [State.List, (stack, value) => { stack.at(-1).push(value); }],
+        [Token.Word]: [State.List, (stack, value) => { stack.at(-1).push(parseNumber(value) ?? value); }],
+    },
 };
 
 // Pop the last element from the stack and add it as a child of the element now
@@ -34,15 +133,20 @@ function addChild(stack) {
     stack.at(-1).content.push(child);
 }
 
-// Add content as is to the current element (words and space).
-function addContent(stack, ...values) {
-    stack.at(-1).content.push(...values);
+// Add a Word (string value) as is to the current element.
+function addWord(stack, value) {
+    stack.at(-1).content.push(value);
 }
 
 // Add a String object to the current element (creating a new String object to
 // differentiate from plain text).
 function addString(stack, string) {
     stack.at(-1).content.push(new String(string));
+}
+
+// Add space to the current element.
+function addSpace(stack) {
+    stack.at(-1).content.push(Space);
 }
 
 // Create a pending attribute with a name in the stack; it should be followed
@@ -98,86 +202,8 @@ function unquote(value) {
     return n;
 }
 
-const Transitions = {
-
-    // Beginning of the document: expect an element, skip whitespace until
-    // reaching an opening brace.
-    [State.Begin]: {
-        [Token.Space]: [State.Begin],
-        [Token.OpenBrace]: [State.OpenElement, pushNewElement]
-    },
-
-    // Open element: expect a name or attribute after the opening brace, or
-    // another opening brace (anonymous element, without name or attributes).
-    [State.OpenElement]: {
-        [Token.Space]: [State.OpenElement],
-        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
-        [Token.Word]: [State.ElementAttributes, (stack, name) => { stack.at(-1).name = name }],
-        [Token.Attribute]: [State.Attribute, setAttributeName],
-    },
-
-    // Reading the attributes of a named element, waiting for content (word,
-    // string, or element).
-    [State.ElementHead]: {
-        [Token.Space]: [State.ElementAttributes],
-        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
-        [Token.CloseBrace]: [State.ElementContent, addChild],
-        [Token.Attribute]: [State.Attribute, setAttributeName],
-        [Token.Backtick]: [State.Unquote],
-        [Token.String]: [State.ElementContent, addString],
-        [Token.Word]: [State.ElementContent, addContent],
-    },
-
-    // Attribute: an attribute name (with a : suffix) was read, to be followed
-    // by a value for the attribute.
-    // FIXME 2L0M Dodo: more attributes
-    [State.Attribute]: {
-        [Token.Space]: [State.Attribute],
-        [Token.String]: [State.ElementAttributes, setAttribute],
-        [Token.Word]: [State.ElementAttributes, setAttribute],
-    },
-
-    // Element content: the head is complete, so add content (words, strings,
-    // and other elements).
-    [State.ElementContent]: {
-        [Token.Space]: [State.ElementContent, addContent],
-        [Token.OpenBrace]: [State.OpenElement, pushNewElement],
-        [Token.CloseBrace]: [State.Content, addChild],
-        [Token.Backtick]: [State.Unquote],
-        [Token.String]: [State.ElementContent, addString],
-        [Token.Word]: [State.ElementContent, addContent],
-    },
-
-    // Unquote attribute value or content. Lists or numbers are treated
-    // specially, otherwise an unquote element is added.
-    [State.Unquote]: {
-        [Token.OpenBrace]: [State.List, pushNewList],
-        [Token.Word]: [State.Content, function(stack, value) {
-            stack.at(-1).content.push(parseNumber(value) ?? unquote.call(this, value));
-        }],
-    },
-
-    // Read a list, which may contain numbers, single values, strings, and
-    // other lists.
-    [State.List]: {
-        [Token.Space]: [State.List],
-        [Token.OpenBrace]: [State.List, pushNewList],
-        [Token.CloseBrace]: [State.Content, stack => {
-            const list = stack.pop();
-            const top = stack.at(-1);
-            if (top.content) {
-                top.content.push(list);
-            } else {
-                top.push(list);
-                return State.List;
-            }
-        }],
-        [Token.String]: [State.List, (stack, value) => { stack.at(-1).push(value); }],
-        [Token.Word]: [State.List, (stack, value) => { stack.at(-1).push(parseNumber(value) ?? value); }],
-    },
-};
-
 class Parser {
+
     // Create a parser for a given document (which only has unparsed text so
     // far).
     constructor(document) {
@@ -227,7 +253,8 @@ class Parser {
         return this.document;
     }
 
-    // Generate tokens from the input text.
+    // Generate tokens from the input text, yielding every time a new token
+    // was recognized.
     *tokens() {
         while (this.input.length > 0) {
             const transitions = Transitions[this.state];
@@ -262,6 +289,14 @@ class Parser {
                         yield [Token.Backtick];
                         break;
                     }
+                    // Verbatim ("""Whatever "content""""), no escaping inside)
+                    match = this.input.match(/^"""(.*)"""/);
+                    if (match) {
+                        this.input = this.input.substring(match[0].length);
+                        this.line += match[0].match(/\n/g)?.length ?? 0;
+                        yield [Token.String, match[1]];
+                        break;
+                    }
                     // String ("Hello, world!"); \u0022 = "
                     // FIXME 4V04 Dodo: newlines and tabs in strings
                     match = this.input.match(/^"((?:[^\u0022\\]|\\.)*)"/);
@@ -269,14 +304,6 @@ class Parser {
                         this.input = this.input.substring(match[0].length);
                         this.line += match[0].match(/\n/g)?.length ?? 0;
                         yield [Token.String, unescape(match[1])];
-                        break;
-                    }
-                    // Verbatim ("""Whatever "content""""), no escaping inside)
-                    match = this.input.match(/^"""(.*)"""/);
-                    if (match) {
-                        this.input = this.input.substring(match[0].length);
-                        this.line += match[0].match(/\n/g)?.length ?? 0;
-                        yield [Token.String, match[1]];
                         break;
                     }
                     // Attribute (foo:)
@@ -315,3 +342,23 @@ export default function parse(text) {
 export function unparse(element) {
     return `{ ${element.name} ... }`;
 }
+
+// Consolidate text content into single string values, rendering space as a
+// single space character (\u0020). Non-text content is kept as is.
+export const consolidateText = content => content.reduce((content, value) => {
+    const n = content.length - 1;
+    if (typeof content[n] === "string") {
+        if (value === Space) {
+            content[n] += " ";
+        } else if (typeof value === "string") {
+            content[n] += value;
+        } else if (value instanceof String) {
+            content[n] += value.valueOf();
+        } else {
+            content.push(value);
+        }
+    } else {
+        content.push(value === Space ? " " : value instanceof String ? value.valueOf() : value);
+    }
+    return content;
+}, []);

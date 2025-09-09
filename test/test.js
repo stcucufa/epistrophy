@@ -23,6 +23,7 @@ const Equal = {
         const ky = keys(y);
         return kx.length === ky.length && kx.every(key => key in y && equal(x[key], y[key]));
     },
+    "object/string": (x, y) => x.valueOf() === y.valueOf(),
     map: (x, y) => {
         if (x.size !== y.size) {
             return false;

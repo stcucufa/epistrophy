@@ -1,5 +1,5 @@
 import test from "./test.js";
-import parse, { Backtick, Space } from "../dodo/parser.js";
+import parse, { Backtick, Space, consolidateText } from "../dodo/parser.js";
 import run from "../dodo/interpreter.js";
 
 test("parse()", t => {
@@ -31,8 +31,10 @@ test("parse(): element name", t => {
 test("parse(): anonymous element", t => {
     const { root } = parse("{ { λ: x { + `x `1 } } `2 }");
     t.undefined(root.name, "name is undefined");
+    t.same(root.content.length, 3, "content (3 values)");
     t.same(root.content[0].name, "λ", "first child element has a name");
-    t.same(root.content[1], 2, "content also contains a number");
+    t.same(root.content[1], Space, "space");
+    t.same(root.content[2], 2, "number");
 });
 
 test("parse(): unescaping", t => {
@@ -43,7 +45,7 @@ test("parse(): unescaping", t => {
 test("parse(): token and string attributes", t => {
     const { root } = parse(`{ p foo: bar baz: "fum, \\"quux\\", &c." x: y:z a\\:bc: d That’s it! }`);
     t.equal(root.attributes, { foo: "bar", baz: `fum, "quux", &c.`, x: "y:z", "a:bc": "d" }, "attributes");
-    t.equal(root.content, ["That’s it!"], "content following attributes");
+    t.equal(consolidateText(root.content), ["That’s it!"], "content following attributes");
 });
 
 test("parse(): default attribute", t => {
@@ -61,7 +63,8 @@ test("parse(): default attribute", t => {
 test("parse(): not an attribute", t => {
     const { root } = parse("{ p This\\: is not an attribute. That: not an attribute either. }");
     t.equal(root.attributes, {}, "escaped");
-    t.equal(root.content, ["This: is not an attribute. That: not an attribute either."], "parsed as content text");
+    t.equal(consolidateText(root.content), ["This: is not an attribute. That: not an attribute either."],
+        "parsed as content text");
 });
 
 test("parse(): number attributes", t => {
@@ -78,35 +81,36 @@ test("parse(): list attributes", t => {
 
 test("parse(): content unescaping", t => {
     const { root } = parse("{ p Hello, \\{ \\`world\\# \\}\\ }");
-    t.equal(root.content, ["Hello, { `world# } "], "{, }, ` and # in content");
+    t.equal(consolidateText(root.content), ["Hello, { `world# } "], "{, }, ` and # in content");
 });
 
 test("parse(): whitespace handling", t => {
     const { root } = parse(`{ p This is a
         { em paragraph }.
     }`);
-    t.same(root.content.length, 4, "content count");
-    t.same(root.content[0], "This is a", "text");
-    t.same(root.content[1], Space, "whitespace");
-    t.equal(root.content[2].content, ["paragraph"], "trimmed text content in child element");
-    t.equal(root.content[3], ".", "and at the end");
+    const content = consolidateText(root.content);
+    t.same(content.length, 3, "content count");
+    t.same(content[0], "This is a ", "text");
+    t.equal(content[1].content, ["paragraph"], "trimmed text content in child element");
+    t.equal(content[2], ".", "and at the end");
 });
 
 test("parse(): comments within content", t => {
     const { root } = parse(`{ p This is some content # not this
 and \\# some more, # but not this
 this is more content }`);
-    t.equal(root.content, ["This is some content and # some more, this is more content"], "handled comments");
+    t.equal(consolidateText(root.content), ["This is some content and # some more, this is more content"],
+        "handled comments");
 });
 
 test("parse(): escaping spaces and newlines", t => {
     const { root } = parse(`{ p With trailing space\\ }`);
-    t.equal(root.content, ["With trailing space "], "deliberate trailing space");
+    t.equal(consolidateText(root.content), ["With trailing space "], "deliberate trailing space");
 });
 
 test("parse(): unquoting", t => {
     const { root } = parse("{ define: π `3.141592653589793 (half of τ) }");
-    t.equal(root.content, [3.141592653589793, " (half of τ)"], "number");
+    t.equal(consolidateText(root.content), [3.141592653589793, " (half of τ)"], "number and text with leading space");
 });
 
 test("parse(): unquoting", t => {
@@ -114,20 +118,14 @@ test("parse(): unquoting", t => {
     t.equal(root.content, [["x", 2, "x 2", "y"]], "list");
 });
 
-test("parse(): mixed content (unquoting)", t => {
+test("parse(): mixed content (unquoting; filtering out space)", t => {
     const { root } = parse("{ import { as: foo bar } `{ baz fum } }");
-    t.same(root.content.length, 2, "two children");
-    t.same(root.content[0].name, "as", "first child name");
-    t.same(root.content[0].attributes[root.content[0].name], "foo", "first child attribute value");
-    t.equal(root.content[0].content, ["bar"], "first child content");
-    t.equal(root.content[1], ["baz", "fum"], "second child (list)");
-});
-
-test("parse(): mixed content (empty element)", t => {
-    const { root } = parse("{ import { as: foo bar } baz {} fum }");
-    t.same(root.content.length, 4, "four children");
-    t.equal(root.content[0].content, ["bar"], "first child content");
-    t.equal(root.content.slice(1), [" baz", " ", " fum"], "rest of content (including whitespace)");
+    const content = root.content.filter(v => v !== Space);
+    t.same(content.length, 2, "two children");
+    t.same(content[0].name, "as", "first child name");
+    t.same(content[0].attributes[root.content[0].name], "foo", "first child attribute value");
+    t.equal(content[0].content, ["bar"], "first child content");
+    t.equal(content[1], ["baz", "fum"], "second child (list)");
 });
 
 test("parse(): unquoting identifier", t => {
@@ -138,34 +136,18 @@ test("parse(): unquoting identifier", t => {
     t.equal(x.content, ["x"], "with one argument");
 });
 
-test("parse(): CDATA in content", t => {
-    const { root } = parse("{ p {: { dodo } ::{}: hello :} }");
-    t.equal(root.content, [" { dodo } ::{}: hello "], "first child");
-});
-
-test("parse(): CDATA in content", t => {
-    const { root } = parse("{ p CDATA\\: {: { dodo } ::: hello :} }");
-    t.equal(root.content, ["CDATA:", "  { dodo } ::: hello "], "space before and after");
-});
-
-test("parse(): attribute value with CDATA", t => {
-    const { root } = parse("{ p: {:{ value }:} }");
-    t.same(root.attributes.p, "{ value }", "attribute value with {}");
-});
-
-test("parse(): unterminated CDATA", t => {
-    t.throws(() => parse("{ p: {:{ value } } }"), "parse error");
-});
-
-test("parse(): unexpected CDATA", t => {
-    t.throws(() => parse("{ {: no CDATA section for name :} this: does not work }"), "cannot use CDATA for element name");
-});
-
 // 4P08 Dodo: whitespace review
 
 test("Parser: string in content", t => {
-    const { root } = parse(`{ p " Hello, world! " is a string }`);
-    t.equal(root.content, [" Hello, world! ", " ", "is a string"], "is a content element of its own");
+    const { root } = parse(`{ p " Hello, world! " (a string) }`);
+    t.equal(root.content, [new String(" Hello, world! "), Space, "(a", Space, "string)"],
+        "is a content element of its own");
+    t.equal(consolidateText(root.content), [" Hello, world!  (a string)"], "consolidated");
+});
+
+test("Parser: verbatim string in content", t => {
+    const { root } = parse(`{ p """"Hello, world!"""" (a string within a string) }`);
+    t.equal(consolidateText(root.content), [`"Hello, world!" (a string within a string)`], "consolidated");
 });
 
 // 2K05 Dodo: eval
