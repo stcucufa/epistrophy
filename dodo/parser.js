@@ -24,12 +24,6 @@ const State = {
     List: Symbol.for("List"),
 };
 
-// Call two functions, both with the same arguments.
-const both = (f, g) => function(...args) {
-    f.call(this, ...args);
-    g.call(this, ...args);
-}
-
 // Parser state machine transitions: given a state and a token, move to a new
 // state, and execute some related action, if any. Missing transitions are
 // parse errors.
@@ -87,11 +81,11 @@ const Transitions = {
     // the end of an element, but add space between non-space content.
     [State.ElementContentWithTrailingSpace]: {
         [Token.Space]: [State.ElementContentWithTrailingSpace],
-        [Token.OpenBrace]: [State.OpenElement, both(addSpace, pushNewElement)],
+        [Token.OpenBrace]: [State.OpenElement, addSpace, pushNewElement],
         [Token.CloseBrace]: [State.ElementContent, addChild],
         [Token.Backtick]: [State.Unquote, addSpace],
-        [Token.String]: [State.ElementContent, both(addSpace, addString)],
-        [Token.Word]: [State.ElementContent, both(addSpace, addWord)],
+        [Token.String]: [State.ElementContent, addSpace, addString],
+        [Token.Word]: [State.ElementContent, addSpace, addWord],
     },
 
     // Unquote attribute value or content. Lists or numbers are treated
@@ -233,8 +227,11 @@ class Parser {
                     [...transitions.keys()].map(Symbol.keyFor).join(", ").replace(/, ([^,]+)$/, " or $1")
                 }.`);
             }
-            const [q, f] = transitions[token];
-            this.state = f?.call(this, stack, value) ?? q;
+            const [q, ...fs] = transitions[token];
+            for (const f of fs) {
+                f.call(this, stack, value);
+            }
+            this.state = q;
         }
         if (stack.length > 1) {
             throw Error(`Parse error, line ${this.line}: unterminated element "${stack[1].name}".`);
