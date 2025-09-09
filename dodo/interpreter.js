@@ -1,14 +1,17 @@
 import { show, typeOf } from "../lib/util.js";
-import parse, { unparse, Backtick } from "./parser.js";
+import parse, { parseNumber, unparse, Backtick, Space } from "./parser.js";
 
 const SpecialForm = Symbol.for("special form");
 
 class Interpreter {
+    // Create an interpreter with a parsed document as the source code to
+    // evaluate.
     constructor(document) {
         this.document = document;
     }
 
-    run(text) {
+    // Evaluate the source document in the top-level environment.
+    run() {
         const { root } = this.document;
         const environment = {
             define: SpecialForm,
@@ -25,22 +28,39 @@ class Interpreter {
         return this.eval(root, environment);
     }
 
+    // Evaluate an expression in an environment.
     eval(expression, environment) {
-        if (typeof expression === "number" || typeof expression === "string" || Array.isArray(expression)) {
+
+        function lookup(varname) {
+            if (varname in environment) {
+                return environment[varname];
+            }
+            throw Error(`Undefined variable "${varname}"`);
+        }
+
+        // Atoms: numbers, lists, strings; words may be interpreted as numbers
+        // or identifiers.
+        if (typeof expression === "number" || Array.isArray(expression)) {
             return expression;
-        } else if (expression && typeof expression === "object") {
+        }
+        if (typeof expression === "string") {
+            const number = parseNumber(expression);
+            return typeof number === "number" ? number : lookup(expression);
+        }
+        if (expression instanceof String) {
+            return expression.valueOf();
+        }
+
+        if (expression && typeof expression === "object") {
             const { name, content: raw } = expression;
-            const content = raw.filter(x => typeof x !== "string" || /\S/.test(x));
+            const content = raw.filter(x => x !== Space);
             switch (name) {
 
                 case Backtick:
                 case "unquote":
                     if (content.length === 1) {
                         const [varname] = content;
-                        if (varname in environment) {
-                            return environment[varname];
-                        }
-                        throw Error(`Undefined variable "${varname}"`);
+                        return lookup(varname instanceof String ? varname.valueOf() : varname);
                     }
                     throw Error(`Unexpected number of arguments for unquote (expected 1 but got ${content.length})`);
 
