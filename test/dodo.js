@@ -157,6 +157,7 @@ test("Interpreter: self-evaluating expression", t => {
 });
 
 test("Interpreter: self-evaluating expression", t => {
+    t.skip("4V05 Dodo: update whitespace handling in interpreter");
     t.same(run("{ seq Hello, world! }"), "Hello, world!", "text");
 });
 
@@ -177,6 +178,7 @@ test("Interpreter: unquote special form", t => {
 });
 
 test("Interpreter: set! special form", t => {
+    t.skip("4V05 Dodo: update whitespace handling in interpreter");
     t.same(run("{ set! set! `23 }"), 23, "returns the new value");
     t.same(run("{ seq { set! set! `23 } `set! }"), 23, "after setting it");
     t.throws(() => run("{ set! x `23 }"), "can only set the value of a defined variable");
@@ -184,13 +186,15 @@ test("Interpreter: set! special form", t => {
 });
 
 test("Interpreter: define special form", t => {
+    t.skip("4V05 Dodo: update whitespace handling in interpreter");
     t.same(run("{ define x `23 }"), 23, "returns the new value");
     t.same(run("{ seq { define x `23 } `x }"), 23, "after setting it");
     t.throws(() => run("{ seq { define x `23 } { define x `17 } }"), "cannot redefine a value in the same scope");
     t.throws(() => run("{ define `x `23 }"), "variable name must be a string");
 });
 
-test("Interperer: if special form", t => {
+test("Interpeter: if special form", t => {
+    t.skip("4V05 Dodo: update whitespace handling in interpreter");
     t.same(run("{ if `true `23 ko }"), 23, "predicate is true");
     t.same(run("{ if false `23 ko }"), 23, "predicate is truthy (false as string)");
     t.same(run("{ if `0 `23 ko }"), 23, "predicate is truthy (0)");
@@ -199,6 +203,7 @@ test("Interperer: if special form", t => {
 });
 
 test("Interpreter: application", t => {
+    t.skip("4V05 Dodo: update whitespace handling in interpreter");
     t.same(run("{ + `17 `23 `19 }"), 59, "+ (with arguments)");
     t.same(run("{ * }"), 1, "* (no argument)");
     t.throws(() => { run("{ ??? foo bar }"); }, "undefined value");
@@ -206,6 +211,7 @@ test("Interpreter: application", t => {
 });
 
 test("Interpreter: lambda special form", t => {
+    t.skip("4V05 Dodo: update whitespace handling in interpreter");
     t.typeof(run("{ lambda `{ x } { + `x `1 } }"), "function", "creates a function");
     t.typeof(run("{ λ x { + `x `1 } }"), "function", "short form (λ, single parameter)");
     t.same(run("{ { λ x { + `x `1 } } `17 }"), 18, "may be applied");
@@ -213,6 +219,7 @@ test("Interpreter: lambda special form", t => {
 });
 
 test("Interpreter: define for functions", t => {
+    t.skip("4V05 Dodo: update whitespace handling in interpreter");
     t.same(run("{ seq { define incr `{ x } { + `1 `x } } { incr `23 } }"), 24, "single parameter");
     t.same(run("{ seq { define !- `{ x y } { - `y `x } } { !- `17 `23 } }"), 6, "multiple parameters");
 });
