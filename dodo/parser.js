@@ -24,8 +24,8 @@ const State = {
     List: Symbol.for("List"),
 };
 
-// Call two functions in sequence with the same arguments.
-const seq = (f, g) => function(...args) {
+// Call two functions, both with the same arguments.
+const both = (f, g) => function(...args) {
     f.call(this, ...args);
     g.call(this, ...args);
 }
@@ -87,11 +87,11 @@ const Transitions = {
     // the end of an element, but add space between non-space content.
     [State.ElementContentWithTrailingSpace]: {
         [Token.Space]: [State.ElementContentWithTrailingSpace],
-        [Token.OpenBrace]: [State.OpenElement, seq(addSpace, pushNewElement)],
+        [Token.OpenBrace]: [State.OpenElement, both(addSpace, pushNewElement)],
         [Token.CloseBrace]: [State.ElementContent, addChild],
         [Token.Backtick]: [State.Unquote, addSpace],
-        [Token.String]: [State.ElementContent, seq(addSpace, addString)],
-        [Token.Word]: [State.ElementContent, seq(addSpace, addWord)],
+        [Token.String]: [State.ElementContent, both(addSpace, addString)],
+        [Token.Word]: [State.ElementContent, both(addSpace, addWord)],
     },
 
     // Unquote attribute value or content. Lists or numbers are treated
