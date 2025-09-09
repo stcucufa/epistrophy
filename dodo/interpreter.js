@@ -1,5 +1,5 @@
 import { show, typeOf } from "../lib/util.js";
-import parse, { unparse, backtick } from "./parser.js";
+import parse, { unparse, Backtick } from "./parser.js";
 
 const SpecialForm = Symbol.for("special form");
 
@@ -33,7 +33,7 @@ class Interpreter {
             const content = raw.filter(x => typeof x !== "string" || /\S/.test(x));
             switch (name) {
 
-                case backtick:
+                case Backtick:
                 case "unquote":
                     if (content.length === 1) {
                         const [varname] = content;
