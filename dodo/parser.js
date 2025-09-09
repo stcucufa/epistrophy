@@ -305,7 +305,7 @@ class Parser {
                     }
                     // Attribute (foo:)
                     if (Object.hasOwn(transitions, Token.Attribute)) {
-                        match = this.input.match(/^((?:[^\s\{\}#\u0022\u0060:\\]|\\.)+):(?=[\s#])/s);
+                        match = this.input.match(/^((?:[^\s\{\}#\u0022\u0060:\\]|\\.)+):/s);
                         if (match) {
                             this.input = this.input.substring(match[0].length);
                             this.line += match[0].match(/\n/g)?.length ?? 0;
