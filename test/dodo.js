@@ -2,7 +2,7 @@ import test from "./test.js";
 import parse, { Backtick, Space, consolidateText } from "../dodo/parser.js";
 import run from "../dodo/interpreter.js";
 
-test("parse()", t => {
+test("Parser", t => {
     const document = parse("{ hello }");
     t.same(document.text, "{ hello }", "returns a document object with the original text");
     t.same(document.root.document, document, "document of root is document");
@@ -11,11 +11,11 @@ test("parse()", t => {
     t.equal(document.root.content, [], "no content");
 });
 
-test("parse(): empty document", t => {
+test("Parser: empty document", t => {
     t.throws(() => parse(""), `"no content" error`);
 });
 
-test("parse(): no content", t => {
+test("Parser: no content", t => {
     t.throws(() => parse(
 `# Just a comment, not content!
 And some text,
@@ -23,12 +23,12 @@ which does not count.
 `), `"no content" error`);
 });
 
-test("parse(): element name", t => {
+test("Parser: element name", t => {
     const { root } = parse("{ Hello,\\ world! }")
     t.same(root.name, "Hello, world!");
 });
 
-test("parse(): anonymous element", t => {
+test("Parser: anonymous element", t => {
     const { root } = parse("{ { λ: x { + `x `1 } } `2 }");
     t.undefined(root.name, "name is undefined");
     t.same(root.content.length, 3, "content (3 values)");
@@ -37,54 +37,54 @@ test("parse(): anonymous element", t => {
     t.same(root.content[2], 2, "number");
 });
 
-test("parse(): unescaping", t => {
+test("Parser: unescaping", t => {
     const { root } = parse(`{ \\{\\ \\wow\\:\\ \\} }`);
     t.same(root.name, "{ wow: }", "name with {} and :");
 });
 
-test("parse(): token and string attributes", t => {
+test("Parser: word and string attributes", t => {
     const { root } = parse(`{ p foo: bar baz: "fum, \\"quux\\", &c." x: y:z a\\:bc: d That’s it! }`);
     t.equal(root.attributes, { foo: "bar", baz: `fum, "quux", &c.`, x: "y:z", "a:bc": "d" }, "attributes");
     t.equal(consolidateText(root.content), ["That’s it!"], "content following attributes");
 });
 
-test("parse(): default attribute", t => {
+test("Parser: default attribute (implicit)", t => {
     const { root } = parse("{ hello: world! foo: bar }");
     t.equal(root.attributes, { hello: "world!", foo: "bar" }, "and more attributes");
     t.equal(root.content, [], "no content");
 });
 
-test("parse(): default attribute", t => {
+test("Parser: default attribute (explicit)", t => {
     const { root } = parse("{ hello foo: bar hello: world! }");
     t.equal(root.attributes, { hello: "world!", foo: "bar" }, "spelled out");
     t.equal(root.content, [], "no content");
 });
 
-test("parse(): not an attribute", t => {
+test("Parser: not an attribute", t => {
     const { root } = parse("{ p This\\: is not an attribute. That: not an attribute either. }");
     t.equal(root.attributes, {}, "escaped");
     t.equal(consolidateText(root.content), ["This: is not an attribute. That: not an attribute either."],
         "parsed as content text");
 });
 
-test("parse(): number attributes", t => {
+test("Parser: number attributes", t => {
     t.skip("2L0M Dodo: more attributes");
     const { root } = parse("{ constant e: `2.718281828459045 }");
     t.equal(root.attributes, { e: 2.718281828459045 }, "number value");
 });
 
-test("parse(): list attributes", t => {
+test("Parser: list attributes", t => {
     t.skip("2L0M Dodo: more attributes");
     const { root } = parse("{ constants `{ 1 2 3 }");
     t.equal(root.attributes, { constants: [1, 2, 3] }, "list value");
 });
 
-test("parse(): content unescaping", t => {
+test("Parser: content unescaping", t => {
     const { root } = parse("{ p Hello, \\{ \\`world\\# \\}\\ }");
     t.equal(consolidateText(root.content), ["Hello, { `world# } "], "{, }, ` and # in content");
 });
 
-test("parse(): whitespace handling", t => {
+test("Parser: whitespace handling", t => {
     const { root } = parse(`{ p This is a
         { em paragraph }.
     }`);
@@ -95,7 +95,7 @@ test("parse(): whitespace handling", t => {
     t.equal(content[2], ".", "and at the end");
 });
 
-test("parse(): comments within content", t => {
+test("Parser: comments within content", t => {
     const { root } = parse(`{ p This is some content # not this
 and \\# some more, # but not this
 this is more content }`);
@@ -103,22 +103,22 @@ this is more content }`);
         "handled comments");
 });
 
-test("parse(): escaping spaces and newlines", t => {
+test("Parser: escaping spaces and newlines", t => {
     const { root } = parse(`{ p With trailing space\\ }`);
     t.equal(consolidateText(root.content), ["With trailing space "], "deliberate trailing space");
 });
 
-test("parse(): unquoting", t => {
+test("Parser: unquoting", t => {
     const { root } = parse("{ define: π `3.141592653589793 (half of τ) }");
     t.equal(consolidateText(root.content), [3.141592653589793, " (half of τ)"], "number and text with leading space");
 });
 
-test("parse(): unquoting", t => {
+test("Parser: unquoting", t => {
     const { root } = parse("{ f `{ x 2 \"x 2\" y } }");
     t.equal(root.content, [["x", 2, "x 2", "y"]], "list");
 });
 
-test("parse(): mixed content (unquoting; filtering out space)", t => {
+test("Parser: mixed content (unquoting; filtering out space)", t => {
     const { root } = parse("{ import { as: foo bar } `{ baz fum } }");
     const content = root.content.filter(v => v !== Space);
     t.same(content.length, 2, "two children");
@@ -128,7 +128,7 @@ test("parse(): mixed content (unquoting; filtering out space)", t => {
     t.equal(content[1], ["baz", "fum"], "second child (list)");
 });
 
-test("parse(): unquoting identifier", t => {
+test("Parser: unquoting identifier", t => {
     const { root } = parse("{ f `x }");
     t.same(root.content.length, 1, "one child");
     const x = root.content[0];
@@ -137,6 +137,11 @@ test("parse(): unquoting identifier", t => {
 });
 
 // 4P08 Dodo: whitespace review
+
+test("Parser: verbatim attribute", t => {
+    const { root } = parse(`{ p foo: """{ bar: "baz" }""" }`);
+    t.equal(root.attributes, { foo: `{ bar: "baz" }` });
+});
 
 test("Parser: string in content", t => {
     const { root } = parse(`{ p " Hello, world! " (a string) }`);
