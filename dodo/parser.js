@@ -184,9 +184,9 @@ function setAttribute(stack, value) {
     }
 }
 
-// Unescape string content.
-// FIXME 4V04 Dodo: newlines and tabs in strings
-const unescape = x => x.replace(/\\(.)/gs, "$1");
+// Unescape string content; \n and \t are replaced by newline and tab; other
+// escaped characters are replaced by themselves (including actual newlines).
+const unescape = x => x.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\(.)/gs, "$1");
 
 // Create a special unquote element from a backtick.
 function unquote(value) {
@@ -287,7 +287,7 @@ class Parser {
                         break;
                     }
                     // Verbatim ("""Whatever "content""""), no escaping inside)
-                    match = this.input.match(/^"""(.*)"""/);
+                    match = this.input.match(/^"""(.*)"""/s);
                     if (match) {
                         this.input = this.input.substring(match[0].length);
                         this.line += match[0].match(/\n/g)?.length ?? 0;
@@ -295,8 +295,7 @@ class Parser {
                         break;
                     }
                     // String ("Hello, world!"); \u0022 = "
-                    // FIXME 4V04 Dodo: newlines and tabs in strings
-                    match = this.input.match(/^"((?:[^\u0022\\]|\\.)*)"/);
+                    match = this.input.match(/^"((?:[^\u0022\\\n]|\\.)*)"/s);
                     if (match) {
                         this.input = this.input.substring(match[0].length);
                         this.line += match[0].match(/\n/g)?.length ?? 0;
@@ -315,7 +314,7 @@ class Parser {
                     }
                     // Word (does not start with {}`"#, and does not contain
                     // unescaped space.
-                    match = this.input.match(/^((?:[^\s\{\}#\u0060\\]|\\.)+)/s);
+                    match = this.input.match(/^((?:[^\s\{\}#\u0022\u0060\\]|\\.)+)/s);
                     if (match) {
                         this.input = this.input.substring(match[0].length);
                         this.line += match[0].match(/\n/g)?.length ?? 0;

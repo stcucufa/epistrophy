@@ -155,6 +155,30 @@ test("Parser: verbatim string in content", t => {
     t.equal(consolidateText(root.content), [`"Hello, world!" (a string within a string)`], "consolidated");
 });
 
+// 4V04 Dodo: newlines and tabs in strings
+
+test("Parser: newline and tab", t => {
+    const { root } = parse(`{ p "Hello,\\tworld!\\n" }`);
+    t.equal(root.content, [new String("Hello,\tworld!\n")], "unescaped");
+});
+
+test("Parser: newline in string", t => {
+    t.throws(() => parse(`{ p "Hello,
+world!" }`), "error");
+});
+
+test("Parser: newline in string (escaped)", t => {
+    const { root } = parse(`{ p "Hello,\\
+world!" }`);
+    t.equal(root.content, [new String("Hello,\nworld!")], "unescaped");
+});
+
+test("Parser: newline in verbatim string", t => {
+    const { root } = parse(`{ p """Hello,
+world!""" }`);
+    t.equal(root.content, [new String("Hello,\nworld!")], "as is");
+});
+
 // 2K05 Dodo: eval
 
 test("Interpreter: self-evaluating expression", t => {
