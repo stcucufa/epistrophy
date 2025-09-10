@@ -1,6 +1,7 @@
 import test from "./test.js";
 import parse, { Backtick, Space, consolidateText } from "../dodo/parser.js";
 import run from "../dodo/interpreter.js";
+import transform from "../dodo/transform.js";
 
 test("Parser", t => {
     const document = parse("{ hello }");
@@ -299,4 +300,10 @@ test("Interpreter: lambda special form (raw)", t => {
 test("Interpreter: define for functions (raw)", t => {
     t.same(run("{ seq { define incr `{ x } { + 1 x } } { incr 23 } }"), 24, "single parameter");
     t.same(run("{ seq { define !- `{ x y } { - y x } } { !- 17 23 } }"), 6, "multiple parameters");
+});
+
+// 4V06 Dodo: transforms
+
+test("Transform: not a transform", t => {
+    t.throws(() => transform(parse("{ hello }")), "throws");
 });
