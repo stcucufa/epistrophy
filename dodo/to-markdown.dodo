@@ -1,0 +1,30 @@
+{ transform
+
+    { match { element article }
+        "# " { attribute "article" } "\n\n"
+        { apply-transform { child-elements } }
+    }
+
+    { match { element code } "`" { apply-transform { content-of } } "`" }
+    { match { element codeblock }
+        "```" { attribute "codeblock" } "\n"
+        { apply-transform { content-of } }
+        "\n```\n\n"
+    }
+
+    { match { element eg } "_e.g._" }
+    { match { element em } "_" { apply-transform { content-of } } "_" }
+    { match { element h2 } "## " { apply-transform { content-of } } "\n\n" }
+    { match { element h3 } "### " { apply-transform { content-of } } "\n\n" }
+
+    { match { element link }
+        # Link
+        "[" { apply-transform { content-of } } "]"
+        # Content
+        "(" { attribute "link" } ")"
+    }
+
+    { match { element p } { apply-transform { content-of } } "\n\n" }
+    { match { text } { value-of } }
+
+}

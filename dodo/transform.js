@@ -32,6 +32,11 @@ const Environment = { ...Interpreter.Environment,
         return (element ?? environment[Item]).attributes[name] ?? "";
     },
 
+    // Return the child elements of `element` (or current item by default).
+    "child-elements": function(environment, element) {
+        return (element ?? environment[Item]).content.filter(x => typeof x.name === "string");
+    },
+
     // Return the consolidated text content of `element` (or current item by
     // default).
     "content-of": function(environment, element) {
