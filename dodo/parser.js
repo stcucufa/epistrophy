@@ -163,7 +163,7 @@ function pushNewList(stack) {
 // FIXME 3I02 Dodo: Binary numbers
 // FIXME 3I03 Dodo: Hexadecimal numbers
 // FIXME 3I04 Dodo: Scientific notation for numbers
-function parseNumber(value) {
+export function parseNumber(value) {
     const match = value.match(/^[+-]?\d+(\.\d+)?$/);
     if (match) {
         return parseFloat(value);
