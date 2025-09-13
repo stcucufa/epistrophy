@@ -180,6 +180,16 @@ world!""" }`);
     t.equal(root.content, [new String("Hello,\nworld!")], "as is");
 });
 
+// 4W04 Dodo: match verbatim strings
+
+test("Parser: matching verbatim strings", t => {
+    const { root } = parse(`{ p """<bar foo=""""{ attribute "foo" }""""/>""" }`);
+    const content = consolidateText(root.content);
+    t.same(content.length, 3, "content length");
+    t.same(content[0], `<bar foo="`, "first string");
+    t.same(content[2], `"/>`, "second string");
+});
+
 // 2K05 Dodo: eval
 
 test("Interpreter: self-evaluating expression", t => {

@@ -224,7 +224,8 @@ class Parser {
                 throw Error(`Parse error, line ${this.line}: unexpected token ${
                     Symbol.keyFor(token)
                 }; expected one of ${
-                    [...transitions.keys()].map(Symbol.keyFor).join(", ").replace(/, ([^,]+)$/, " or $1")
+                    [...Object.getOwnPropertySymbols(transitions)].map(Symbol.keyFor).join(", ").
+                        replace(/, ([^,]+)$/, " or $1")
                 }.`);
             }
             const [q, ...fs] = transitions[token];
@@ -287,11 +288,14 @@ class Parser {
                         break;
                     }
                     // Verbatim ("""Whatever "content""""), no escaping inside)
-                    match = this.input.match(/^"""(.*)"""/s);
+                    // Matching the end is a bit messy because we want to allow
+                    // " at the end of a verbatim string, but not overmatch if
+                    // there are more than one verbatim strings.
+                    match = this.input.match(/^\u0022{3}(.*?)(\u0022*)\u0022{3}/s);
                     if (match) {
                         this.input = this.input.substring(match[0].length);
                         this.line += match[0].match(/\n/g)?.length ?? 0;
-                        yield [Token.String, match[1]];
+                        yield [Token.String, match[1] + match[2]];
                         break;
                     }
                     // String ("Hello, world!"); \u0022 = "
