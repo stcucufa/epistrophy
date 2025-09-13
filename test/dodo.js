@@ -303,6 +303,7 @@ test("Interpreter: define for functions (raw)", t => {
 });
 
 // 4V06 Dodo: transforms
+// FIXME 4W03 Dodo: transform tests
 
 test("Transform: not a transform", t => {
     t.throws(() => transform(parse("{ hello }")), "throws");
