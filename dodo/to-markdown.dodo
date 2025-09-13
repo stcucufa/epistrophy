@@ -11,20 +11,13 @@
         { apply-transform { content-of } }
         "\n```\n\n"
     }
-
-    { match { element eg } "_e.g._" }
     { match { element em } "_" { apply-transform { content-of } } "_" }
     { match { element h2 } "## " { apply-transform { content-of } } "\n\n" }
-    { match { element h3 } "### " { apply-transform { content-of } } "\n\n" }
-
-    { match { element link }
-        # Link
-        "[" { apply-transform { content-of } } "]"
-        # Content
-        "(" { attribute "link" } ")"
-    }
-
+    { match { element link } "[" { apply-transform { content-of } } "](" { attribute "link" } ")" }
     { match { element p } { apply-transform { content-of } } "\n\n" }
     { match { text } { value-of } }
+
+    { match { element eg } "_e.g._" }
+    { match { element ie } "_i.e._" }
 
 }
