@@ -3,29 +3,31 @@ import parse, { parseNumber, unparse, Backtick, Space } from "./parser.js";
 
 const SpecialForm = Symbol.for("special form");
 
-class Interpreter {
+export class Interpreter {
+
     // Create an interpreter with a parsed document as the source code to
     // evaluate.
     constructor(document) {
         this.document = document;
     }
 
+    static Environment = {
+        define: SpecialForm,
+        "set!": SpecialForm,
+        unquote: SpecialForm,
+        seq: SpecialForm,
+        true: true,
+        false: false,
+        "+": (_, ...args) => args.reduce((z, x) => z + x, 0),
+        "-": (_, z, ...args) => args.length === 0 ? -z : args.reduce((z, x) => z - x, z),
+        "*": (_, ...args) => args.reduce((z, x) => z * x, 1),
+        "/": (_, z, ...args) => args.length === 0 ? 1 / z : args.reduce((z, x) => z / x, z),
+    };
+
     // Evaluate the source document in the top-level environment.
     run() {
         const { root } = this.document;
-        const environment = {
-            define: SpecialForm,
-            "set!": SpecialForm,
-            unquote: SpecialForm,
-            seq: SpecialForm,
-            true: true,
-            false: false,
-            "+": (_, ...args) => args.reduce((z, x) => z + x, 0),
-            "-": (_, z, ...args) => args.length === 0 ? -z : args.reduce((z, x) => z - x, z),
-            "*": (_, ...args) => args.reduce((z, x) => z * x, 1),
-            "/": (_, z, ...args) => args.length === 0 ? 1 / z : args.reduce((z, x) => z / x, z),
-        };
-        return this.eval(root, environment);
+        return this.eval(root, { ...this.constructor.Environment });
     }
 
     // Evaluate an expression in an environment.
@@ -53,7 +55,7 @@ class Interpreter {
 
         if (expression && typeof expression === "object") {
             const { name, content: raw } = expression;
-            const content = raw.filter(x => x !== Space);
+            const content = unspace(raw);
             switch (name) {
 
                 case Backtick:
@@ -154,6 +156,10 @@ class Interpreter {
     }
 }
 
+// Parse input and run it.
 export default function run(text) {
     return new Interpreter(parse(text)).run();
 }
+
+// Utility function to remove whitespace from element content.
+export const unspace = content => content.filter(x => x !== Space);
