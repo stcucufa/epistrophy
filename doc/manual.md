@@ -43,7 +43,7 @@ making Epistrophy suitable for visual-driven applications like graphical user
 interfaces, games, or multimedia presentations). The final line starts the
 clock so that the program actually begins.
 
-Epistrophy is built around a minimal core of seven instructions:
+Epistrophy is built around a minimal core of six instructions:
 
 * _sync_ executes a synchronous function;
 * _ramp_ waits until some amount of time (given in milliseconds) has elapsed;
@@ -53,8 +53,6 @@ error is returned;
 * _spawn_ schedules a new child fiber (with its own sequence of instructions)
 to begin in the same instant;
 * _join_ waits until all spawned children have ended;
-* _repeat_ spawns a new child fiber, waits until it ends, then spawns the
-fiber again.
 
 When a fiber is running, it keeps executing instructions one after the other
 until it reaches the end of the sequence (which ends the fiber), or an
@@ -105,12 +103,6 @@ returned.
 `Fiber.join(delegate)` adds a `join` instruction to the fiber and returns the
 fiber. `delegate` is an optional object for customizing the beginning of the
 join, and handling individual child fibers ending.
-
-`Fiber.repeat(f)` creates a new child fiber and adds a `repeat` instruction to
-the parent fiber. If no argument is provided, then the child fiber is returned.
-If present, `f` should be a function of one argument that gets called
-immediately with the newly created child fiber, while the parent fiber gets
-returned.
 
 `Fiber.ever(f)` creates a subsequence within the sequence of instructions of
 the fiber during which instructions get executed even when the fiber has an
@@ -201,15 +193,6 @@ methods, if present, are called:
     called with the child fiber instance and scheduler as arguments (and the
     delegate object itself as `this`). Recall that the fiber instance itself is
     the parent of the child fiber.
-* `repeat(delegate)` behaves like a combination of spawn and join for a single
-fiber, but a new instance of the child fiber is spawned immediately after the
-previous instance ends. The same delegate methods as join are called, in
-addition to:
-    * `repeatShouldEnd(i, fiber, scheduler)`: before spawning a new instance of
-    the child fiber, this gets called with the current number of iterations
-    (starting at 0 before the first iteration begins), the fiber instance, and
-    the scheduler (with the delegate itself as `this`). If this method returns
-    true, then no new instance is spawned and the repeat immediately ends.
 
 At runtime, fiber instances are not `Fiber` objects but rather `ScheduledFiber`
 objects, and have the following additional properties and methods:
@@ -332,7 +315,8 @@ fiber.
     );
 ```
 
-See the defition of `ScheduledFiber.setOriginalValue()` below.
+See the defition of `Fiber.repeat()` and `ScheduledFiber.setOriginalValue()`
+below.
 
 ### Fiber utilities
 
@@ -351,6 +335,30 @@ fiber.macro(fiber => {
         fiber.spawn(fiber.async(loadImage(src)));
     }
 }).join();
+```
+
+* `Fiber.repeat(f, delegate)` spawns a new child fiber and immediately joins;
+when the child fiber ends, it is immediately spawned again, repeating forever.
+If no argument is provided, then the child fiber is returned. If present, `f`
+should be a function of one argument that gets called immediately with the
+newly created child fiber, while the parent fiber gets returned. The optional
+delegate object is similar to the join delegate object, and may also have the
+following method:
+    * `repeatShouldEnd(i, fiber, scheduler)`: before spawning a new instance of
+    the child fiber, this gets called with the current number of iterations
+    (starting at 0 before the first iteration begins), the fiber instance, and
+    the scheduler (with the delegate itself as `this`). If this method returns
+    true, then no new instance is spawned and the repeat immediately ends.
+
+The following example will output “Tick...” to the console every second for
+three seconds:
+
+```js
+fiber.repeat(fiber => fiber.
+    ramp(1000).
+    sync(() => { console.log("Tick..."); }), {
+    repeatShouldEnd: i => i === 3
+});
 ```
 
 These additional methods are available at runtime:

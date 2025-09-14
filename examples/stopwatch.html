@@ -6,13 +6,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { Fiber, Scheduler } from "../lib/unrated.js";
+import { run } from "../lib/shell.js";
 
-const scheduler = new Scheduler();
-scheduler.clock.start();
-scheduler.addEventListener("error", ({ detail: { error } }) => { console.error(error.message ?? error); });
-
-scheduler.scheduleFiber(new Fiber().
+run().
     sync((fiber, scheduler) => {
         fiber.scope.range = document.querySelector("input");
         fiber.scope.button = document.querySelector("button");
@@ -23,7 +19,7 @@ scheduler.scheduleFiber(new Fiber().
         sync(({ scope: { button } }) => { button.disabled = true; }).
         ramp(
             ({ scope: { range } }) => 1000 * range.value,
-            (p, fiber) => {
+            (p, fiber, scheduler) => {
                 const { progress, range } = fiber.scope;
                 progress.max = range.value;
                 progress.value = p * progress.max;
@@ -33,9 +29,7 @@ scheduler.scheduleFiber(new Fiber().
         ramp(333).
         ramp(111, (p, { scope: { progress } }) => { progress.value = (1 - p) * progress.max; }).
         sync(({ scope: { range, button } }) => { button.disabled = false; })
-    ),
-    0
-);
+    );
 
         </script>
     </head>
