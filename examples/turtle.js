@@ -39,7 +39,7 @@ export class Turtle {
         this.color = color;
         this.velocity = 1;
         this.angularVelocity = 0.5;
-        fiber.effect(() => { this.drawSelf(); });
+        fiber.sync(() => { this.drawSelf(); });
     }
 
     r = 24;
@@ -74,44 +74,39 @@ export class Turtle {
         return this;
     }
 
-    speed(s) {
-        this.fiber.effect((fiber, scheduler) => { scheduler.setRateForFiber(fiber, s); });
-        return this;
-    }
-
     forward(d) {
         this.fiber.
-            exec(() => ({
-                x: this.x,
-                y: this.y,
-                dx: d * Math.cos(this.heading),
-                dy: d * Math.sin(this.heading)
-            })).
-            ramp(() => Math.abs(d) / this.velocity, {
-                rampDidProgress: (p, { value: { x, y, dx, dy } }) => {
-                    const t = ease(p);
-                    this.x = x + t * dx;
-                    this.y = y + t * dy;
-                    const context = this.canvas.context;
-                    context.putImageData(this.canvas.imageData, 0, 0);
-                    if (this.isPenDown) {
-                        context.save();
-                        context.strokeStyle = this.color;
-                        context.lineJoin = "round";
-                        context.lineCap = "round";
-                        context.lineWidth = 3;
-                        context.translate(this.canvas.width / 2, this.canvas.height / 2);
-                        context.beginPath();
-                        context.moveTo(x, y);
-                        context.lineTo(this.x, this.y);
-                        context.stroke();
-                        context.restore();
-                        if (p === 1) {
-                            this.canvas.save();
-                        }
+            sync(({ scope }) => {
+                Object.assign(scope, {
+                    x: this.x,
+                    y: this.y,
+                    dx: d * Math.cos(this.heading),
+                    dy: d * Math.sin(this.heading)
+                });
+            }).
+            ramp(() => Math.abs(d) / this.velocity, (p, { scope: { x, y, dx, dy } }) => {
+                const t = ease(p);
+                this.x = x + t * dx;
+                this.y = y + t * dy;
+                const context = this.canvas.context;
+                context.putImageData(this.canvas.imageData, 0, 0);
+                if (this.isPenDown) {
+                    context.save();
+                    context.strokeStyle = this.color;
+                    context.lineJoin = "round";
+                    context.lineCap = "round";
+                    context.lineWidth = 3;
+                    context.translate(this.canvas.width / 2, this.canvas.height / 2);
+                    context.beginPath();
+                    context.moveTo(x, y);
+                    context.lineTo(this.x, this.y);
+                    context.stroke();
+                    context.restore();
+                    if (p === 1) {
+                        this.canvas.save();
                     }
-                    this.drawSelf();
                 }
+                this.drawSelf();
             });
         return this;
     }
@@ -123,15 +118,13 @@ export class Turtle {
     right(a) {
         const th = π * a / 180;
         const turtle = this;
-        this.fiber.ramp(() => Math.abs(a) / this.angularVelocity, {
-            rampDidProgress(p) {
-                if (p === 0) {
-                    this.heading = turtle.heading;
-                }
-                turtle.heading = this.heading + ease(p) * th;
-                turtle.drawSelf(true);
+        this.fiber.ramp(() => Math.abs(a) / this.angularVelocity, p => {
+            if (p === 0) {
+                this.heading = turtle.heading;
             }
-        })
+            turtle.heading = this.heading + ease(p) * th;
+            turtle.drawSelf(true);
+        });
         return this;
     }
 
@@ -140,7 +133,7 @@ export class Turtle {
     }
 
     penup() {
-        this.fiber.effect(() => {
+        this.fiber.sync(() => {
             if (this.isPenDown) {
                 this.isPenDown = false;
                 this.drawSelf(true);
@@ -150,7 +143,7 @@ export class Turtle {
     }
 
     pendown() {
-        this.fiber.effect(() => {
+        this.fiber.sync(() => {
             if (!this.isPenDown) {
                 this.isPenDown = true;
                 this.drawSelf(true);
@@ -160,7 +153,7 @@ export class Turtle {
     }
 
     hide() {
-        this.fiber.effect(() => {
+        this.fiber.sync(() => {
             if (this.isVisible) {
                 this.isVisible = false;
                 this.drawSelf(true);
@@ -170,7 +163,7 @@ export class Turtle {
     }
 
     show() {
-        this.fiber.effect(() => {
+        this.fiber.sync(() => {
             if (!this.isVisible) {
                 this.isVisible = true;
                 this.drawSelf(true);
@@ -180,7 +173,7 @@ export class Turtle {
     }
 
     wait(dur) {
-        this.fiber.delay(dur);
+        this.fiber.ramp(dur);
         return this;
     }
 

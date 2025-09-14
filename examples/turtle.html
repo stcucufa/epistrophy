@@ -6,8 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import Scheduler from "../lib/scheduler.js";
-import { First } from "../lib/fiber.js";
+import { run } from "../lib/shell.js";
 import { Canvas, Turtle } from "./turtle.js";
 
 const range = document.querySelector(`input[type="range"]`);
@@ -15,45 +14,8 @@ const span = document.querySelector("span");
 const pause = document.querySelector(`input[type="checkbox"]`);
 const infinity = document.querySelector("button");
 
-const fiber = Scheduler.run().
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            effect((_, scheduler) => {
-                const rate = 1.26 ** range.value;
-                span.textContent = rate.toFixed(2);
-                scheduler.setRateForFiber(scheduler.fiberNamed("turtle"), rate);
-            }).
-            event(range, "input"), { repeatShouldEnd: () => false }
-        )
-    ).
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            event(infinity, "click").
-            effect((_, scheduler) => { scheduler.setRateForFiber(scheduler.fiberNamed("turtle"), Infinity); })
-        )
-    ).
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            event(pause, "change").
-            exec((_, scheduler) => {
-                const turtle = scheduler.fiberNamed("turtle");
-                const rate = turtle.rate;
-                scheduler.setRateForFiber(turtle, 0);
-                range.disabled = true;
-                infinity.disabled = true;
-                return rate;
-            }).
-            event(pause, "change").
-            effect(({ value: rate }, scheduler) => {
-                range.disabled = false;
-                infinity.disabled = false;
-                scheduler.setRateForFiber(scheduler.fiberNamed("turtle"), rate);
-            })
-        )
-    );
-
 const canvas = new Canvas(document.querySelector("canvas"));
-const turtle = new Turtle(fiber.spawn().named("turtle"), canvas).
+const turtle = new Turtle(run(), canvas).
     to("triangle", (turtle, size) => turtle.
         repeat(3, turtle => turtle.
             forward(size).
@@ -99,27 +61,7 @@ const x = 200;
 const y = 120;
 const a = 90 + Math.atan2(y, x) * 180 / Math.PI;
 
-turtle.
-    penup().
-    right(a).
-    forward(Math.sqrt(x * x + y * y)).
-    left(a).
-    wait(500).
-    pendown().
-    repeat(9, turtle => turtle.
-        thing(250).
-        right(10).
-        forward(125)
-    ).
-    wait(700).
-    hide();
-
-fiber.join(First).
-    effect(() => {
-        range.disabled = true;
-        pause.disabled = true;
-        infinity.disabled = true;
-    });
+turtle.forward(400).right(90).forward(100);
 
         </script>
     </head>
@@ -127,20 +69,6 @@ fiber.join(First).
         <h1>Animated turtle graphics example</h1>
         <div class="example" style="padding: 0.5em">
             <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
-            <p>
-                <label for="speed">Turtle speed:</label>
-                <input type="range" name="speed" list="markers" min="-6" max="6" step="any"></input>
-                <span style="min-width: 2.2em; display: inline-block">---</span>
-                <datalist id="markers">
-                    <option value="-6"></option>
-                    <option value="-3"></option>
-                    <option value="0"></option>
-                    <option value="3"></option>
-                    <option value="6"></option>
-                </datalist>
-                <button type="button">Infinity</button>
-                <input type="checkbox" name="pause" /><label for="pause">Paused</label>
-            </p>
         </div>
         <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
         Computer as a Medium for Exploring Mathematics</a>, by Harold Abelson and Andrea diSessa, MIT Press, 1981 (chapter
@@ -158,11 +86,6 @@ fiber.join(First).
         successive instructions are added to the fiber, ensuring the correct scheduling of their execution. This also
         allows additional effects like <code>wait</code>ing, which is simply a call to the fiber <code>delay</code>
         instruction.</p>
-        <p>The speed of the turtle can be controlled either by giving it a <code>speed()</code> instruction, or by setting
-        the rate of the fiber itself. The latter approach is implemented thanks to another fiber that listens to
-        <code>input</code> events from an <code>&lt;input type="range"&gt;</code> element and setting the rate of the
-        turtle fiber accordingly. The turtle can also be paused or resumed with the Pause button.</p>
-        <p><span class="todo">TODO</span> Multiple turtles.</p>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
