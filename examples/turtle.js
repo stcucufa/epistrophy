@@ -1,3 +1,5 @@
+import { extend } from "../lib/util.js";
+
 const π = Math.PI;
 
 const ease = p => p * p * (3 - 2 * p);
@@ -117,14 +119,16 @@ export class Turtle {
 
     right(a) {
         const th = π * a / 180;
-        const turtle = this;
-        this.fiber.ramp(() => Math.abs(a) / this.angularVelocity, p => {
-            if (p === 0) {
-                this.heading = turtle.heading;
-            }
-            turtle.heading = this.heading + ease(p) * th;
-            turtle.drawSelf(true);
-        });
+        this.fiber.
+            sync(({ scope }) => {
+                Object.assign(scope, {
+                    heading: this.heading
+                });
+            }).
+            ramp(() => Math.abs(a) / this.angularVelocity, (p, { scope: { heading } }) => {
+                this.heading = heading + ease(p) * th;
+                this.drawSelf(true);
+            });
         return this;
     }
 
@@ -178,9 +182,10 @@ export class Turtle {
     }
 
     repeat(count, f) {
-        this.fiber.repeat(fiber => {
-            f(Object.assign(Object.create(this), { fiber }));
-        }, { repeatShouldEnd: i => i === count });
+        this.fiber.repeat(
+            fiber => { f(extend(this, { fiber })); },
+            { repeatShouldEnd: i => i === count }
+        );
         return this;
     }
 

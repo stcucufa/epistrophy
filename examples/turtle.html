@@ -61,7 +61,20 @@ const x = 200;
 const y = 120;
 const a = 90 + Math.atan2(y, x) * 180 / Math.PI;
 
-turtle.forward(400).right(90).forward(100);
+turtle.
+    penup().
+    right(a).
+    forward(Math.sqrt(x * x + y * y)).
+    left(a).
+    wait(500).
+    pendown().
+    repeat(9, turtle => turtle.
+        thing(250).
+        right(10).
+        forward(125)
+    ).
+    wait(700).
+    hide();
 
         </script>
     </head>
@@ -78,14 +91,14 @@ turtle.forward(400).right(90).forward(100);
         screen or as a physical object drawing on a sheet of paper, is that it moves as the program executes. The drawing
         appears as the turtle is going through its instructions (forward, left, pen up, &amp;c.) so that the step it
         follows can become more apparent than if the drawing were appearing at once.</p>
-        <p>The <a href="turtle.js">turtle drawing primitives</a> are animated by wrapping them in Epistrophy effects (for
-        immediate effects like <code>penup</code>/<code>pendown</code> or <code>show</code>/<code>hide</code>) and ramps
-        (for <code>forward</code> or <code>right</code>). The duration of the ramp is inversely proportional to the
-        velocity of the turtle, and each call to the <code>rampDidProgress</code> delegate updates the position or heading
-        of the turtle by small increments. All of this is achieved by associating a turtle with its own fiber, so that
-        successive instructions are added to the fiber, ensuring the correct scheduling of their execution. This also
-        allows additional effects like <code>wait</code>ing, which is simply a call to the fiber <code>delay</code>
-        instruction.</p>
+        <p>The <a href="turtle.js">turtle drawing primitives</a> are animated by wrapping them in Epistrophy
+        <code>sync</code> instructions (for immediate effects like <code>penup</code>/<code>pendown</code> or
+        <code>show</code>/<code>hide</code>) and <code>ramp</code> instructions (for <code>forward</code> or
+        <code>right</code>). The duration of the ramp is inversely proportional to the velocity of the turtle, and each
+        call to the <code>rampDidProgress</code> delegate updates the position or heading of the turtle by small
+        increments. All of this is achieved by associating a turtle with its own fiber, so that successive instructions
+        are added to the fiber, ensuring the correct scheduling of their execution. This also allows additional effects
+        like <code>wait</code>ing, which is simply a call to the fiber <code>delay</code> instruction.</p>
         <h2>Source</h2>
         <pre></pre>
         <p><a href="index.html">Back</a></p>
