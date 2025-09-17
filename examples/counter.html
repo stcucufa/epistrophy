@@ -6,34 +6,24 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { run, cancelSiblings } from "../lib/shell.js";
+import { run, FirstValue } from "../lib/shell.js";
+
+const [minus, plus] = document.querySelectorAll("button");
+const span = document.querySelector("span");
 
 run().
-    sync(({ scope }) => {
-        scope.span = document.querySelector("span");
-        const [minus, plus] = document.querySelectorAll("button");
-        scope.minus = minus;
-        scope.plus = plus;
-        scope.count = 0;
-    }).
-    repeat(fiber => fiber.
-        sync(({ scope }) => { scope.span.textContent = scope.count.toString(); }).
+    sync(() => 17).
+    repeatValue(fiber => fiber.
+        sync(({ value: count }) => { span.textContent = count.toString(); }).
         spawn(fiber => fiber.
-            event(({ scope }) => scope.plus, "click").
-            sync(({ scope }) => { scope.increment = 1; })
+            event(plus, "click").
+            sync(({ value: count }) => count + 1)
         ).
         spawn(fiber => fiber.
-            event(({ scope }) => scope.minus, "click").
-            sync(({ scope }) => { scope.increment = -1; })
+            event(minus, "click").
+            sync(({ value: count }) => count - 1)
         ).
-        join({
-            childFiberDidJoin(child, scheduler) {
-                if (!child.error) {
-                    cancelSiblings(child, scheduler);
-                    child.setOriginalValue("count", child.scope.count + child.scope.increment);
-                }
-            }
-        })
+        join(FirstValue)
     );
         </script>
     </head>
