@@ -78,15 +78,13 @@ export class Turtle {
 
     forward(d) {
         this.fiber.
-            sync(({ scope }) => {
-                Object.assign(scope, {
-                    x: this.x,
-                    y: this.y,
-                    dx: d * Math.cos(this.heading),
-                    dy: d * Math.sin(this.heading)
-                });
-            }).
-            ramp(() => Math.abs(d) / this.velocity, (p, { scope: { x, y, dx, dy } }) => {
+            sync(() => ({
+                x: this.x,
+                y: this.y,
+                dx: d * Math.cos(this.heading),
+                dy: d * Math.sin(this.heading)
+            })).
+            ramp(() => Math.abs(d) / this.velocity, (p, { value: { x, y, dx, dy } }) => {
                 const t = ease(p);
                 this.x = x + t * dx;
                 this.y = y + t * dy;
@@ -120,12 +118,8 @@ export class Turtle {
     right(a) {
         const th = π * a / 180;
         this.fiber.
-            sync(({ scope }) => {
-                Object.assign(scope, {
-                    heading: this.heading
-                });
-            }).
-            ramp(() => Math.abs(a) / this.angularVelocity, (p, { scope: { heading } }) => {
+            sync(() => this.heading).
+            ramp(() => Math.abs(a) / this.angularVelocity, (p, { value: heading }) => {
                 this.heading = heading + ease(p) * th;
                 this.drawSelf(true);
             });
