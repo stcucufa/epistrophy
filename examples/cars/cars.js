@@ -1,17 +1,5 @@
+import { K, loadImage } from "../../lib/util.js";
 import { run, First, PreventDefault } from "../../lib/shell.js";
-
-// Create the promise of an image at `src` to be fulfilled when the image is
-// loaded (or rejected in case of error).
-const loadImage = src => async () => new Promise((resolve, reject) => {
-    const image = new Image();
-    image.src = src;
-    if (image.complete) {
-        resolve(image);
-    } else {
-        image.addEventListener("load", () => { resolve(image); });
-        image.addEventListener("error", () => { reject(Error(`Cannot load image with src="${src}"`)); });
-    }
-});
 
 const Width = 800;
 const Height = 600;
@@ -21,75 +9,15 @@ const GameDuration = 5000;
 const N = [7, 12];
 const Srcs = ["red1.png", "red2.png", "gray1.png", "gray2.png", "crash1.png", "crash2.png", "flag1.png", "flag2.png"];
 
-// Setup the game object.
-function setup() {
-    return {
-        canvas: document.querySelector("canvas"),
-        progress: document.querySelector("progress"),
-        images: {}
-    };
-}
-
-// Load all images concurrently.
-function loadImages(fiber) {
-    for (const src of Srcs) {
-        fiber.spawn(fiber => fiber.async(loadImage(src), {
-            asyncWillEndWithValue(image, { scope }) {
-                scope.value = [src, image];
-            }
-        }));
+// Draw the game in the canvas element.
+function draw({ canvas, cars, images }) {
+    canvas.width = Width;
+    canvas.height = Height;
+    const context = canvas.getContext("2d");
+    for (const car of cars) {
+        context.drawImage(images[car.images[car.frame]], car.x, Lanes[car.lane]);
     }
-    fiber.join({
-        childFiberDidJoin(child) {
-            const [src, image] = child.scope.value;
-            child.scope.images[src] = image;
-        }
-    });
 }
-
-// Show the splash screen and way for a key press to begin.
-const splash = fiber => fiber.
-    sync(({ scope: { progress } }) => {
-        progress.value = 0;
-        progress.max = GameDuration;
-    }).
-    sync(({ scope: { canvas } }) => {
-        canvas.width = Width;
-        canvas.height = Height;
-        const context = canvas.getContext("2d");
-        context.save();
-        context.fillStyle = "#1d2b53";
-        context.font = "italic 96px system-ui, sans-serif";
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.fillText("RACE!", Width / 2, Height / 2);
-        context.restore();
-    }).
-    event(window, "keydown", PreventDefault).
-    sync(({ scope }) => { scope.cars = [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }]; });
-
-// Draw loop: on every update, draw the game objects.
-const drawLoop = fiber => fiber.
-    ramp(Infinity, (_, { scope: { canvas, cars, images } }) => {
-        canvas.width = Width;
-        canvas.height = Height;
-        const context = canvas.getContext("2d");
-        for (const car of cars) {
-            context.drawImage(images[car.images[car.frame]], car.x, Lanes[car.lane]);
-        }
-    });
-
-// Animation loop: toggle car images at 10 FPS (i.e., every 100ms) and update
-// the progress bar for the duration of the game.
-const animationLoop = fiber => fiber.
-    repeat(fiber => fiber.
-        ramp(100).
-        sync(({ scope: { cars } }) => {
-            for (const car of cars) {
-                car.frame = 1 - car.frame;
-            }
-        })
-    );
 
 // The player loop (updating the lane of the player car based on keyboard
 // input) runs for the duration of the game and ends with the checkered flag,
@@ -157,11 +85,65 @@ const otherCars = fiber => {
     });
 }
 
+// Show the splash screen on the canvas
+function splash(canvas) {
+    canvas.width = Width;
+    canvas.height = Height;
+    const context = canvas.getContext("2d");
+    context.save();
+    context.fillStyle = "#1d2b53";
+    context.font = "italic 96px system-ui, sans-serif";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText("RACE!", Width / 2, Height / 2);
+    context.restore();
+}
+
 // Run the game once.
 // FIXME 4H0H Restart cars game
 run().
-    sync(({ scope }) => { Object.assign(scope, setup()); }).
-    macro(loadImages).
+
+    // Load the images and setup the game elements.
+    sync(K(Srcs)).
+    collect(fiber => fiber.async(
+        async ({ value }) => loadImage(value), {
+            asyncWillEndWithValue: (img, { value: key }) => ([key, img])
+        })).
+    sync(({ value: images }) => ({
+        canvas: document.querySelector("canvas"),
+        progress: document.querySelector("progress"),
+        images: Object.fromEntries(images)
+    })).
+
+    // Reset the progress bar and show the splash screen
+    sync(({ value: { progress, canvas } }) => {
+        progress.value = 0;
+        progress.max = GameDuration;
+        splash(canvas);
+    }).
+
+    // Wait for any key and initialize the game loop with the player car.
+    event(window, "keydown", PreventDefault).
+    sync(({ value }) => { value.cars = [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }]; }).
+
+    // Draw loop: draw the game on every animation frame, forever.
+    spawn(fiber => fiber.ramp(Infinity, (_, { value }) => { draw(value); })).
+
+    // Animation loop: toggle car images at 10 FPS (i.e., every 100ms) and
+    // update the progress bar for the duration of the game.
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            ramp(100).
+            sync(({ value: { cars } }) => {
+                for (const car of cars) {
+                    car.frame = 1 - car.frame;
+                }
+            })
+        )
+    );
+
+
+    /*sync(({ scope }) => { Object.assign(scope, setup()); }).
     macro(splash).
     spawn(drawLoop).
     spawn(animationLoop).
@@ -169,4 +151,4 @@ run().
         spawn(fiber => fiber.macro(playerLoop)).
         spawn(otherCars).
         join(First)
-    );
+    );*/

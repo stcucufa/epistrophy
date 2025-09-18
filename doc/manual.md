@@ -132,7 +132,8 @@ execution of an instruction and sets the `error` property of the fiber. Every
 subsequent instruction is then skipped, unless wrapped inside an `ever` block.
 
 * `sync(f)` calls the function `f` with the current fiber instance and
-scheduler as arguments and resumes execution as soon as `f` returns.
+scheduler as arguments and resumes execution as soon as `f` returns. The fiber
+value is set to the value returned by `f` (if any).
 * `ramp(dur, f)` begins the ramp and yields for `dur` milliseconds (unless
 `dur` is zero; `f` still gets called with _p_ = 0 and 1 synchronously before
 execution resumes). If `dur` is a function, it first gets called with the fiber
@@ -162,8 +163,8 @@ listener. The following delegate methods, if provided, are called:
     before the fiber resumes.
 * `async(f, delegate)` calls the function `f` with the current fiber instance
 and scheduler as arguments, and yields until the returned Promise or thenable
-gets resolved or rejected. The following delegate methods, if present, are
-called:
+gets resolved or rejected. The value of the fiber is set to the resolved value,
+if any. The following delegate methods, if present, are called:
     * `asyncWillEndWithValue(value, fiber, scheduler)`: when the promise is
     resolved, this gets called with the eventual value, fiber instance, and
     scheduler (and the delegate object itself as `this`).
@@ -201,6 +202,10 @@ objects, and have the following additional properties and methods:
 milliseconds elapsed since the fiber first started running.
 * `ScheduledFiber.parent` is the parent fiber, if the fiber was spawned from a
 fiber, and not directly created and scheduled.
+* `ScheduledFiber.value` is the current value of the fiber. If the fiber has
+a parent, its initial value is the parent value when it is spawned; otherwise,
+it is undefined. The value can be set freely but is also affected by
+instructions such as `sync`, `async`, and others (when noted).
 * `ScheduledFiber.scope` is an object that can hold any data that the fiber
 needs during its execution; if the fiber has a parent, its scope is created
 from the parent’s scope, otherwise it is initialized as an empty object.
@@ -281,6 +286,18 @@ on the button is removed. If no delegate was specified, the behaviour here
 would be to wait _at least_ 3 seconds before continuing, even if the button was
 clicked earlier.
 
+* `FirstValue` is the same as `First`, except that the parent value is updated
+with the value of the first child that joins. In the example below, the child
+fiber with the value `first` ends before its sibling, so the parent fiber will
+have `first` as its value when the join ends.
+
+```js
+fiber.
+    spawn(fiber => fiber.sync(() => "last").ramp(777)).
+    spawn(fiber => fiber.sync(() => "first").ramp(333)).
+    join(FirstValue);
+```
+
 * `cancelSiblings(child, scheduler)` is used by the `First` delegate to cancel
 the sibling fibers of the `child` fiber (in the context of `scheduler`). This
 can be used for a join delegate that needs to do more than just cancel these
@@ -291,32 +308,28 @@ counter value carried by the parent fiber, based on which button was clicked:
 
 ```js
 fiber.
-    sync(fiber => { fiber.scope.count = 0; }).
-    repeat(fiber => fiber.
+    sync(() => 0).
+    repeatValue(fiber => fiber.
         spawn(fiber => fiber.
             event(PlusButton, "click").
-            sync(fiber => { fiber.scope.increment = 1; })
+            sync(({ value: count }) => count + 1)
         ).
         spawn(fiber => fiber.
             event(MinusButton, "click").
-            sync(fiber => { fiber.scope.increment = -1; })
+            sync(({ value: count }) => count - 1)
         ).
         join({
             childFiberDidJoin(child, scheduler) {
                 if (!child.error) {
                     cancelSiblings(child, scheduler);
-                    child.setOriginalValue(
-                        "count",
-                        child.scope.count + child.scope.increment
-                    );
+                    child.parent.value = child.value;
                 }
             }
         })
     );
 ```
 
-See the defition of `Fiber.repeat()` and `ScheduledFiber.setOriginalValue()`
-below.
+See the defition of `Fiber.repeatValue()` below.
 
 ### Fiber utilities
 
@@ -360,6 +373,10 @@ fiber.repeat(fiber => fiber.
     repeatShouldEnd: i => i === 3
 });
 ```
+
+* `Fiber.repeatValue(f, delegate)` is similar to `Fiber.repeat()` except that
+the value of the fiber is updated after each iteration with the value of the
+inner fiber.
 
 These additional methods are available at runtime:
 
