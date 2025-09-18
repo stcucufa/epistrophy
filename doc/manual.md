@@ -378,6 +378,25 @@ fiber.repeat(fiber => fiber.
 the value of the fiber is updated after each iteration with the value of the
 inner fiber.
 
+* `Fiber.collect(f)` is similar to `spawn`, except the a new instance of the
+child fiber is created for every item in the (Array) `value` of the fiber,
+setting the initial value of the child fiber to that item (instead of the
+whole array); the result values are collected in a new Array in the order in
+which the fibers _ended_. If a child fiber ends in error, the other fibers
+are cancelled and the parent fiber ends with that error.
+
+* `Fiber.map(f)` is identical to `Fiber.collect(f)` except that the values of
+the child fibers are collected in the order in which the fibers began (_i.e._,
+maintaining the same order as the input values).
+
+For example, to load an array of images given an array of URLs:
+
+```js
+fiber.
+    sync(() => URLs).
+    map(fiber => fiber.async(async ({ value }) => loadImage(value)));
+```
+
 These additional methods are available at runtime:
 
 * `ScheduledFiber.setOriginalValue(name, value)`: sets the value of a property
