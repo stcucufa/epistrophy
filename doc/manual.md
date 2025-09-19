@@ -204,9 +204,9 @@ milliseconds elapsed since the fiber first started running.
 * `ScheduledFiber.parent` is the parent fiber, if the fiber was spawned from a
 fiber, and not directly created and scheduled.
 * `ScheduledFiber.value` is the current value of the fiber. If the fiber has
-a parent, its initial value is the parent value when it is spawned; otherwise,
-it is undefined. The value can be set freely but is also affected by
-instructions such as `sync`, `async`, and others (when noted).
+a parent, its initial value is the parent value when spawning; otherwise, it is
+undefined. The value can be set freely but is also affected by instructions
+such as `sync`, `async`, and others (when noted).
 * `ScheduledFiber.scope` is an object that can hold any data that the fiber
 needs during its execution; if the fiber has a parent, its scope is created
 from the parent’s scope, otherwise it is initialized as an empty object.
