@@ -167,7 +167,8 @@ gets resolved or rejected. The value of the fiber is set to the resolved value,
 if any. The following delegate methods, if present, are called:
     * `asyncWillEndWithValue(value, fiber, scheduler)`: when the promise is
     resolved, this gets called with the eventual value, fiber instance, and
-    scheduler (and the delegate object itself as `this`).
+    scheduler (and the delegate object itself as `this`), and returns the new
+    value to set for the fiber.
     * `asyncWillEndWithError(error, fiber, scheduler)`: when the promise is
     rejected, this gets called with the eventual error, fiber instance, and
     scheduler (and the delegate object itself as `this`). The fiber `error`
