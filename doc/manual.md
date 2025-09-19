@@ -294,8 +294,8 @@ have `first` as its value when the join ends.
 
 ```js
 fiber.
-    spawn(fiber => fiber.sync(() => "last").ramp(777)).
-    spawn(fiber => fiber.sync(() => "first").ramp(333)).
+    spawn(fiber => fiber.K("last").ramp(777)).
+    spawn(fiber => fiber.K("first").ramp(333)).
     join(FirstValue);
 ```
 
@@ -309,7 +309,7 @@ counter value carried by the parent fiber, based on which button was clicked:
 
 ```js
 fiber.
-    sync(() => 0).
+    K(0).
     repeatValue(fiber => fiber.
         spawn(fiber => fiber.
             event(PlusButton, "click").
@@ -330,11 +330,15 @@ fiber.
     );
 ```
 
-See the defition of `Fiber.repeatValue()` below.
+See the definition of `Fiber.K()` and `Fiber.repeatValue()` below.
 
 ### Fiber utilities
 
 The shell adds convenience methods to fibers:
+
+* `Fiber.K(x)` is a special case of `Fiber.sync(f)` where `f` is a constant
+function that returns `x` (_i.e._, `K(x)` ≡ `sync(() => x)`). This is useful
+for setting the value of a fiber to a known, constant value.
 
 * `Fiber.macro(f)` calls the function `f` with the fiber as its argument and
 returns the fiber. This allows setting up more complex chains of operations
@@ -394,7 +398,7 @@ For example, to load an array of images given an array of URLs:
 
 ```js
 fiber.
-    sync(() => URLs).
+    K(URLs).
     map(fiber => fiber.async(async ({ value }) => loadImage(value)));
 ```
 

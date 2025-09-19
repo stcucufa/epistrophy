@@ -12,7 +12,7 @@ const [minus, plus] = document.querySelectorAll("button");
 const span = document.querySelector("span");
 
 run().
-    sync(() => 17).
+    K(17).
     repeatValue(fiber => fiber.
         sync(({ value: count }) => { span.textContent = count.toString(); }).
         spawn(fiber => fiber.
