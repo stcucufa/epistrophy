@@ -41,7 +41,7 @@ run().
 
     // Load the images and setup the game elements.
     sync(K(Srcs)).
-    collect(fiber => fiber.async(
+    map(fiber => fiber.async(
         async ({ value }) => loadImage(value), {
             asyncWillEndWithValue: (img, { value: key }) => ([key, img])
         })).
