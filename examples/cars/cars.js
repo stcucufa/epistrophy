@@ -1,4 +1,4 @@
-import { K, loadImage } from "../../lib/util.js";
+import { loadImage } from "../../lib/util.js";
 import { run, First, FirstValue, PreventDefault } from "../../lib/shell.js";
 
 const Width = 800;
@@ -40,7 +40,7 @@ function splash(canvas) {
 run().
 
     // Load the images and setup the game elements.
-    sync(K(Srcs)).
+    K(Srcs).
     map(fiber => fiber.async(
         async ({ value }) => loadImage(value), {
             asyncWillEndWithValue: (img, { value: key }) => ([key, img])

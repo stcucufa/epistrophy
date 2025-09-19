@@ -9,10 +9,12 @@
 import { run } from "../lib/shell.js";
 
 run().
-    sync((fiber, scheduler) => {
-        fiber.scope.range = document.querySelector("input");
-        fiber.scope.button = document.querySelector("button");
-        fiber.scope.progress = document.querySelector("progress");
+    sync(({ scope }) => {
+        Object.assign(scope, {
+            range: document.querySelector("input"),
+            button: document.querySelector("button"),
+            progress: document.querySelector("progress")
+        });
     }).
     repeat(fiber => fiber.
         event(({ scope: { button } }) => button, "click").
@@ -28,7 +30,7 @@ run().
         ).
         ramp(333).
         ramp(111, (p, { scope: { progress } }) => { progress.value = (1 - p) * progress.max; }).
-        sync(({ scope: { range, button } }) => { button.disabled = false; })
+        sync(({ scope: { button } }) => { button.disabled = false; })
     );
 
         </script>
