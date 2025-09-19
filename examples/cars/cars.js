@@ -1,12 +1,23 @@
-import { loadImage } from "../../lib/util.js";
+import { loadImage, random } from "../../lib/util.js";
 import { run, First, FirstValue, PreventDefault } from "../../lib/shell.js";
 
+// Game duration in milliseconds.
+const GameDuration = 5000;
+
+// Screen size.
 const Width = 800;
 const Height = 600;
+
+// Lanes positions.
 const Lanes =  [50, 200, 350];
+
+// Danger zone for collisions (in the same lane).
 const Danger = [-100, 250];
-const GameDuration = 5000;
-const N = [7, 12];
+
+// Range for the number of other cars.
+const Cars = [7, 12];
+
+// Image URLs to be loaded.
 const Srcs = ["red1.png", "red2.png", "gray1.png", "gray2.png", "crash1.png", "crash2.png", "flag1.png", "flag2.png"];
 
 // Draw the game (the image of every car) in a canvas element.
@@ -18,9 +29,6 @@ function draw({ canvas, cars, images }) {
         context.drawImage(images[car.images[car.frame]], car.x, Lanes[car.lane]);
     }
 }
-
-// Random integer in the [min, max] range
-const random = (min, max) => min + Math.floor(Math.random() * (1 + max - min));
 
 // Show the splash screen on the canvas
 function splash(canvas) {
@@ -53,115 +61,116 @@ run().
         });
     }).
 
-    // This should be wrapped in a repeat() to play again.
-    // FIXME 4H0H Restart cars game
+    // Main game loop: show the splash screen, then start the game on a key
+    // press, and wait for another key press before starting a new iteration.
+    repeat(fiber => fiber.
 
-    // Reset the progress bar and show the splash screen until a key is
-    // pressed.
-    sync(({ scope: { progress, canvas } }) => {
-        progress.value = 0;
-        progress.max = GameDuration;
-        splash(canvas);
-    }).
-    event(window, "keydown", PreventDefault).
+        // Reset the progress bar and show the splash screen until a key is
+        // pressed.
+        sync(({ scope: { progress, canvas } }) => {
+            progress.value = 0;
+            progress.max = GameDuration;
+            splash(canvas);
+        }).
+        event(window, "keydown", PreventDefault).
 
-    // Initialize the game loop.
-    sync(({ scope }) => {
-        scope.cars = [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }];
-    }).
-
-    // Draw loop: draw the game on every animation frame, forever.
-    spawn(fiber => fiber.ramp(
-        Infinity,
-        (_, { scope }) => { draw(scope); })
-    ).
-
-    // Animation loop: toggle car images at 10 FPS (i.e., every 100ms) and
-    // update the progress bar for the duration of the game.
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            ramp(100).
-            sync(({ scope: { cars } }) => {
-                for (const car of cars) {
-                    car.frame = 1 - car.frame;
-                }
-            })
-        )
-    ).
-
-    // Game loop: run the timer, handle player input, and run the other cars.
-    spawn(fiber => fiber.
-
-        // Run the timer (updating the progress bar) and show the flag when the
-        // timer runs out.
-        spawn(fiber => fiber.
-            ramp(
-                GameDuration,
-                (p, { scope: { progress } }) => { progress.value = p * GameDuration; }
-            ).
-            sync(({ scope: { cars } }) => {
-                cars.length = 1;
-                cars[0].images = ["flag1.png", "flag2.png"];
-                cars[0].x = 200;
-                cars[0].lane = 1;
-            })
+        // Draw loop: draw the game on every animation frame, forever.
+        spawn(fiber => fiber.ramp(
+            Infinity,
+            (_, { scope }) => { draw(scope); })
         ).
 
-        // The player loop updates the lane of the player car based on keyboard
-        // input.
+        // Animation loop: toggle car images at 10 FPS (i.e., every 100ms) and
+        // update the progress bar for the duration of the game.
         spawn(fiber => fiber.
             repeat(fiber => fiber.
-                event(window, "keydown", {
-                    eventWasHandled(event, { scope: { cars: [car] } }) {
-                        if (event.key === "ArrowUp") {
-                            car.lane = Math.max(0, car.lane - 1);
-                            event.preventDefault();
-                        } else if (event.key === "ArrowDown") {
-                            car.lane = Math.min(Lanes.length - 1, car.lane + 1);
-                            event.preventDefault();
-                        }
+                ramp(100).
+                sync(({ scope: { cars } }) => {
+                    for (const car of cars) {
+                        car.frame = 1 - car.frame;
                     }
                 })
             )
         ).
 
-        // Spawn a new fiber for a random number of other cars. Each car begins
-        // with a random delay and lane, and moves backward; if it collides with
-        // the player, then fiber ends with a crash.
-        spawn(fiber => fiber.
-            macro(fiber => {
-                for (let n = random(...N), i = 0; i < n; ++i) {
-                    const car = {
-                        images: ["gray1.png", "gray2.png"],
-                        lane: random(0, Lanes.length - 1),
-                        frame: 0,
-                        x: Width,
-                        v: -50
-                    };
-                    fiber.spawn(fiber => fiber.
-                        ramp(random(0.1 * GameDuration, 0.9 * GameDuration)).
-                        sync(({ scope: { cars } }) => { cars.push(car); }).
-                        repeat(fiber => fiber.
-                            ramp(50).
-                            sync(() => { car.x += car.v; }),
-                            {
-                                repeatShouldEnd: (_, { scope: { cars: [player] } }) => car.lane === player.lane &&
-                                    car.x > Danger[0] && car.x < Danger[1]
-                            }
-                        )
-                    )
-                }
-                fiber.
-                    join(FirstValue).
-                    sync(({ error, value: i, scope: { cars } }) => {
-                        cars.length = 1;
-                        cars[0].images = ["crash1.png", "crash2.png"];
-                        cars[0].x = 200;
-                    });
-            })
-        ).
+        // Initialize the game loop with the player car as the first car.
+        sync(({ scope }) => {
+            scope.cars = [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }];
+        }).
 
-        // End when the timer ends (showing the flag) unless a collision occurs
-        // first (showing the crash animation).
+        // Game loop: run the timer, handle player input, and run the other cars.
+        spawn(fiber => fiber.
+
+            // The player loop updates the lane of the player car based on
+            // keyboard input.
+            spawn(fiber => fiber.
+                repeat(fiber => fiber.
+                    event(window, "keydown", {
+                        eventWasHandled(event, { scope: { cars: [car] } }) {
+                            if (event.key === "ArrowUp") {
+                                car.lane = Math.max(0, car.lane - 1);
+                                event.preventDefault();
+                            } else if (event.key === "ArrowDown") {
+                                car.lane = Math.min(Lanes.length - 1, car.lane + 1);
+                                event.preventDefault();
+                            }
+                        }
+                    })
+                )
+            ).
+
+            // Spawn a new fiber for a random number of other cars. Each car
+            // begins with a random delay and lane, and moves backward; if it
+            // collides with the player, then fiber ends with a crash.
+            spawn(fiber => fiber.
+                sync(() => Array(random(...Cars)).fill().map(() => ({
+                    images: ["gray1.png", "gray2.png"],
+                    lane: random(0, Lanes.length - 1),
+                    frame: 0,
+                    x: Width,
+                    v: -50
+                }))).
+                mapfirst(fiber => fiber.
+                    ramp(() => random(0.1 * GameDuration, 0.9 * GameDuration)).
+                    sync(({ value: car, scope: { cars } }) => { cars.push(car); }).
+                    repeat(fiber => fiber.
+                        ramp(50).
+                        sync(({ value: car }) => { car.x += car.v; }),
+                        {
+                            repeatShouldEnd: (_, { value: car, scope: { cars: [player] } }) =>
+                                car.lane === player.lane && car.x > Danger[0] && car.x < Danger[1]
+                        }
+                    )
+                ).
+                sync(({ scope: { cars } }) => {
+                    cars.length = 1;
+                    cars[0].images = ["crash1.png", "crash2.png"];
+                    cars[0].x = 200;
+                })
+            ).
+
+            // Run the timer (updating the progress bar) and show the flag when the
+            // timer runs out.
+            spawn(fiber => fiber.
+                ramp(
+                    GameDuration,
+                    (p, { scope: { progress } }) => { progress.value = p * GameDuration; }
+                ).
+                sync(({ scope: { cars } }) => {
+                    cars.length = 1;
+                    cars[0].images = ["flag1.png", "flag2.png"];
+                    cars[0].x = 200;
+                    cars[0].lane = 1;
+                })
+            ).
+
+            // Wait for the first fiber to end (either the timer running out
+            // or a crash) and wait half a second before ending the game loop
+            // to start a new game (the small delay is to prevent from
+            // immediately restarting).
+            join(First).
+            ramp(500).
+            event(window, "keydown", PreventDefault)
+        ).
         join(First)
     );
