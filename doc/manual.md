@@ -389,12 +389,15 @@ fiber.repeat(fiber => fiber.
 the value of the fiber is updated after each iteration with the value of the
 inner fiber.
 
-* `Fiber.map(f)` is similar to `spawn`, except that a new instance of the
+* `Fiber.each(f)` is similar to `spawn`, except that a new instance of the
 child fiber is created for _every_ element of the (Array) `value` of the fiber,
-setting the initial value of the child fiber to that item (instead of the
-whole array); the result values are collected in a new Array in the order in
-which the fibers _ended_. If a child fiber ends in error, the other fibers
-are cancelled and the parent fiber ends with that error.
+setting the initial value of the child fiber to that item (instead of the whole
+array).
+
+* `Fiber.map(f)` extends `Fiber.each(f)` by adding a join; the result values
+are collected in a new Array in the order in which the fibers _ended_. If a
+child fiber ends in error, the other fibers are cancelled and the parent fiber
+ends with that error.
 
 * `Fiber.maporder(f)` is identical to `map` except that the values of the child
 fibers are collected in the order in which the fibers began (_i.e._,

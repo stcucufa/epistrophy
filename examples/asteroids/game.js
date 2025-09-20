@@ -1,26 +1,31 @@
-import { clamp, remove } from "../../lib/util.js";
+import { clamp, random, remove } from "../../lib/util.js";
 
 const π = Math.PI;
 const τ = 2 * π;
 
+// The game object manages the all the objects that are drawn, updated, and
+// colliding.
 export default class Game {
-    Friction = -0.125;
     StarsCount = 1111;
-    static UpdateFPS = 60;
 
+    // Create a new game in the given canvas (used for drawing), starting
+    // with a background of stars.
     constructor(canvas) {
         this.canvas = canvas;
         this.width = canvas.clientWidth;
         this.height = canvas.clientHeight;
         this.objects = [new Background(this)];
+        this.collidesWithAsteroid = [];
     }
 
+    // Get a clear drawing context at the right device pixel ratio.
     get context() {
         this.canvas.width = this.width * window.devicePixelRatio;
         this.canvas.height = this.height * window.devicePixelRatio;
         return this.canvas.getContext("2d");
     }
 
+    // Draw all objects in the game, in that order (so background comes first).
     draw() {
         const context = this.context;
         context.save();
@@ -31,29 +36,66 @@ export default class Game {
         context.restore();
     }
 
+    // All values for acceleration, velocity, &c. are based on this update
+    // frequency.
+    static UpdateFPS = 60;
+
+    // Update all game objects by calling their update function, collecting
+    // the set of objects that are leaving (e.g., the ship or an asteroid
+    // exploding) or entering (e.g., particles or smaller asteroids).
+    update() {
+        const enter = new Set();
+        const leave = new Set();
+        for (const object of this.objects) {
+            object.update?.(enter, leave);
+        }
+        for (const object of leave) {
+            this.removeObject(object);
+        }
+        for (const object of enter) {
+            this.addObject(object);
+        }
+        // Return the sets of objects entering and leaving.
+        return [enter, leave];
+    }
+
+    // Add an object to the game, setting its `game` property back to this.
     addObject(object) {
         this.objects.push(object);
         object.game = this;
+        if (object.collidesWithAsteroid) {
+            this.collidesWithAsteroid.push(object);
+        }
         return object;
     }
 
+    // Remove an object from the game, deleting is `game` property.
     removeObject(object) {
         remove(this.objects, object);
+        if (object.collidesWithAsteroid) {
+            remove(this.collidesWithAsteroid, object);
+        }
+        delete object.game;
     }
 
+    // Add a new ship to the game at the center of the screen.
     ship() {
         return this.addObject(new Ship(this.width / 2, this.height / 2, -π / 2));
     }
 
+    // Add a new asteroid to the game at a random position.
     asteroid() {
         return this.addObject(new Asteroid(this.width * Math.random(), this.height * Math.random()));
     }
 }
 
+// Background: a static star field. It is generated once per game and then
+// drawn as the background of every frame.
 class Background {
     BgColor = "#222";
     FgColor = "#f8f9f0";
 
+    // Generate the image data to be drawn on every frame.
     constructor(game) {
         const context = game.context;
         const width = context.canvas.width;
@@ -74,11 +116,15 @@ class Background {
         this.imageData = context.getImageData(0, 0, width, height);
     }
 
+    // Draw the background.
     draw(context) {
         context.putImageData(this.imageData, 0, 0);
     }
 }
 
+// Base class for sprites (all moving objects in the game, including
+// particles). Sprites have position, radius, velocity, acceleration,
+// heading and angular velocity.
 class Sprite {
     fgColor = "#f8f9f0";
     lineWidth = 2;
@@ -147,11 +193,33 @@ class ExhaustParticle extends PointParticle {
     }
 }
 
+class DebrisParticle extends Sprite {
+    constructor(x, y, radius, velocity) {
+        super(x, y, Math.random() * τ);
+        this.radius = radius;
+        this.velocity = velocity;
+        this.angularVelocity = Math.random() * 0.1;
+        this.heading = Math.random() * τ;
+        this.durationMs = random(1000, 2000);
+    }
+
+    draw(context) {
+        this.beginPath(context);
+        context.moveTo(-this.radius, 0);
+        context.lineTo(this.radius, 0);
+        this.stroke(context);
+    }
+}
+
 class Ship extends Sprite {
     radius = 8;
     maxVelocity = 8;
     maxAngularVelocity = 0.1;
     maxAcceleration = 1;
+    friction = -0.125;
+    collidesWithAsteroid = true;
+    debris = [4, 8];
+    debrisVelocity = 0.1;
 
     constructor(x, y, angle) {
         super(x, y, angle);
@@ -167,16 +235,21 @@ class Ship extends Sprite {
         this.stroke(context);
     }
 
-    update() {
-        super.update();
-        const particles = [];
+    update(enter, leave) {
+        super.update(enter, leave);
         if (this.acceleration > 0) {
             const n = 10 * Math.random();
             for (let i = 0; i < n; ++i) {
-                particles.push(this.game.addObject(new ExhaustParticle(this.x, this.y, this.angle, 0.1 * this.velocity)));
+                enter.add(new ExhaustParticle(this.x, this.y, this.angle, 0.1 * this.velocity));
             }
         }
-        return particles;
+    }
+
+    collidedWithAsteroid(enter) {
+        const velocity = this.maxVelocity * this.debrisVelocity;
+        for (let i = random(...this.debris); i >= 0; --i) {
+            enter.add(new DebrisParticle(this.x, this.y, this.radius * (0.5 + Math.random()), velocity));
+        }
     }
 }
 
@@ -210,4 +283,21 @@ class Asteroid extends Sprite {
         context.closePath();
         this.stroke(context);
     }
+
+    update(enter, leave) {
+        super.update(enter, leave);
+        for (const other of this.game.collidesWithAsteroid) {
+            if (collides(this, other)) {
+                leave.add(other);
+                other.collidedWithAsteroid(enter);
+            }
+        }
+    }
+}
+
+// Test whether two game objects `a` and `b` collide based on the distance
+// between their centers and their respective radius.
+function collides(a, b) {
+    const distance = Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+    return distance < (a.radius + b.radius);
 }
