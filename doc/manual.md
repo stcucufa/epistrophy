@@ -2,7 +2,7 @@
 
 Epistrophy has no dependency and no build or installation step. The `lib`
 directory contains all the files needed. The `Fiber` and `Scheduler` objects
-are exported by `lib/unrated.js`, but it is simpler to import `run` from
+are exported by `lib/kernel.js`, but it is simpler to import `run` from
 `lib/shell.js` instead.
 
 ## The Epistrophy model
@@ -259,6 +259,9 @@ console. With this function, the “Hello, world!” program shown above becomes
 import { run } from "./lib/shell.js";
 run().ramp(1000).sync(() => { console.log("Hello, world!"); });
 ```
+
+This method is also added to the Scheduler class itself, so it can be called
+on a scheduler object as well.
 
 * `PreventDefault` is a delegate object that calls `preventDefault()` on an
 event that was just handled. For example, to wait for any key to be pressed
