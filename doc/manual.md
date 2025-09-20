@@ -260,6 +260,9 @@ import { run } from "./lib/shell.js";
 run().ramp(1000).sync(() => { console.log("Hello, world!"); });
 ```
 
+This method is also added to the Scheduler class itself, so it can be called
+on a scheduler object as well.
+
 * `PreventDefault` is a delegate object that calls `preventDefault()` on an
 event that was just handled. For example, to wait for any key to be pressed
 without any other side effect (like scrolling the window if an arrow key is
