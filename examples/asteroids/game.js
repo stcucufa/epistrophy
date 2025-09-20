@@ -4,7 +4,6 @@ const π = Math.PI;
 const τ = 2 * π;
 
 export default class Game {
-    Friction = -0.125;
     StarsCount = 1111;
     static UpdateFPS = 60;
 
@@ -152,6 +151,7 @@ class Ship extends Sprite {
     maxVelocity = 8;
     maxAngularVelocity = 0.1;
     maxAcceleration = 1;
+    friction = -0.125;
 
     constructor(x, y, angle) {
         super(x, y, angle);

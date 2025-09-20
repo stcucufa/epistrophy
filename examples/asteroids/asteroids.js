@@ -1,98 +1,101 @@
-import Scheduler from "../../lib/scheduler.js";
-import { First } from "../../lib/fiber.js";
-import { K } from "../../lib/util.js";
+import { run, First } from "../../lib/shell.js";
 import Game from "./game.js";
 
 const UpdateDuration = 1000 / Game.UpdateFPS;
 
-// Handle a key down/up event for a given fiber, looking for a specific key.
-function handleKey(fiber, key, on, off) {
-    const eventShouldBeIgnored = event => event.key !== key;
-    fiber.repeat(fiber => {
-        fiber.event(window, "keydown", {
-            eventShouldBeIgnored,
-            eventWasHandled(event) { event.preventDefault(); }
-        });
-        if (on) {
-            fiber.effect(on);
-        }
-        fiber.event(window, "keyup", { eventShouldBeIgnored });
-        if (off) {
-            fiber.effect(off);
-        }
-    });
-}
-
-Scheduler.run().
-    exec(() => new Game(document.querySelector("canvas"))).
+run().
+    sync(() => new Game(document.querySelector("canvas"))).
 
     // Draw loop
-    spawn(fiber => fiber.named("draw-loop").
-        ramp(Infinity, {
-            rampDidProgress(_, { value: game }) {
-                game.draw();
-            }
-        })
-    ).
+    spawn(fiber => fiber.ramp(Infinity, (_, { value: game }) => { game.draw(); })).
 
     // Enemies (asteroids, TODO: UFO)
-    spawn(fiber => fiber.named("enemies").
-        exec(({ value: game }) => Array(4).fill().map(() => game.asteroid())).
-        map(fiber => fiber.
-            effect(({ value: asteroid }) => { console.info(asteroid); }).
+    spawn(fiber => fiber.
+        sync(({ value: game }) => Array(4).fill().map(() => game.asteroid())).
+        each(fiber => fiber.
             repeat(fiber => fiber.
-                delay(UpdateDuration).
-                effect(({ value: asteroid }) => { asteroid.update(); })
+                ramp(UpdateDuration).
+                sync(({ value: asteroid }) => { asteroid.update(); })
             )
         )
     ).
 
     // Player loop
-    spawn(fiber => fiber.named("ship").
-        exec(({ value: game }) => game.ship()).
-        store("ship").
-        repeat(fiber => fiber.
+    spawn(fiber => fiber.
 
-            // Keys: left and right to turn, up to accelerate.
-            spawn(fiber => fiber.named("key-left").
-                macro(handleKey, "ArrowLeft",
-                    ({ value: ship }) => { ship.angularVelocity = -ship.maxAngularVelocity; },
-                    ({ value: ship }) => { ship.angularVelocity = Math.max(0, ship.angularVelocity); }
-                )
-            ).
-            spawn(fiber => fiber.named("key-right").
-                macro(handleKey, "ArrowRight",
-                    ({ value: ship }) => { ship.angularVelocity = ship.maxAngularVelocity; },
-                    ({ value: ship }) => { ship.angularVelocity = Math.min(0, ship.angularVelocity); }
-                )
-            ).
-            spawn(fiber => fiber.named("key-up").
-                macro(handleKey, "ArrowUp",
-                    ({ value: ship }) => { ship.acceleration = ship.maxAcceleration; },
-                    ({ value: ship }) => { ship.acceleration = ship.game.Friction; }
-                )
-            ).
+        // Create a ship and use it as value for the fiber; also save to scope.
+        sync(({ scope, value: game }) => {
+            scope.ship = game.ship();
+            return scope.ship;
+        }).
 
-            // Ship updates
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    delay(UpdateDuration).
-                    exec(({ scope: { ship } }) => ship.update()).
-                    map(fiber => fiber.
-                        spawn(fiber => fiber.
-                            repeat(fiber => fiber.
-                                delay(UpdateDuration).
-                                effect(({ value: particle }) => particle.update())
-                            )
-                        ).
-                        spawn(fiber => fiber.delay(({ value: { durationMs } }) => durationMs)).
-                        join(First).
-                        effect(({ value: particle }) => { particle.game.removeObject(particle); })
-                    )
-                )
-            ).
+        // Keys
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
+                event(window, "keydown", {
+                    eventWasHandled(event, { value: ship }) {
+                        switch (event.key) {
+                            case "ArrowLeft":
+                                ship.angularVelocity = -ship.maxAngularVelocity;
+                                break;
+                            case "ArrowRight":
+                                ship.angularVelocity = ship.maxAngularVelocity;
+                                break;
+                            case "ArrowUp":
+                                ship.acceleration = ship.maxAcceleration;
+                                break;
+                            case "ArrowDown":
+                            case " ":
+                                // Do nothing but avoid scrolling the page.
+                                break;
+                            default:
+                                return;
+                        }
+                        event.preventDefault();
+                    }
+                })
+            )
+        ).
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
+                event(window, "keyup", {
+                    eventWasHandled(event, { value: ship }) {
+                        switch (event.key) {
+                            case "ArrowLeft":
+                                ship.angularVelocity = Math.max(0, ship.angularVelocity);
+                                break;
+                            case "ArrowRight":
+                                ship.angularVelocity = Math.min(0, ship.angularVelocity);
+                                break;
+                            case "ArrowUp":
+                                ship.acceleration = ship.friction;
+                                break;
+                            default:
+                                return;
+                        }
+                        event.preventDefault();
+                    }
+                })
+            )
+        ).
 
-            // FIXME end when the ship is destroyed
-            join(First)
+        // Ship update loop—when the ship updates, it returns a list of
+        // particles (exhaust or debris) that will be updated on their own.
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
+                ramp(UpdateDuration).
+                sync(({ scope: { ship } }) => ship.update()).
+                each(fiber => fiber.
+                    spawn(fiber => fiber.
+                        repeat(fiber => fiber.
+                            ramp(UpdateDuration).
+                            sync(({ value: particle }) => { particle.update(); })
+                        )
+                    ).
+                    spawn(fiber => fiber.ramp(({ value: { durationMs } }) => durationMs)).
+                    join(First).
+                    sync(({ value: particle }) => { particle.game.removeObject(particle); })
+                )
+            )
         )
     );
