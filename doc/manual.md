@@ -390,8 +390,8 @@ whole array); the result values are collected in a new Array in the order in
 which the fibers _ended_. If a child fiber ends in error, the other fibers
 are cancelled and the parent fiber ends with that error.
 
-* `Fiber.maporder(f)` is identical to `Fiber.map(f)` except that the values of
-the child fibers are collected in the order in which the fibers began (_i.e._,
+* `Fiber.maporder(f)` is identical to `map` except that the values of the child
+fibers are collected in the order in which the fibers began (_i.e._,
 maintaining the same order as the input values).
 
 For example, to load an array of images given an array of URLs:
@@ -401,6 +401,9 @@ fiber.
     K(URLs).
     map(fiber => fiber.async(async ({ value }) => loadImage(value)));
 ```
+
+* `Fiber.mapfirst(f)` is similar to `map`, but ends with the value of the first
+child that ends.
 
 These additional methods are available at runtime:
 
