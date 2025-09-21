@@ -49,11 +49,11 @@ run().
 
     // Load the images and setup the game elements.
     K(Srcs).
-    map(fiber => fiber.async(
+    map(fiber => fiber.await(
         async ({ value }) => loadImage(value), {
             asyncWillEndWithValue: (img, { value: key }) => ([key, img])
         })).
-    sync(({ value: images, scope }) => {
+    call(({ value: images, scope }) => {
         Object.assign(scope, {
             canvas: document.querySelector("canvas"),
             progress: document.querySelector("progress"),
@@ -67,7 +67,7 @@ run().
 
         // Reset the progress bar and show the splash screen until a key is
         // pressed.
-        sync(({ scope: { progress, canvas } }) => {
+        call(({ scope: { progress, canvas } }) => {
             progress.value = 0;
             progress.max = GameDuration;
             splash(canvas);
@@ -85,7 +85,7 @@ run().
         spawn(fiber => fiber.
             repeat(fiber => fiber.
                 ramp(100).
-                sync(({ scope: { cars } }) => {
+                call(({ scope: { cars } }) => {
                     for (const car of cars) {
                         car.frame = 1 - car.frame;
                     }
@@ -94,7 +94,7 @@ run().
         ).
 
         // Initialize the game loop with the player car as the first car.
-        sync(({ scope }) => {
+        call(({ scope }) => {
             scope.cars = [{ images: ["red1.png", "red2.png"], frame: 0, x: 20, lane: 1, v: 0 }];
         }).
 
@@ -123,7 +123,7 @@ run().
             // begins with a random delay and lane, and moves backward; if it
             // collides with the player, then fiber ends with a crash.
             spawn(fiber => fiber.
-                sync(() => Array(random(...Cars)).fill().map(() => ({
+                call(() => Array(random(...Cars)).fill().map(() => ({
                     images: ["gray1.png", "gray2.png"],
                     lane: random(0, Lanes.length - 1),
                     frame: 0,
@@ -132,17 +132,17 @@ run().
                 }))).
                 mapfirst(fiber => fiber.
                     ramp(() => random(0.1 * GameDuration, 0.9 * GameDuration)).
-                    sync(({ value: car, scope: { cars } }) => { cars.push(car); }).
+                    call(({ value: car, scope: { cars } }) => { cars.push(car); }).
                     repeat(fiber => fiber.
                         ramp(50).
-                        sync(({ value: car }) => { car.x += car.v; }),
+                        call(({ value: car }) => { car.x += car.v; }),
                         {
                             repeatShouldEnd: (_, { value: car, scope: { cars: [player] } }) =>
                                 car.lane === player.lane && car.x > Danger[0] && car.x < Danger[1]
                         }
                     )
                 ).
-                sync(({ scope: { cars } }) => {
+                call(({ scope: { cars } }) => {
                     cars.length = 1;
                     cars[0].images = ["crash1.png", "crash2.png"];
                     cars[0].x = 200;
@@ -156,7 +156,7 @@ run().
                     GameDuration,
                     (p, { scope: { progress } }) => { progress.value = p * GameDuration; }
                 ).
-                sync(({ scope: { cars } }) => {
+                call(({ scope: { cars } }) => {
                     cars.length = 1;
                     cars[0].images = ["flag1.png", "flag2.png"];
                     cars[0].x = 200;

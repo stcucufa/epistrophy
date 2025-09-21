@@ -14,14 +14,14 @@ const span = document.querySelector("span");
 run().
     K(17).
     repeatValue(fiber => fiber.
-        sync(({ value: count }) => { span.textContent = count.toString(); }).
+        call(({ value: count }) => { span.textContent = count.toString(); }).
         spawn(fiber => fiber.
             event(plus, "click").
-            sync(({ value: count }) => count + 1)
+            call(({ value: count }) => count + 1)
         ).
         spawn(fiber => fiber.
             event(minus, "click").
-            sync(({ value: count }) => count - 1)
+            call(({ value: count }) => count - 1)
         ).
         join(FirstValue)
     );

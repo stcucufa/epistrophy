@@ -92,7 +92,7 @@ turtle.
         appears as the turtle is going through its instructions (forward, left, pen up, &amp;c.) so that the step it
         follows can become more apparent than if the drawing were appearing at once.</p>
         <p>The <a href="turtle.js">turtle drawing primitives</a> are animated by wrapping them in Epistrophy
-        <code>sync</code> instructions (for immediate effects like <code>penup</code>/<code>pendown</code> or
+        <code>call</code> instructions (for immediate effects like <code>penup</code>/<code>pendown</code> or
         <code>show</code>/<code>hide</code>) and <code>ramp</code> instructions (for <code>forward</code> or
         <code>right</code>). The duration of the ramp is inversely proportional to the velocity of the turtle, and each
         call to the <code>rampDidProgress</code> delegate updates the position or heading of the turtle by small

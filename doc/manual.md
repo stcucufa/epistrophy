@@ -26,7 +26,7 @@ Here is a tiny Epistrophy program:
 import { Fiber, Scheduler } from "./lib/unrated.js";
 const fiber = new Fiber().
     ramp(1000).
-    sync(() => { console.log("Hello, world!"); });
+    call(() => { console.log("Hello, world!"); });
 const scheduler = new Scheduler();
 scheduler.scheduleFiber(fiber, 0);
 scheduler.clock.start();
@@ -45,11 +45,11 @@ clock so that the program actually begins.
 
 Epistrophy is built around a minimal core of six instructions:
 
-* _sync_ executes a synchronous function;
+* _call_ calls a synchronous function;
 * _ramp_ waits until some amount of time (given in milliseconds) has elapsed;
 * _event_ waits until a DOM event is received;
-* _async_ starts an asynchronous function calls and waits until a value or an
-error is returned;
+* _await_ calls an asynchronous function and waits until a value or an error is
+eventually returned;
 * _spawn_ schedules a new child fiber (with its own sequence of instructions)
 to begin in the same instant;
 * _join_ waits until all spawned children have ended;
@@ -57,7 +57,7 @@ to begin in the same instant;
 When a fiber is running, it keeps executing instructions one after the other
 until it reaches the end of the sequence (which ends the fiber), or an
 instruction that needs to wait (_ramp_, if the duration is greater than zero;
-_event_, _async_, and _join_, if child fibers have been spawned). In that case,
+_event_, _await_, and _join_, if child fibers have been spawned). In that case,
 the scheduler reschedules the fiber at a definite time (in the case of a ramp),
 or sets up the necessary mechanism (such as an event listener for an event) to
 schedule the fiber again when the condition that it is waiting on is fulfilled.
@@ -68,7 +68,7 @@ A fiber object is created with `new Fiber()`, which returns a fiber with an
 empty list of instructions. Instructions can then be added with the following
 methods. The runtime behaviour of these instructions is detailed below.
 
-`Fiber.sync(f)` adds a `sync` instruction to the fiber and returns the fiber.
+`Fiber.call(f)` adds a `call` instruction to the fiber and returns the fiber.
 `f` should be a synchronous function of two parameters (a fiber instance and
 scheduler) that gets called when the instruction is executed.
 
@@ -87,7 +87,7 @@ object, `type` should be a string or a function of two parameters (a fiber
 instance and scheduler) that returns a string, and `delegate` an optional
 object with methods for customizing event handling.
 
-`Fiber.async(f, delegate)` adds an `async` instruction to the fiber and returns
+`Fiber.await(f, delegate)` adds an `await` instruction to the fiber and returns
 the fiber. `f` should be an asynchronous function (or a function returning a
 Promise or thenable object synchronously) of two parameters (a fiber instance
 and scheduler), and `delegate` an optional object with methods for customizing
@@ -131,7 +131,7 @@ instruction yields. The scheduler catches exceptions that may be thrown during
 execution of an instruction and sets the `error` property of the fiber. Every
 subsequent instruction is then skipped, unless wrapped inside an `ever` block.
 
-* `sync(f)` calls the function `f` with the current fiber instance and
+* `call(f)` calls the function `f` with the current fiber instance and
 scheduler as arguments and resumes execution as soon as `f` returns. The fiber
 value is set to the value returned by `f` (if any).
 * `ramp(dur, f)` begins the ramp and yields for `dur` milliseconds (unless
@@ -161,7 +161,7 @@ listener. The following delegate methods, if provided, are called:
     delegate object itself as `this`), allowing custom handling of the event,
     such as calling `preventDefault` or accessing properties of the event
     before the fiber resumes.
-* `async(f, delegate)` calls the function `f` with the current fiber instance
+* `await(f, delegate)` calls the function `f` with the current fiber instance
 and scheduler as arguments, and yields until the returned Promise or thenable
 gets resolved or rejected. The value of the fiber is set to the resolved value,
 if any. The following delegate methods, if present, are called:
@@ -206,7 +206,7 @@ fiber, and not directly created and scheduled.
 * `ScheduledFiber.value` is the current value of the fiber. If the fiber has
 a parent, its initial value is the parent value when spawning; otherwise, it is
 undefined. The value can be set freely but is also affected by instructions
-such as `sync`, `async`, and others (when noted).
+such as `call`, `await`, and others (when noted).
 * `ScheduledFiber.scope` is an object that can hold any data that the fiber
 needs during its execution; if the fiber has a parent, its scope is created
 from the parent’s scope, otherwise it is initialized as an empty object.
@@ -257,7 +257,7 @@ console. With this function, the “Hello, world!” program shown above becomes
 
 ```js
 import { run } from "./lib/shell.js";
-run().ramp(1000).sync(() => { console.log("Hello, world!"); });
+run().ramp(1000).call(() => { console.log("Hello, world!"); });
 ```
 
 This method is also added to the Scheduler class itself, so it can be called
@@ -316,11 +316,11 @@ fiber.
     repeatValue(fiber => fiber.
         spawn(fiber => fiber.
             event(PlusButton, "click").
-            sync(({ value: count }) => count + 1)
+            call(({ value: count }) => count + 1)
         ).
         spawn(fiber => fiber.
             event(MinusButton, "click").
-            sync(({ value: count }) => count - 1)
+            call(({ value: count }) => count - 1)
         ).
         join({
             childFiberDidJoin(child, scheduler) {
@@ -339,8 +339,8 @@ See the definition of `Fiber.K()` and `Fiber.repeatValue()` below.
 
 The shell adds convenience methods to fibers:
 
-* `Fiber.K(x)` is a special case of `Fiber.sync(f)` where `f` is a constant
-function that returns `x` (_i.e._, `K(x)` ≡ `sync(() => x)`). This is useful
+* `Fiber.K(x)` is a special case of `Fiber.call(f)` where `f` is a constant
+function that returns `x` (_i.e._, `K(x)` ≡ `call(() => x)`). This is useful
 for setting the value of a fiber to a known, constant value.
 
 * `Fiber.macro(f)` calls the function `f` with the fiber as its argument and
@@ -353,7 +353,7 @@ a new fiber for each URL, then joining to wait for all images to be loaded:
 ```js
 fiber.macro(fiber => {
     for (const src of ImageURLs) {
-        fiber.spawn(fiber.async(loadImage(src)));
+        fiber.spawn(fiber.await(loadImage(src)));
     }
 }).join();
 ```
@@ -377,7 +377,7 @@ three seconds:
 ```js
 fiber.repeat(fiber => fiber.
     ramp(1000).
-    sync(() => { console.log("Tick..."); }), {
+    call(() => { console.log("Tick..."); }), {
     repeatShouldEnd: i => i === 3
 });
 ```
@@ -402,7 +402,7 @@ For example, to load an array of images given an array of URLs:
 ```js
 fiber.
     K(URLs).
-    map(fiber => fiber.async(async ({ value }) => loadImage(value)));
+    map(fiber => fiber.await(async ({ value }) => loadImage(value)));
 ```
 
 * `Fiber.mapfirst(f)` is similar to `map`, but ends with the value of the first

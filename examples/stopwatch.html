@@ -9,7 +9,7 @@
 import { run } from "../lib/shell.js";
 
 run().
-    sync(({ scope }) => {
+    call(({ scope }) => {
         Object.assign(scope, {
             range: document.querySelector("input"),
             button: document.querySelector("button"),
@@ -18,7 +18,7 @@ run().
     }).
     repeat(fiber => fiber.
         event(({ scope: { button } }) => button, "click").
-        sync(({ scope: { button } }) => { button.disabled = true; }).
+        call(({ scope: { button } }) => { button.disabled = true; }).
         ramp(
             ({ scope: { range } }) => 1000 * range.value,
             (p, fiber, scheduler) => {
@@ -30,7 +30,7 @@ run().
         ).
         ramp(333).
         ramp(111, (p, { scope: { progress } }) => { progress.value = (1 - p) * progress.max; }).
-        sync(({ scope: { button } }) => { button.disabled = false; })
+        call(({ scope: { button } }) => { button.disabled = false; })
     );
 
         </script>
