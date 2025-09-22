@@ -221,7 +221,7 @@ class Test {
 
 const testFibers = [];
 const fiber = run().
-    sync((fiber, scheduler) => {
+    call((fiber, scheduler) => {
         const parentElement = document.querySelector("div.tests") ?? document.body;
         const ol = parentElement.appendChild(document.createElement("ol"));
         if (!isNaN(targetIndex)) {
@@ -245,7 +245,7 @@ const fiber = run().
             summary(tests);
         }
     }).
-    sync(({ scope: { tests } }) => { summary(tests, true); });
+    call(({ scope: { tests } }) => { summary(tests, true); });
 
 // Update the p element with the test summary.
 function summary(tests, done = false) {
@@ -272,10 +272,10 @@ export default function test(title, f) {
     if (isNaN(targetIndex) || index === targetIndex) {
         const t = new Test(title, index, f);
         testFibers.push(new Fiber().
-            sync(({ scope }) => { scope.test = t; }).
+            call(({ scope }) => { scope.test = t; }).
             macro(fiber => isAsync(f) ?
-                fiber.async(async ({ scope }) => { await scope.test.runAsync(scope.tests.ol); }) :
-                fiber.sync(({ scope }) => { scope.test.run(scope.tests.ol); })
+                fiber.await(async ({ scope }) => { await scope.test.runAsync(scope.tests.ol); }) :
+                fiber.call(({ scope }) => { scope.test.run(scope.tests.ol); })
             )
         );
     }

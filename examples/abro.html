@@ -28,13 +28,19 @@ const O = document.querySelector("span.O");
 
 run().repeat(fiber => fiber.
     spawn(fiber => fiber.
-        spawn(fiber => fiber.event(A, "click").sync(() => { A.disabled = true; })).
-        spawn(fiber => fiber.event(B, "click").sync(() => { B.disabled = true; })).
+        spawn(fiber => fiber.
+            event(A, "click").
+            call(() => { A.disabled = true; })
+        ).
+        spawn(fiber => fiber.
+            event(B, "click").
+            call(() => { B.disabled = true; })
+        ).
         join().
-        sync(() => { O.classList.add("on"); }).
+        call(() => { O.classList.add("on"); }).
         ramp(Infinity).
         ever(fiber => fiber.
-            sync(() => {
+            call(() => {
                 A.disabled = false;
                 B.disabled = false;
                 O.classList.remove("on");

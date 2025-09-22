@@ -41,7 +41,7 @@ export class Turtle {
         this.color = color;
         this.velocity = 1;
         this.angularVelocity = 0.5;
-        fiber.sync(() => { this.drawSelf(); });
+        fiber.call(() => { this.drawSelf(); });
     }
 
     r = 24;
@@ -78,7 +78,7 @@ export class Turtle {
 
     forward(d) {
         this.fiber.
-            sync(() => ({
+            call(() => ({
                 x: this.x,
                 y: this.y,
                 dx: d * Math.cos(this.heading),
@@ -118,7 +118,7 @@ export class Turtle {
     right(a) {
         const th = π * a / 180;
         this.fiber.
-            sync(() => this.heading).
+            call(() => this.heading).
             ramp(() => Math.abs(a) / this.angularVelocity, (p, { value: heading }) => {
                 this.heading = heading + ease(p) * th;
                 this.drawSelf(true);
@@ -131,7 +131,7 @@ export class Turtle {
     }
 
     penup() {
-        this.fiber.sync(() => {
+        this.fiber.call(() => {
             if (this.isPenDown) {
                 this.isPenDown = false;
                 this.drawSelf(true);
@@ -141,7 +141,7 @@ export class Turtle {
     }
 
     pendown() {
-        this.fiber.sync(() => {
+        this.fiber.call(() => {
             if (!this.isPenDown) {
                 this.isPenDown = true;
                 this.drawSelf(true);
@@ -151,7 +151,7 @@ export class Turtle {
     }
 
     hide() {
-        this.fiber.sync(() => {
+        this.fiber.call(() => {
             if (this.isVisible) {
                 this.isVisible = false;
                 this.drawSelf(true);
@@ -161,7 +161,7 @@ export class Turtle {
     }
 
     show() {
-        this.fiber.sync(() => {
+        this.fiber.call(() => {
             if (!this.isVisible) {
                 this.isVisible = true;
                 this.drawSelf(true);

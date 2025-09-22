@@ -64,17 +64,17 @@ run().repeat(fiber => fiber.
     spawn(fiber => fiber.
         spawn(fiber => fiber.
             event(A, "click").
-            sync(() => { A.disabled = true; })
+            call(() => { A.disabled = true; })
         ).
         spawn(fiber => fiber.
             event(B, "click").
-            sync(() => { B.disabled = true; })
+            call(() => { B.disabled = true; })
         ).
         join().
-        sync(() => { O.classList.add("on"); }).
+        call(() => { O.classList.add("on"); }).
         ramp(Infinity).
         ever(fiber => fiber.
-            sync(() => {
+            call(() => {
                 A.disabled = false;
                 B.disabled = false;
                 O.classList.remove("on");
@@ -90,7 +90,7 @@ run().repeat(fiber => fiber.
     { p In Epistrophy, all computations are organized in fibers that are run by
     a scheduler. The { code run() } function creates both a scheduler and a
     fiber that can act as the main fiber, and returns that fiber. Instructions
-    such as { code repeat }, { code spawn }, { code event }, { code sync },
+    such as { code repeat }, { code spawn }, { code event }, { code call },
     { code join } or { code ramp } are added in sequence to the fibers to
     define their runtime behaviour. { code run() } also starts the scheduler’s
     clock and schedules the main fiber to begin immediately. }
@@ -112,7 +112,7 @@ run().repeat(fiber => fiber.
     end. The { code event } instruction waits for an event from a target, and
     ends when that event occurs. If the user presses the A button first, the
     corresponding { code event } instruction ends, and the scheduler resumes
-    the execution of its fiber. The next instruction is { code sync }, which
+    the execution of its fiber. The next instruction is { code call }, which
     executes a function synchronously, ending as the function returns. In this
     case, after the A button was pressed, it becomes disabled, and the fiber
     keeps executing; but now it reaches its end as there are no more
@@ -167,13 +167,13 @@ run().repeat(fiber => fiber.
     child fiber still waiting for a click event on B. Cancellation propagates
     to child fibers, so that fiber gets cancelled as well; the B button does
     not get disabled, and the fiber ends as well as its parent, which still
-    runs the last { code sync } instruction to reset the state of the A
+    runs the last { code call } instruction to reset the state of the A
     button. }
 
     { p The structure of the Epistrophy program is very similar to that of the
     Esterel program, but less succinct and more complex; more imperative. There
     are two reasons to that: first, it does more than Esterel, which only
-    handles signals (the { code sync } instructions have no equivalent in the
+    handles signals (the { code call } instructions have no equivalent in the
     Esterel program); second, Epistrophy works at a much lower level than
     Esterel, so a construct like { code [await A || await B] } requires
     spawning two fibers, setting up event listeners, and joining. The solution
