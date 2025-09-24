@@ -20,6 +20,7 @@ const State = {
     ElementContent: Symbol.for("Element content"),
     ElementContentWithTrailingSpace: Symbol.for("Element content with trailing space"),
     ElementAttribute: Symbol.for("Element attribute"),
+    UnquoteAttribute: Symbol.for("Unquote attribute"),
     Unquote: Symbol.for("Unquote"),
     List: Symbol.for("List"),
 };
@@ -59,11 +60,26 @@ const Transitions = {
 
     // Attribute: an attribute name (with a : suffix) was read, to be followed
     // by a value for the attribute.
-    // FIXME 2L0M Dodo: more attributes
     [State.ElementAttribute]: {
         [Token.Space]: [State.ElementAttribute],
         [Token.String]: [State.ElementHead, setAttribute],
         [Token.Word]: [State.ElementHead, setAttribute],
+        [Token.Backtick]: [State.UnquoteAttribute],
+    },
+
+    // Unquote attribute: either a list or a number (any other unquoted token
+    // is an error).
+    [State.UnquoteAttribute]: {
+        [Token.OpenBrace]: [State.List, pushNewList],
+        [Token.Word]: [State.ElementHead, function(stack, value) {
+            const number = parseNumber(value);
+            if (!number) {
+                throw SyntaxError(`Parse error, line ${this.line}: expected an unquoted number for attribute ${
+                    stack.pendingAttributeName
+                }`);
+            }
+            setAttribute(stack, parseNumber(value) ?? value);
+        }],
     },
 
     // Element content: the head is complete, so add content (words, strings,
@@ -88,8 +104,8 @@ const Transitions = {
         [Token.Word]: [State.ElementContent, addSpace, addWord],
     },
 
-    // Unquote attribute value or content. Lists or numbers are treated
-    // specially, otherwise an unquote element is added.
+    // Unquote content. Lists or numbers are treated specially, otherwise an
+    // unquote element is added.
     [State.Unquote]: {
         [Token.OpenBrace]: [State.List, pushNewList],
         [Token.Word]: [State.ElementContent, function(stack, value) {
@@ -104,6 +120,9 @@ const Transitions = {
         [Token.OpenBrace]: [State.List, pushNewList],
         [Token.CloseBrace]: [State.ElementContent, stack => {
             const list = stack.pop();
+            if (stack.pendingAttributeName) {
+                return setAttribute(stack, list);
+            }
             const top = stack.at(-1);
             if (top.content) {
                 top.content.push(list);
@@ -122,7 +141,7 @@ const Transitions = {
 function addChild(stack) {
     const child = stack.pop();
     if (stack.length === 0) {
-        throw Error(`Parse error, line ${this.line}: root element is already closed.`);
+        throw SyntaxError(`Parse error, line ${this.line}: root element is already closed.`);
     }
     stack.at(-1).content.push(child);
 }
@@ -221,7 +240,7 @@ class Parser {
         for (const [token, value] of this.tokens()) {
             const transitions = Transitions[this.state];
             if (!Object.hasOwn(transitions, token)) {
-                throw Error(`Parse error, line ${this.line}: unexpected token ${
+                throw SyntaxError(`Parse error, line ${this.line}: unexpected token ${
                     Symbol.keyFor(token)
                 }; expected one of ${
                     [...Object.getOwnPropertySymbols(transitions)].map(Symbol.keyFor).join(", ").
@@ -235,13 +254,13 @@ class Parser {
             this.state = q;
         }
         if (stack.length > 1) {
-            throw Error(`Parse error, line ${this.line}: unterminated element "${stack[1].name}".`);
+            throw SyntaxError(`Parse error, line ${this.line}: unterminated element "${stack[1].name}".`);
         }
         if (stack[0].content.length === 0) {
-            throw Error(`Parse error, line ${this.line}: no content.`);
+            throw SyntaxError(`Parse error, line ${this.line}: no content.`);
         }
         if (stack[0].content.length > 1) {
-            throw Error(`Parse error, line ${this.line}: extra content in document.`);
+            throw SyntaxError(`Parse error, line ${this.line}: extra content in document.`);
         }
 
         delete this.input;
@@ -325,7 +344,7 @@ class Parser {
                         yield [Token.Word, unescape(match[1])];
                         break;
                     }
-                    throw Error(`Parse error, line ${this.line}: ill-formed text`);
+                    throw SyntaxError(`Parse error, line ${this.line}: ill-formed text`);
             }
         }
     }

@@ -69,15 +69,17 @@ test("Parser: not an attribute", t => {
 });
 
 test("Parser: number attributes", t => {
-    t.skip("2L0M Dodo: more attributes");
     const { root } = parse("{ constant e: `2.718281828459045 }");
     t.equal(root.attributes, { e: 2.718281828459045 }, "number value");
 });
 
 test("Parser: list attributes", t => {
-    t.skip("2L0M Dodo: more attributes");
-    const { root } = parse("{ constants `{ 1 2 3 }");
+    const { root } = parse("{ constants: `{ 1 2 3 } }");
     t.equal(root.attributes, { constants: [1, 2, 3] }, "list value");
+});
+
+test("Parser: unquoted attribute error", t => {
+    t.throws(() => { parse("{ constant foo: `bar }"); }, "Unquoted value is not a number or a list.");
 });
 
 test("Parser: content unescaping", t => {
