@@ -73,7 +73,7 @@ const Transitions = {
         [Token.OpenBrace]: [State.List, pushNewList],
         [Token.Word]: [State.ElementHead, function(stack, value) {
             const number = parseNumber(value);
-            if (!number) {
+            if (typeof number !== "number") {
                 throw SyntaxError(`Parse error, line ${this.line}: expected an unquoted number for attribute ${
                     stack.pendingAttributeName
                 }`);
