@@ -75,6 +75,7 @@ test("Parser: number attributes", t => {
 
 test("Parser: list attributes", t => {
     const { root } = parse("{ constants: `{ 1 2 3 } }");
+    t.equal(root.name, "constants", "default attribute with");
     t.equal(root.attributes, { constants: [1, 2, 3] }, "list value");
 });
 
