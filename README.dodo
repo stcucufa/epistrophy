@@ -1,4 +1,4 @@
-{ article: "Epistrophy" date: 2025-09-12 lang: en
+{ article: "Epistrophy"
 
     { p Epistrophy is an experimental concurrent runtime for { link:
     https://en.wikipedia.org/wiki/Synchronous_programming_language synchronous
