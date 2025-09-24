@@ -69,8 +69,8 @@ test("Parser: not an attribute", t => {
 });
 
 test("Parser: number attributes", t => {
-    const { root } = parse("{ constant e: `2.718281828459045 }");
-    t.equal(root.attributes, { e: 2.718281828459045 }, "number value");
+    const { root } = parse("{ constant e: `2.718281828459045 zero: `0 }");
+    t.equal(root.attributes, { e: 2.718281828459045, zero: 0 }, "number value");
 });
 
 test("Parser: list attributes", t => {
