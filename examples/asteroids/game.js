@@ -1,16 +1,17 @@
-import { clamp, random, remove } from "../../lib/util.js";
+import { clamp, customEvent, random, remove } from "../../lib/util.js";
 
 const π = Math.PI;
 const τ = 2 * π;
 
 // The game object manages the all the objects that are drawn, updated, and
 // colliding.
-export default class Game {
+export default class Game extends EventTarget {
     StarsCount = 1111;
 
     // Create a new game in the given canvas (used for drawing), starting
     // with a background of stars.
     constructor(canvas) {
+        super();
         this.canvas = canvas;
         this.width = canvas.clientWidth;
         this.height = canvas.clientHeight;
@@ -69,12 +70,13 @@ export default class Game {
         return object;
     }
 
-    // Remove an object from the game, deleting is `game` property.
+    // Remove an object from the game, deleting its `game` property.
     removeObject(object) {
         remove(this.objects, object);
         if (object.collidesWithAsteroid) {
             remove(this.collidesWithAsteroid, object);
         }
+        customEvent.call(this, "removed", { object });
         delete object.game;
     }
 
