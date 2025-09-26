@@ -77,7 +77,7 @@ run().
         // Draw loop: draw the game on every animation frame, forever.
         spawn(fiber => fiber.ramp(
             Infinity,
-            (_, { scope }) => { draw(scope); })
+            ({ scope }) => { draw(scope); })
         ).
 
         // Animation loop: toggle car images at 10 FPS (i.e., every 100ms) and
@@ -154,7 +154,7 @@ run().
             spawn(fiber => fiber.
                 ramp(
                     GameDuration,
-                    (p, { scope: { progress } }) => { progress.value = p * GameDuration; }
+                    ({ p, scope: { progress } }) => { progress.value = p * GameDuration; }
                 ).
                 call(({ scope: { cars } }) => {
                     cars.length = 1;

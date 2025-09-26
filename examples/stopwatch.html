@@ -8,29 +8,25 @@
         <script type="module">
 import { run } from "../lib/shell.js";
 
+const range = document.querySelector("input");
+const button = document.querySelector("button");
+const progress = document.querySelector("progress");
+
 run().
-    call(({ scope }) => {
-        Object.assign(scope, {
-            range: document.querySelector("input"),
-            button: document.querySelector("button"),
-            progress: document.querySelector("progress")
-        });
-    }).
     repeat(fiber => fiber.
-        event(({ scope: { button } }) => button, "click").
-        call(({ scope: { button } }) => { button.disabled = true; }).
+        event(button, "click").
+        call(() => { button.disabled = true; }).
         ramp(
-            ({ scope: { range } }) => 1000 * range.value,
-            (p, fiber, scheduler) => {
-                const { progress, range } = fiber.scope;
+            () => 1000 * range.value,
+            (fiber, scheduler) => {
                 progress.max = range.value;
-                progress.value = p * progress.max;
+                progress.value = fiber.p * progress.max;
                 scheduler.setRampDurationForFiber(fiber, 1000 * range.value);
             }
         ).
         ramp(333).
-        ramp(111, (p, { scope: { progress } }) => { progress.value = (1 - p) * progress.max; }).
-        call(({ scope: { button } }) => { button.disabled = false; })
+        ramp(111, ({ p }) => { progress.value = (1 - p) * progress.max; }).
+        call(() => { button.disabled = false; })
     );
 
         </script>
