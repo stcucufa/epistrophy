@@ -20,7 +20,7 @@ run().
             () => 1000 * range.value,
             (fiber, scheduler) => {
                 progress.max = range.value;
-                progress.value = fiber.p * progress.max;
+                progress.value = fiber.ramp.elapsed / 1000;
                 scheduler.setRampDurationForFiber(fiber, 1000 * range.value);
             }
         ).
