@@ -4,6 +4,7 @@ import Game from "./game.js";
 const UpdateDuration = 1000 / Game.UpdateFPS;
 
 run().
+
     // Create a game object and add it to the scope of the main fiber; this is
     // also the initial value of the fiber.
     call(({ scope }) => {
@@ -36,60 +37,70 @@ run().
 
     // Player loop
     spawn(fiber => fiber.
+        repeat(fiber => fiber.
 
-        // Create a ship and use it as value for the fiber; also save to scope.
-        call(({ scope, value: game }) => {
-            scope.ship = game.ship();
-            return scope.ship;
-        }).
+            // Create a ship and use it as value for the fiber; also save to scope.
+            call(({ scope, value: game }) => {
+                scope.ship = game.ship();
+                return scope.ship;
+            }).
 
-        // Keys
-        spawn(fiber => fiber.
-            repeat(fiber => fiber.
-                event(window, "keydown", {
-                    eventWasHandled(event, { value: ship }) {
-                        switch (event.key) {
-                            case "ArrowLeft":
-                                ship.angularVelocity = -ship.maxAngularVelocity;
-                                break;
-                            case "ArrowRight":
-                                ship.angularVelocity = ship.maxAngularVelocity;
-                                break;
-                            case "ArrowUp":
-                                ship.acceleration = ship.maxAcceleration;
-                                break;
-                            case "ArrowDown":
-                            case " ":
-                                // Do nothing but avoid scrolling the page.
-                                break;
-                            default:
-                                return;
-                        }
-                        event.preventDefault();
-                    }
+            // Listen to the ship being removed to end the loop.
+            spawn(fiber => fiber.
+                event(({ value: ship }) => ship.game, "removed", {
+                    eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
                 })
-            )
-        ).
-        spawn(fiber => fiber.
-            repeat(fiber => fiber.
-                event(window, "keyup", {
-                    eventWasHandled(event, { value: ship }) {
-                        switch (event.key) {
-                            case "ArrowLeft":
-                                ship.angularVelocity = Math.max(0, ship.angularVelocity);
-                                break;
-                            case "ArrowRight":
-                                ship.angularVelocity = Math.min(0, ship.angularVelocity);
-                                break;
-                            case "ArrowUp":
-                                ship.acceleration = ship.friction;
-                                break;
-                            default:
-                                return;
+            ).
+
+            // Keys
+            spawn(fiber => fiber.
+                repeat(fiber => fiber.
+                    event(window, "keydown", {
+                        eventWasHandled(event, { value: ship }) {
+                            switch (event.key) {
+                                case "ArrowLeft":
+                                    ship.angularVelocity = -ship.maxAngularVelocity;
+                                    break;
+                                case "ArrowRight":
+                                    ship.angularVelocity = ship.maxAngularVelocity;
+                                    break;
+                                case "ArrowUp":
+                                    ship.acceleration = ship.maxAcceleration;
+                                    break;
+                                case "ArrowDown":
+                                case " ":
+                                    // Do nothing but avoid scrolling the page.
+                                    break;
+                                default:
+                                    return;
+                            }
+                            event.preventDefault();
                         }
-                        event.preventDefault();
-                    }
-                })
-            )
+                    })
+                )
+            ).
+            spawn(fiber => fiber.
+                repeat(fiber => fiber.
+                    event(window, "keyup", {
+                        eventWasHandled(event, { value: ship }) {
+                            switch (event.key) {
+                                case "ArrowLeft":
+                                    ship.angularVelocity = Math.max(0, ship.angularVelocity);
+                                    break;
+                                case "ArrowRight":
+                                    ship.angularVelocity = Math.min(0, ship.angularVelocity);
+                                    break;
+                                case "ArrowUp":
+                                    ship.acceleration = ship.friction;
+                                    break;
+                                default:
+                                    return;
+                            }
+                            event.preventDefault();
+                        }
+                    })
+                )
+            ).
+            join(First)
         )
     );
