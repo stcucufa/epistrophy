@@ -137,10 +137,11 @@ value is set to the value returned by `f` (if any).
 * `ramp(dur, f)` begins the ramp and yields for `dur` milliseconds. During a
 ramp, the fiber instance gets two additional properties: a progress value `p`
 (the ratio of elapsed time to the duration of the ramp), and a `ramp` object
-with more info about the ramp. If `dur` is a function, it first gets called
-with the fiber instance and scheduler as arguments to get the duration for this
-specific ramp. If `f` is provided, it gets called with the fiber instance and
-the scheduler:
+with more info about the ramp (`begin`: the time when the ramp began, `dur`:
+the effective duration of the ramp, and `elapsed`: the elapsed time since the
+ramp began). If `dur` is a function, it first gets called with the fiber
+instance and scheduler as arguments to get the duration for this specific ramp.
+If `f` is provided, it gets called with the fiber instance and the scheduler:
     * once when the ramp begins, with _p_ = 0;
     * once when the ramp ends, with _p_ = 1, unless the duration is infinite
     (because the ramp never ends);
