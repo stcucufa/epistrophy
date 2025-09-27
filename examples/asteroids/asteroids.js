@@ -1,4 +1,4 @@
-import { run, First } from "../../lib/shell.js";
+import { run, FirstValue } from "../../lib/shell.js";
 import Game from "./game.js";
 
 const UpdateDuration = 1000 / Game.UpdateFPS;
@@ -12,10 +12,29 @@ run().
         return scope.game;
     }).
 
-    // Draw loop
+    // Draw loop: draw the game.
     spawn(fiber => fiber.ramp(Infinity, ({ value: game }) => { game.draw(); })).
 
-    // Update loop
+    // Keyboard handling (see actual handlers below).
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            event(window, "keydown", {
+                eventShouldBeIgnored: e => e.altKey || e.ctrlKey || e.isComposing || e.metaKey || e.shiftKey,
+                eventWasHandled: keydown
+            })
+        )
+    ).
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            event(window, "keyup", {
+                eventWasHandled: keyup
+            })
+        )
+    ).
+
+    // Update loop: update all game objects and gather the list of new objects
+    // resulting from the updates, setting a timeout to remove all those that
+    // have a duration (particles).
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             ramp(UpdateDuration).
@@ -35,7 +54,8 @@ run().
         call(({ value: game }) => Array(4).fill().map(() => game.asteroid()))
     ).
 
-    // Player loop
+    // Player loop: spawn a new ship and wait for it to be destroyed, then for
+    // the debris to clear up before spawning a new one.
     spawn(fiber => fiber.
         repeat(fiber => fiber.
 
@@ -45,62 +65,81 @@ run().
                 return scope.ship;
             }).
 
-            // Listen to the ship being removed to end the loop.
-            spawn(fiber => fiber.
-                event(({ value: ship }) => ship.game, "removed", {
-                    eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
-                })
-            ).
+            // Listen to the ship being removed to end the loop with the spawn
+            // delay duration (the longest that a debris particle can last).
+            event(({ value: ship }) => ship.game, "collided", {
+                eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
+            }).
+            call(({ value: ship }) => ship.debrisDur[1]).
 
-            // Keys
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    event(window, "keydown", {
-                        eventWasHandled(event, { value: ship }) {
-                            switch (event.key) {
-                                case "ArrowLeft":
-                                    ship.angularVelocity = -ship.maxAngularVelocity;
-                                    break;
-                                case "ArrowRight":
-                                    ship.angularVelocity = ship.maxAngularVelocity;
-                                    break;
-                                case "ArrowUp":
-                                    ship.acceleration = ship.maxAcceleration;
-                                    break;
-                                case "ArrowDown":
-                                case " ":
-                                    // Do nothing but avoid scrolling the page.
-                                    break;
-                                default:
-                                    return;
-                            }
-                            event.preventDefault();
-                        }
-                    })
-                )
-            ).
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    event(window, "keyup", {
-                        eventWasHandled(event, { value: ship }) {
-                            switch (event.key) {
-                                case "ArrowLeft":
-                                    ship.angularVelocity = Math.max(0, ship.angularVelocity);
-                                    break;
-                                case "ArrowRight":
-                                    ship.angularVelocity = Math.min(0, ship.angularVelocity);
-                                    break;
-                                case "ArrowUp":
-                                    ship.acceleration = ship.friction;
-                                    break;
-                                default:
-                                    return;
-                            }
-                            event.preventDefault();
-                        }
-                    })
-                )
-            ).
-            join(First)
+            // Wait until spawning again.
+            ramp(({ value }) => value)
         )
     );
+
+// Keydown and keyup event handlers; translate raw inputs to input states of
+// the game. T is for thrust (up arrow), L/R for left/right rotation (left and
+// right arrow; allow both arrows to be pressed at the same time by using the
+// direction of the last pressed arrow).
+
+function keydown(event, { value: { inputs } }) {
+    switch (event.key) {
+        case "ArrowLeft":
+            if (!event.repeat) {
+                if (inputs.Right) {
+                    delete inputs.Right;
+                    inputs.RL = true;
+                }
+                inputs.Left = true;
+            }
+            break;
+        case "ArrowRight":
+            if (!event.repeat) {
+                if (inputs.Left) {
+                    delete inputs.Left;
+                    inputs.LR = true;
+                }
+                inputs.Right = true;
+            }
+            break;
+        case "ArrowUp":
+            if (!event.repeat) {
+                inputs.Thrust = true;
+            }
+            break;
+        case "z":
+            if (!event.repeat) {
+                inputs.Shoot = true;
+            }
+        case "ArrowDown":
+        case " ":
+            // Do nothing but avoid scrolling the page
+            break;
+        default:
+            return;
+    }
+    event.preventDefault();
+}
+
+function keyup(event, { value: { inputs } }) {
+    switch (event.key) {
+        case "ArrowLeft":
+            delete inputs.Left;
+            if (inputs.RL || inputs.LR) {
+                delete inputs.RL;
+                delete inputs.LR;
+                inputs.Right = true;
+            }
+            break;
+        case "ArrowRight":
+            delete inputs.Right;
+            if (inputs.RL || inputs.LR) {
+                delete inputs.RL;
+                delete inputs.LR;
+                inputs.Left = true;
+            }
+            break;
+        case "ArrowUp":
+            delete inputs.Thrust;
+    }
+}

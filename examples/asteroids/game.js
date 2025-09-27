@@ -17,6 +17,7 @@ export default class Game extends EventTarget {
         this.height = canvas.clientHeight;
         this.objects = [new Background(this)];
         this.collidesWithAsteroid = [];
+        this.inputs = {};
     }
 
     // Get a clear drawing context at the right device pixel ratio.
@@ -48,7 +49,7 @@ export default class Game extends EventTarget {
         const enter = new Set();
         const leave = new Set();
         for (const object of this.objects) {
-            object.update?.(enter, leave);
+            object.update?.(enter, leave, this.inputs);
         }
         for (const object of leave) {
             this.removeObject(object);
@@ -76,13 +77,16 @@ export default class Game extends EventTarget {
         if (object.collidesWithAsteroid) {
             remove(this.collidesWithAsteroid, object);
         }
-        customEvent.call(this, "removed", { object });
+        if (object === this.ship) {
+            delete this.ship;
+        }
         delete object.game;
     }
 
     // Add a new ship to the game at the center of the screen.
     ship() {
-        return this.addObject(new Ship(this.width / 2, this.height / 2, -π / 2));
+        this.inputs = {};
+        return this.ship = this.addObject(new Ship(this.width / 2, this.height / 2, -π / 2));
     }
 
     // Add a new asteroid to the game at a random position.
@@ -183,6 +187,7 @@ class PointParticle extends Sprite {
 
 class ExhaustParticle extends PointParticle {
     fgColor = "#ffff40";
+    dur = [100, 200];
 
     constructor(x, y, angle, velocity) {
         const d = 2 * (1 + Math.random());
@@ -191,18 +196,18 @@ class ExhaustParticle extends PointParticle {
         this.heading = h;
         this.velocity = velocity;
         this.radius = 2 * Math.random();
-        this.durationMs = 100 * (1 + Math.random());
+        this.durationMs = random(...this.dur);
     }
 }
 
 class DebrisParticle extends Sprite {
-    constructor(x, y, radius, velocity) {
+    constructor(x, y, radius, velocity, dur) {
         super(x, y, Math.random() * τ);
         this.radius = radius;
         this.velocity = velocity;
         this.angularVelocity = Math.random() * 0.1;
         this.heading = Math.random() * τ;
-        this.durationMs = random(1000, 2000);
+        this.durationMs = dur;
     }
 
     draw(context) {
@@ -216,12 +221,13 @@ class DebrisParticle extends Sprite {
 class Ship extends Sprite {
     radius = 8;
     maxVelocity = 8;
-    maxAngularVelocity = 0.1;
-    maxAcceleration = 1;
+    maxAngularVelocity = 0.07;
+    maxAcceleration = 0.4;
     friction = -0.125;
     collidesWithAsteroid = true;
     debris = [4, 8];
     debrisVelocity = 0.1;
+    debrisDur = [1000, 2000];
 
     constructor(x, y, angle) {
         super(x, y, angle);
@@ -237,8 +243,16 @@ class Ship extends Sprite {
         this.stroke(context);
     }
 
-    update(enter, leave) {
-        super.update(enter, leave);
+    // Set the acceleration and angular velocity based on inputs then emit
+    // exhaust particles if thrusting.
+    update(enter, leave, inputs) {
+        this.acceleration = inputs.Thrust ? this.maxAcceleration : this.friction;
+        this.angularVelocity = inputs.Right ? this.maxAngularVelocity : inputs.Left ? -this.maxAngularVelocity : 0;
+        super.update(enter, leave, inputs);
+        if (inputs.Shoot) {
+            delete inputs.Shoot;
+            // enter.add(new Bullet(this.x, this.y, this.angle));
+        }
         if (this.acceleration > 0) {
             const n = 10 * Math.random();
             for (let i = 0; i < n; ++i) {
@@ -247,17 +261,20 @@ class Ship extends Sprite {
         }
     }
 
-    collidedWithAsteroid(enter) {
+    // Emit debris particle after a collision.
+    collided(enter) {
         const velocity = this.maxVelocity * this.debrisVelocity;
         for (let i = random(...this.debris); i >= 0; --i) {
-            enter.add(new DebrisParticle(this.x, this.y, this.radius * (0.5 + Math.random()), velocity));
+            enter.add(new DebrisParticle(
+                this.x, this.y, this.radius * (0.5 + Math.random()), velocity, random(...this.debrisDur)
+            ));
         }
     }
 }
 
 class Asteroid extends Sprite {
     minRadius = 12;
-    maxRadius = 32;
+    maxRadius = 40;
     startVelocity = 2;
     maxAngularVelocity = 0.01;
 
@@ -291,7 +308,8 @@ class Asteroid extends Sprite {
         for (const other of this.game.collidesWithAsteroid) {
             if (collides(this, other)) {
                 leave.add(other);
-                other.collidedWithAsteroid(enter);
+                other.collided(enter);
+                customEvent.call(this.game, "collided", { object: other, with: this });
             }
         }
     }
