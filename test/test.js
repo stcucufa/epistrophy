@@ -273,7 +273,7 @@ export default function test(title, f) {
         const t = new Test(title, index, f);
         testFibers.push(new Fiber().
             call(({ scope }) => { scope.test = t; }).
-            macro(fiber => isAsync(f) ?
+            append(fiber => isAsync(f) ?
                 fiber.await(async ({ scope }) => { await scope.test.runAsync(scope.tests.ol); }) :
                 fiber.call(({ scope }) => { scope.test.run(scope.tests.ol); })
             )
