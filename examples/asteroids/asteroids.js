@@ -1,4 +1,4 @@
-import { run, First } from "../../lib/shell.js";
+import { run, FirstValue } from "../../lib/shell.js";
 import Game from "./game.js";
 
 const UpdateDuration = 1000 / Game.UpdateFPS;
@@ -30,12 +30,88 @@ run().
         )
     ).
 
+    // Keyboard handler
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            event(window, "keydown", {
+                eventShouldBeIgnored: event => event.altKey || event.ctrlKey || event.isComposing ||
+                    event.metaKey || event.shiftKey,
+                eventWasHandled(event, { value: { inputs } }) {
+                    switch (event.key) {
+                        case "ArrowLeft":
+                            if (!event.repeat) {
+                                if (inputs.R) {
+                                    delete inputs.R;
+                                    inputs.RL = true;
+                                } else if (!inputs.RL) {
+                                    inputs.L = true;
+                                }
+                            }
+                            break;
+                        case "ArrowRight":
+                            if (!event.repeat) {
+                                if (inputs.L) {
+                                    delete inputs.L;
+                                    inputs.LR  = true;
+                                } else if (!inputs.LR) {
+                                    inputs.R = true;
+                                }
+                            }
+                            break;
+                        case "ArrowUp":
+                            if (!event.repeat) {
+                                inputs.T = true;
+                            }
+                        case "ArrowDown":
+                        case " ":
+                            // Do nothing but avoid scrolling the page
+                            break;
+                        default:
+                            return;
+                    }
+                    event.preventDefault();
+                }
+            })
+        )
+    ).
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            event(window, "keyup", {
+                eventWasHandled(event, { value: { inputs } }) {
+                    switch (event.key) {
+                        case "ArrowLeft":
+                            if (inputs.RL || inputs.LR) {
+                                delete inputs.RL;
+                                delete inputs.LR;
+                                inputs.R = true;
+                            } else {
+                                delete inputs.L;
+                            }
+                            break;
+                        case "ArrowRight":
+                            if (inputs.RL || inputs.LR) {
+                                delete inputs.RL;
+                                delete inputs.LR;
+                                inputs.L = true;
+                            } else {
+                                delete inputs.R;
+                            }
+                            break;
+                        case "ArrowUp":
+                            delete inputs.T;
+                    }
+                }
+            })
+        )
+    ).
+
     // Enemies (asteroids, TODO: UFO)
     spawn(fiber => fiber.
         call(({ value: game }) => Array(4).fill().map(() => game.asteroid()))
     ).
 
     // Player loop
+
     spawn(fiber => fiber.
         repeat(fiber => fiber.
 
@@ -45,62 +121,14 @@ run().
                 return scope.ship;
             }).
 
-            // Listen to the ship being removed to end the loop.
-            spawn(fiber => fiber.
-                event(({ value: ship }) => ship.game, "removed", {
-                    eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
-                })
-            ).
+            // Listen to the ship being removed to end the loop with the spawn
+            // delay duration (the longest that a debris particle can last).
+            event(({ value: ship }) => ship.game, "collided", {
+                eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
+            }).
+            call(({ value: ship }) => ship.debrisDur[1]).
 
-            // Keys
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    event(window, "keydown", {
-                        eventWasHandled(event, { value: ship }) {
-                            switch (event.key) {
-                                case "ArrowLeft":
-                                    ship.angularVelocity = -ship.maxAngularVelocity;
-                                    break;
-                                case "ArrowRight":
-                                    ship.angularVelocity = ship.maxAngularVelocity;
-                                    break;
-                                case "ArrowUp":
-                                    ship.acceleration = ship.maxAcceleration;
-                                    break;
-                                case "ArrowDown":
-                                case " ":
-                                    // Do nothing but avoid scrolling the page.
-                                    break;
-                                default:
-                                    return;
-                            }
-                            event.preventDefault();
-                        }
-                    })
-                )
-            ).
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    event(window, "keyup", {
-                        eventWasHandled(event, { value: ship }) {
-                            switch (event.key) {
-                                case "ArrowLeft":
-                                    ship.angularVelocity = Math.max(0, ship.angularVelocity);
-                                    break;
-                                case "ArrowRight":
-                                    ship.angularVelocity = Math.min(0, ship.angularVelocity);
-                                    break;
-                                case "ArrowUp":
-                                    ship.acceleration = ship.friction;
-                                    break;
-                                default:
-                                    return;
-                            }
-                            event.preventDefault();
-                        }
-                    })
-                )
-            ).
-            join(First)
+            // Wait until spawning again.
+            ramp(({ value }) => value)
         )
     );
