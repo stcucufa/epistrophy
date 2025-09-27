@@ -84,7 +84,7 @@ export class Turtle {
                 dx: d * Math.cos(this.heading),
                 dy: d * Math.sin(this.heading)
             })).
-            ramp(() => Math.abs(d) / this.velocity, (p, { value: { x, y, dx, dy } }) => {
+            ramp(() => Math.abs(d) / this.velocity, ({ p, value: { x, y, dx, dy } }) => {
                 const t = ease(p);
                 this.x = x + t * dx;
                 this.y = y + t * dy;
@@ -119,7 +119,7 @@ export class Turtle {
         const th = π * a / 180;
         this.fiber.
             call(() => this.heading).
-            ramp(() => Math.abs(a) / this.angularVelocity, (p, { value: heading }) => {
+            ramp(() => Math.abs(a) / this.angularVelocity, ({ p, value: heading }) => {
                 this.heading = heading + ease(p) * th;
                 this.drawSelf(true);
             });

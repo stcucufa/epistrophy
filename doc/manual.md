@@ -134,18 +134,21 @@ subsequent instruction is then skipped, unless wrapped inside an `ever` block.
 * `call(f)` calls the function `f` with the current fiber instance and
 scheduler as arguments and resumes execution as soon as `f` returns. The fiber
 value is set to the value returned by `f` (if any).
-* `ramp(dur, f)` begins the ramp and yields for `dur` milliseconds (unless
-`dur` is zero; `f` still gets called with _p_ = 0 and 1 synchronously before
-execution resumes). If `dur` is a function, it first gets called with the fiber
+* `ramp(dur, f)` begins the ramp and yields for `dur` milliseconds. During a
+ramp, the fiber instance gets two additional properties: a progress value `p`
+(the ratio of elapsed time to the duration of the ramp), and a `ramp` object
+with more info about the ramp (`begin`: the time when the ramp began, `dur`:
+the effective duration of the ramp, and `elapsed`: the elapsed time since the
+ramp began). If `dur` is a function, it first gets called with the fiber
 instance and scheduler as arguments to get the duration for this specific ramp.
-If `f` is provided, it gets called with a progress value _p_ (the ratio of
-elapsed time to the duration of the ramp), the fiber instance, and the
-scheduler:
+If `f` is provided, it gets called with the fiber instance and the scheduler:
     * once when the ramp begins, with _p_ = 0;
     * once when the ramp ends, with _p_ = 1, unless the duration is infinite
     (because the ramp never ends);
     * zero or more times on every scheduler update, with 0 < _p_ < 1 (if the
-    duration is finite) or _p_ = 0 (if the duration is infinite).
+    duration is finite) or _p_ = 0 (if the duration is infinite). As a special
+    case, if the duration of the ramp ends up being 0, then the ramp completes
+    synchronously but `f` still gets called with _p_ = 0 and _p_ = 1.
 * `event(target, type, delegate)` sets up an event listener for events of
 `type` on `target` and yields until an event is received. If either is a
 function, that function gets called with the fiber instance and scheduler as
