@@ -17,6 +17,7 @@ export default class Game extends EventTarget {
         this.height = canvas.clientHeight;
         this.objects = [new Background(this)];
         this.collidesWithAsteroid = [];
+        this.collidesWithBullet = [];
         this.inputs = {};
     }
 
@@ -68,6 +69,9 @@ export default class Game extends EventTarget {
         if (object.collidesWithAsteroid) {
             this.collidesWithAsteroid.push(object);
         }
+        if (object.collidesWithBullet) {
+            this.collidesWithBullet.push(object);
+        }
         return object;
     }
 
@@ -76,6 +80,9 @@ export default class Game extends EventTarget {
         remove(this.objects, object);
         if (object.collidesWithAsteroid) {
             remove(this.collidesWithAsteroid, object);
+        }
+        if (object.collidesWithBullet) {
+            remove(this.collidesWithBullet, object);
         }
         if (object === this.ship) {
             delete this.ship;
@@ -153,6 +160,16 @@ class Sprite {
         this.y = (this.game.height + this.y + this.velocity * Math.sin(this.heading ?? this.angle)) % this.game.height;
     }
 
+    resolveCollisions(enter, leave, others) {
+        for (const other of others) {
+            if (collides(this, other)) {
+                leave.add(other);
+                other.collided(enter, this);
+                customEvent.call(this.game, "collided", { object: other, with: this });
+            }
+        }
+    }
+
     beginPath(context) {
         context.save();
         context.translate(this.x, this.y);
@@ -182,6 +199,24 @@ class PointParticle extends Sprite {
         context.arc(this.x, this.y, this.radius, 0, τ);
         context.fill();
         context.restore();
+    }
+}
+
+class Bullet extends PointParticle {
+    fgColor = "#ffa300";
+    velocity = 12;
+    radius = 3;
+    durationMs = 777;
+    disappearsOnCollision = true;
+
+    constructor(x, y, angle) {
+        super(x, y);
+        this.angle = angle;
+    }
+
+    update(enter, leave) {
+        super.update(enter, leave);
+        this.resolveCollisions(enter, leave, this.game.collidesWithBullet);
     }
 }
 
@@ -243,6 +278,14 @@ class Ship extends Sprite {
         this.stroke(context);
     }
 
+    get dx() {
+        return 2 * this.radius * Math.cos(this.angle);
+    }
+
+    get dy() {
+        return 2 * this.radius * Math.sin(this.angle);
+    }
+
     // Set the acceleration and angular velocity based on inputs then emit
     // exhaust particles if thrusting.
     update(enter, leave, inputs) {
@@ -251,12 +294,12 @@ class Ship extends Sprite {
         super.update(enter, leave, inputs);
         if (inputs.Shoot) {
             delete inputs.Shoot;
-            // enter.add(new Bullet(this.x, this.y, this.angle));
+            enter.add(new Bullet(this.x + this.dx, this.y + this.dy, this.angle));
         }
         if (this.acceleration > 0) {
             const n = 10 * Math.random();
             for (let i = 0; i < n; ++i) {
-                enter.add(new ExhaustParticle(this.x, this.y, this.angle, 0.1 * this.velocity));
+                enter.add(new ExhaustParticle(this.x - this.dx, this.y - this.dy, this.angle, 0.1 * this.velocity));
             }
         }
     }
@@ -272,18 +315,38 @@ class Ship extends Sprite {
     }
 }
 
+class DustParticle extends PointParticle {
+    dur = [500, 1000];
+
+    constructor(x, y, velocity) {
+        super(x, y);
+        this.velocity = velocity;
+        this.heading = τ * Math.random();
+        this.radius = 2 * Math.random();
+        this.durationMs = random(...this.dur);
+    }
+}
+
 class Asteroid extends Sprite {
-    minRadius = 12;
+    minRadius = 16;
     maxRadius = 40;
     startVelocity = 2;
     maxAngularVelocity = 0.01;
+    collidesWithBullet = true;
+    debrisDur = [500, 1000];
 
-    constructor(x, y) {
+    constructor(x, y, parent, heading) {
         super(x, y);
-        this.radius = this.maxRadius;
-        this.heading = Math.random() * τ;
-        this.velocity = this.startVelocity;
-        this.angularVelocity = this.maxAngularVelocity * Math.random();
+        if (parent) {
+            this.radius = parent.radius / Math.sqrt(2);
+            this.velocity = parent.velocity * (Math.max(1, 0.5 + Math.random()));
+            this.angularVelocity = parent.angularVelocity * (1 + Math.random());
+        } else {
+            this.radius = this.maxRadius;
+            this.velocity = this.startVelocity;
+            this.angularVelocity = this.maxAngularVelocity * Math.random();
+        }
+        this.heading = heading ?? τ * Math.random();
         const n = (this.minRadius + this.maxRadius) / 2;
         this.points = Array(n).fill().map((_, i) => {
             const θ = τ * i / n;
@@ -305,19 +368,29 @@ class Asteroid extends Sprite {
 
     update(enter, leave) {
         super.update(enter, leave);
-        for (const other of this.game.collidesWithAsteroid) {
-            if (collides(this, other)) {
-                leave.add(other);
-                other.collided(enter);
-                customEvent.call(this.game, "collided", { object: other, with: this });
-            }
+        this.resolveCollisions(enter, leave, this.game.collidesWithAsteroid);
+    }
+
+    // Split the asteroid in two (unless it is at the smallest size), making
+    // debris in the process.
+    collided(enter, other) {
+        if (this.radius > this.minRadius) {
+            enter.add(new Asteroid(this.x, this.y, this, this.heading + π / 2));
+            enter.add(new Asteroid(this.x, this.y, this, this.heading - π / 2));
         }
+        for (let i = this.radius * (3 + Math.random()); i >= 0; --i) {
+            enter.add(new DustParticle(other.x, other.y, this.velocity * Math.random()));
+        }
+        other.disabled = true;
     }
 }
 
 // Test whether two game objects `a` and `b` collide based on the distance
 // between their centers and their respective radius.
 function collides(a, b) {
+    if (a.disabled || b.disabled) {
+        return false;
+    }
     const distance = Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
     return distance < (a.radius + b.radius);
 }
