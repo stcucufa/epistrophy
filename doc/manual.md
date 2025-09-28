@@ -342,11 +342,7 @@ See the definition of `Fiber.K()` and `Fiber.repeatValue()` below.
 
 The shell adds convenience methods to fibers:
 
-* `Fiber.K(x)` is a special case of `Fiber.call(f)` where `f` is a constant
-function that returns `x` (_i.e._, `K(x)` ≡ `call(() => x)`). This is useful
-for setting the value of a fiber to a known, constant value.
-
-* `Fiber.macro(f)` calls the function `f` with the fiber as its argument and
+* `Fiber.append(f)` calls the function `f` with the fiber as its argument and
 returns the fiber. This allows setting up more complex chains of operations
 in the same manner as adding a single instruction. For example, given a
 `loadImage` function that creates a Promise of a DOM Image for a given URL,
@@ -354,12 +350,16 @@ any number of images can be loaded concurrently from a list of URLs by spawning
 a new fiber for each URL, then joining to wait for all images to be loaded:
 
 ```js
-fiber.macro(fiber => {
+fiber.append(fiber => {
     for (const src of ImageURLs) {
         fiber.spawn(fiber.await(loadImage(src)));
     }
 }).join();
 ```
+
+* `Fiber.K(x)` is a special case of `Fiber.call(f)` where `f` is a constant
+function that returns `x` (_i.e._, `K(x)` ≡ `call(() => x)`). This is useful
+for setting the value of a fiber to a known, constant value.
 
 * `Fiber.repeat(f, delegate)` spawns a new child fiber and immediately joins;
 when the child fiber ends, it is immediately spawned again, repeating forever.
