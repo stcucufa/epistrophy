@@ -92,7 +92,9 @@ export default class Game extends EventTarget {
 
     // Add a new ship to the game at the center of the screen.
     ship() {
-        this.inputs = {};
+        for (const key of Object.keys(this.inputs)) {
+            delete this.inputs[key];
+        }
         return this.ship = this.addObject(new Ship(this.width / 2, this.height / 2, -π / 2));
     }
 
@@ -203,10 +205,10 @@ class PointParticle extends Sprite {
 }
 
 class Bullet extends PointParticle {
-    fgColor = "#ffa300";
-    velocity = 12;
+    fgColor = "#a8f12e";
+    velocity = 10;
     radius = 3;
-    durationMs = 777;
+    durationMs = 500;
     disappearsOnCollision = true;
 
     constructor(x, y, angle) {
@@ -258,7 +260,7 @@ class Ship extends Sprite {
     maxVelocity = 8;
     maxAngularVelocity = 0.07;
     maxAcceleration = 0.4;
-    friction = -0.125;
+    friction = -0.025;
     collidesWithAsteroid = true;
     debris = [4, 8];
     debrisVelocity = 0.1;
@@ -316,7 +318,7 @@ class Ship extends Sprite {
 }
 
 class DustParticle extends PointParticle {
-    dur = [500, 1000];
+    dur = [200, 500];
 
     constructor(x, y, velocity) {
         super(x, y);
@@ -328,8 +330,8 @@ class DustParticle extends PointParticle {
 }
 
 class Asteroid extends Sprite {
-    minRadius = 16;
-    maxRadius = 40;
+    minRadius = 10;
+    maxRadius = 24;
     startVelocity = 2;
     maxAngularVelocity = 0.01;
     collidesWithBullet = true;
@@ -379,7 +381,7 @@ class Asteroid extends Sprite {
             enter.add(new Asteroid(this.x, this.y, this, this.heading - π / 2));
         }
         for (let i = this.radius * (3 + Math.random()); i >= 0; --i) {
-            enter.add(new DustParticle(other.x, other.y, this.velocity * Math.random()));
+            enter.add(new DustParticle(other.x, other.y, this.velocity * 0.5 * Math.random()));
         }
         other.disabled = true;
     }

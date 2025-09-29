@@ -17,19 +17,10 @@ run().
 
     // Keyboard handling (see actual handlers below).
     spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            event(window, "keydown", {
-                eventShouldBeIgnored: e => e.altKey || e.ctrlKey || e.isComposing || e.metaKey || e.shiftKey,
-                eventWasHandled: keydown
-            })
-        )
-    ).
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            event(window, "keyup", {
-                eventWasHandled: keyup
-            })
-        )
+        call(({ value: { inputs } }) => {
+            window.addEventListener("keydown", event => keydown(event, inputs));
+            window.addEventListener("keyup", event => keyup(event, inputs));
+        })
     ).
 
     // Update loop: update all game objects and gather the list of new objects
@@ -82,7 +73,10 @@ run().
 // right arrow; allow both arrows to be pressed at the same time by using the
 // direction of the last pressed arrow).
 
-function keydown(event, { value: { inputs } }) {
+function keydown(event, inputs) {
+    if (event.altKey || event.ctrlKey || event.isComposing || event.metaKey || event.shiftKey) {
+        return;
+    }
     switch (event.key) {
         case "ArrowLeft":
             if (!event.repeat) {
@@ -121,7 +115,7 @@ function keydown(event, { value: { inputs } }) {
     event.preventDefault();
 }
 
-function keyup(event, { value: { inputs } }) {
+function keyup(event, inputs) {
     switch (event.key) {
         case "ArrowLeft":
             delete inputs.Left;
