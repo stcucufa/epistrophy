@@ -12,9 +12,18 @@ const [minus, plus] = document.querySelectorAll("button");
 const span = document.querySelector("span");
 
 run().
+
+    // Initialize the counter value.
     K(17).
+
     repeatValue(fiber => fiber.
+
+        // Show the current value.
         call(({ value: count }) => { span.textContent = count.toString(); }).
+
+        // Spawn a fiber for each button. Each fiber begins with the current
+        // counter value as its value and listens to a click event for its
+        // button, then increment or decrement its value.
         spawn(fiber => fiber.
             event(plus, "click").
             call(({ value: count }) => count + 1)
@@ -23,7 +32,12 @@ run().
             event(minus, "click").
             call(({ value: count }) => count - 1)
         ).
+
+        // End when the first fiber ends and cancel the other one.
         join(FirstValue)
+
+        // End the loop with the value of the fiber that ended, which is the
+        // incremented or decremented value, and begin again.
     );
         </script>
     </head>
@@ -35,14 +49,13 @@ run().
             <button type="button">▶</button>
         </p>
         <p>
-            Increment (▶) and decrement (◀) the counter by clicking on the corresponding button.
+            Increment (▶) and decrement (◀) the counter by clicking on the corresponding button. This example is inspired
+            by <a href="https://eugenkiss.github.io/7guis/tasks/#counter">7GUIs: A GUI Programming Benchmark</a>.
         </p>
-        <p>
-            This example is inspired by <a href="https://eugenkiss.github.io/7guis/tasks/#counter">7GUIs: A GUI Programming
-            Benchmark</a>.
-        </p>
-        <h2>Source</h2>
-        <pre></pre>
+        <details>
+            <summary>Source</summary>
+            <pre></pre>
+        </details>
         <p><a href="index.html">Back</a></p>
         <script>document.querySelector("pre").textContent = document.querySelector("script").textContent;</script>
     </body>
