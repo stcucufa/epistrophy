@@ -205,7 +205,7 @@ class PointParticle extends Sprite {
 }
 
 class Bullet extends PointParticle {
-    fgColor = "#a8f12e";
+    fgColor = "#ff77a8";
     velocity = 10;
     radius = 3;
     durationMs = 500;
@@ -260,7 +260,7 @@ class Ship extends Sprite {
     maxVelocity = 8;
     maxAngularVelocity = 0.07;
     maxAcceleration = 0.4;
-    friction = -0.025;
+    friction = -0.035;
     collidesWithAsteroid = true;
     debris = [4, 8];
     debrisVelocity = 0.1;
