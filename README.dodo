@@ -2,23 +2,23 @@
 
     { p Epistrophy is an experimental concurrent runtime for { link:
     https://en.wikipedia.org/wiki/Synchronous_programming_language synchronous
-    programming } on the Web implemented as vanilla JS library. It is built on
-    an abstract timing and synchronisation model that defines low-level
+    programming } on the Web implemented as a vanilla JS library. It is built
+    on an abstract timing and synchronisation model that defines low-level
     primitives such as synchronous computations, delays, events and
-    asynchronous computations, and uses logical threads (fibers) for concurrent
-    execution. }
+    asynchronous computations, and uses logical threads ({ em fibers }) for
+    concurrent execution. }
 
     { p The major benefit of the synchronous approach is to bring structure to
     the current state of interactive programming on the Web. Dealing with
     callbacks, event handlers, promises, async/await, CSS animations and
     transitions, and media elements means that the state of an application is
-    scattered all over its code and must be tracked through ad hoc mechanisms
-    that require a lot of careful bookkeeping. This is complex, error-prone,
-    and therefore the source of many small glitches or serious bugs.
-    Introducing fibers provides a consistent way of sequencing and repeating
-    computations, whether they are synchronous or asynchronous, while spawning
-    and joining fibers brings structure to concurrency by adding an explicit
-    hierarchy of tasks running concurrently. }
+    scattered all over its code and must be tracked through { em ad hoc }
+    mechanisms that require a lot of careful bookkeeping. This is complex,
+    error-prone, and therefore the source of many small glitches or serious
+    bugs.  Introducing fibers provides a consistent way of sequencing and
+    repeating computations, whether they are synchronous or asynchronous, while
+    spawning and joining fibers brings structure to concurrency by adding an
+    explicit hierarchy of tasks running concurrently. }
 
     { p This approach benefits both developers and end users. Time can be
     freely manipulated through the runtime clock, so that a program can be
