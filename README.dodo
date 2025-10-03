@@ -47,7 +47,7 @@
     { h2 A first look at Epistrophy }
 
     { p This is a complete Epistrophy program that implements the { link:
-    https://en.wikipedia.org/wiki/Esterel#Example_(ABRO) classic example from
+    https://en.wikipedia.org/wiki/Esterel\#Example_(ABRO) classic example from
     the programming language Esterel }: O turns on when both A and B buttons
     have been pressed, in any order; the R button resets the system. }
 

@@ -12,7 +12,7 @@ Epistrophy has no dependency and requires no build step. To run locally, clone t
 
 ## A first look at Epistrophy
 
-This is a complete Epistrophy program that implements the [the programming language Esterel](https://en.wikipedia.org/wiki/Esterel): O turns on when both A and B buttons have been pressed, in any order; the R button resets the system.
+This is a complete Epistrophy program that implements the [classic example from the programming language Esterel](https://en.wikipedia.org/wiki/Esterel#Example_(ABRO)): O turns on when both A and B buttons have been pressed, in any order; the R button resets the system.
 
 ```js
 // Use the Epistrophy shell.
