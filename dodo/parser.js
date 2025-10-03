@@ -273,20 +273,27 @@ class Parser {
     // Generate tokens from the input text, yielding every time a new token
     // was recognized.
     *tokens() {
+        let leadingSpace = false;
         while (this.input.length > 0) {
             const transitions = Transitions[this.state];
 
             const match = this.input.match(/^\s+/);
+            leadingSpace = /\s$/.test(match?.[0]);
             if (match) {
                 this.line += match[0].match(/\n/g)?.length ?? 0;
                 this.input = this.input.substring(match[0].length);
                 yield [Token.Space];
-                continue;
+                if (this.input.length === 0) {
+                    return;
+                }
             }
 
             switch (this.input[0]) {
                 case "#":
-                    this.input = this.input.replace(/.*\n/, "");
+                    if (!leadingSpace && /^#\S/.test(this.input)) {
+                        console.warn(`Warning, line ${this.line}: # with no surrounding space`);
+                    }
+                    this.input = this.input.replace(/.*\n?/, "");
                     this.line += 1;
                     yield [Token.Space];
                     break;

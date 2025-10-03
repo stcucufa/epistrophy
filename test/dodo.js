@@ -193,6 +193,24 @@ test("Parser: matching verbatim strings", t => {
     t.same(content[2], `"/>`, "second string");
 });
 
+// 4Z06 Dodo: warn on # without spaces
+
+test("Parser: warn if # if not surrounded by whitespace", t => {
+    t.expectsWarning = true;
+    const { root } = parse("{ link: foo#bar\n}");
+    t.same(root.attributes.link, "foo", "skipped #bar");
+});
+
+test("Parser: warn if # if not surrounded by whitespace (no warning; space before)", t => {
+    const { root } = parse("{ link: foo #bar\n}");
+    t.same(root.attributes.link, "foo", "#bar is a comment");
+});
+
+test("Parser: warn if # if not surrounded by whitespace (no warning; space after)", t => {
+    const { root } = parse("{ link: foo# bar\n}");
+    t.same(root.attributes.link, "foo", "# bar is a comment");
+});
+
 // 2K05 Dodo: eval
 
 test("Interpreter: self-evaluating expression", t => {
