@@ -21,35 +21,61 @@ span.O.on {
 
         </style>
         <script type="module">
+// Use the Epistrophy shell.
 import { run, First } from "../lib/shell.js";
 
+// Inputs and outputs.
 const [A, B, R] = document.querySelectorAll("button");
 const O = document.querySelector("span.O");
 
-run().repeat(fiber => fiber.
-    spawn(fiber => fiber.
+// This starts the scheduler with a main fiber.
+run().
+
+    // Add instructions to the fiber, starting with the outer loop.
+    repeat(fiber => fiber.
+
+        // Spawn the “AB” fiber: listen to events from buttons A
+        // and B, then light up O. Reset all elements to their
+        // initial state when the fiber ends.
         spawn(fiber => fiber.
-            event(A, "click").
-            call(() => { A.disabled = true; })
+
+            // Wait for A to be pressed and disable it.
+            spawn(fiber => fiber.
+                event(A, "click").
+                call(() => { A.disabled = true; })
+            ).
+
+            // Wait for B to be pressed and disable it.
+            spawn(fiber => fiber.
+                event(B, "click").
+                call(() => { B.disabled = true; })
+            ).
+
+            // Resume when both buttons have been pressed.
+            join().
+
+            // Light up O and wait indefinitely.
+            call(() => { O.classList.add("on"); }).
+            ramp(Infinity).
+
+            // When the fiber is cancelled, reset all elements
+            // their initial state.
+            ever(fiber => fiber.
+                call(() => {
+                    A.disabled = false;
+                    B.disabled = false;
+                    O.classList.remove("on");
+                })
+            )
         ).
-        spawn(fiber => fiber.
-            event(B, "click").
-            call(() => { B.disabled = true; })
-        ).
-        join().
-        call(() => { O.classList.add("on"); }).
-        ramp(Infinity).
-        ever(fiber => fiber.
-            call(() => {
-                A.disabled = false;
-                B.disabled = false;
-                O.classList.remove("on");
-            })
-        )
-    ).
-    spawn(fiber => fiber.event(R, "click")).
-    join(First)
-);
+
+        // Spawn the “R” fiber: wait for button R to be pressed.
+        spawn(fiber => fiber.event(R, "click")).
+
+        // End as soon as the first fiber ends (which will be R)
+        // and repeat immediately.
+        join(First)
+    );
         </script>
     </head>
     <body>

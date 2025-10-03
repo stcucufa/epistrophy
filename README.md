@@ -1,10 +1,8 @@
 # Epistrophy
 
-Epistrophy is an experimental concurrent runtime for [synchronous programming](https://en.wikipedia.org/wiki/Synchronous_programming_language) on the Web. It introduces low-level primitives such as synchronous computations and effects (that execute instantly), asynchronous computations, delays, events, and logical threads (_fibers_) for concurrent execution.
+Epistrophy is an experimental concurrent runtime for [synchronous programming](https://en.wikipedia.org/wiki/Synchronous_programming_language) on the Web implemented as vanilla JS library. It is built on an abstract timing and synchronisation model that defines low-level primitives such as synchronous computations, delays, events and asynchronous computations, and uses logical threads (fibers) for concurrent execution.
 
-⚠️ This is a work in progress and some features discussed below are in various stages of design and implementation. ⚠️
-
-The major benefit of the synchronous approach is to bring structure to the current state of interactive programming on the Web. Dealing with callbacks, event handlers, promises, async/await, CSS animations and transitions, and media elements means that the state of an application is scattered all over its code and must be tracked through _ad hoc_ mechanisms that require a lot of careful bookkeeping. This is complex, error-prone, and therefore the source of many small glitches or serious bugs. Introducing fibers provides a consistent way of sequencing and repeating computations, whether they are synchronous or asynchronous, while spawning and joining brings structure to concurrency by adding an explicit hierarchy of tasks running concurrently.
+The major benefit of the synchronous approach is to bring structure to the current state of interactive programming on the Web. Dealing with callbacks, event handlers, promises, async/await, CSS animations and transitions, and media elements means that the state of an application is scattered all over its code and must be tracked through ad hoc mechanisms that require a lot of careful bookkeeping. This is complex, error-prone, and therefore the source of many small glitches or serious bugs. Introducing fibers provides a consistent way of sequencing and repeating computations, whether they are synchronous or asynchronous, while spawning and joining fibers brings structure to concurrency by adding an explicit hierarchy of tasks running concurrently.
 
 This approach benefits both developers and end users. Time can be freely manipulated through the runtime clock, so that a program can be paused, run slower, faster, or even backward. This is achieved by having a scheduler keep track not only of the times at which a fiber resumes execution, but also keeping track of when a fiber _was_ previously resumed; and by providing primitives for pure, instantaneous computations (that have no side effect and can thus safely be executed again and again), and for managing effects (by implementing some undo and redo behaviour). Knowing the semantics and timing of these primitives also allows to visualize the execution of an Epistrophy program through a timeline of events past, present and future. Time manipulation and visualization are powerful tools for debugging and testing, allowing developers to author complex behaviours with more ease and confidence, and can help accessibility by giving more control to users.
 
@@ -12,57 +10,67 @@ This approach benefits both developers and end users. Time can be freely manipul
 
 Epistrophy has no dependency and requires no build step. To run locally, clone this repository, then start a web server from the root of the repo (_e.g._, by running `python -m http.server 7890`) and visit [the examples directory](http://localhost:7890/examples/). A [complete manual](doc/manual.md) is available in the `doc` directory.
 
-## An introduction to Epistrophy
+## A first look at Epistrophy
 
 This is a complete Epistrophy program that implements the [the programming language Esterel](https://en.wikipedia.org/wiki/Esterel): O turns on when both A and B buttons have been pressed, in any order; the R button resets the system.
 
 ```js
+// Use the Epistrophy shell.
 import { run, First } from "../lib/shell.js";
 
+// Inputs and outputs.
 const [A, B, R] = document.querySelectorAll("button");
 const O = document.querySelector("span.O");
 
-run().repeat(fiber => fiber.
-    spawn(fiber => fiber.
+// This starts the scheduler with a main fiber.
+run().
+
+    // Add instructions to the fiber, starting with the outer loop.
+    repeat(fiber => fiber.
+
+        // Spawn the “AB” fiber: listen to events from buttons A
+        // and B, then light up O. Reset all elements to their
+        // initial state when the fiber ends.
         spawn(fiber => fiber.
-            event(A, "click").
-            call(() => { A.disabled = true; })
+
+            // Wait for A to be pressed and disable it.
+            spawn(fiber => fiber.
+                event(A, "click").
+                call(() => { A.disabled = true; })
+            ).
+
+            // Wait for B to be pressed and disable it.
+            spawn(fiber => fiber.
+                event(B, "click").
+                call(() => { B.disabled = true; })
+            ).
+
+            // Resume when both buttons have been pressed.
+            join().
+
+            // Light up O and wait indefinitely.
+            call(() => { O.classList.add("on"); }).
+            ramp(Infinity).
+
+            // When the fiber is cancelled, reset all elements
+            // their initial state.
+            ever(fiber => fiber.
+                call(() => {
+                    A.disabled = false;
+                    B.disabled = false;
+                    O.classList.remove("on");
+                })
+            )
         ).
-        spawn(fiber => fiber.
-            event(B, "click").
-            call(() => { B.disabled = true; })
-        ).
-        join().
-        call(() => { O.classList.add("on"); }).
-        ramp(Infinity).
-        ever(fiber => fiber.
-            call(() => {
-                A.disabled = false;
-                B.disabled = false;
-                O.classList.remove("on");
-            })
-        )
-    ).
-    spawn(fiber => fiber.event(R, "click")).
-    join(First)
-);
+
+        // Spawn the “R” fiber: wait for button R to be pressed.
+        spawn(fiber => fiber.event(R, "click")).
+
+        // End as soon as the first fiber ends (which will be R)
+        // and repeat immediately.
+        join(First)
+    );
 ```
-
-In Epistrophy, all computations are organized in fibers that are run by a scheduler. The `run()` function creates both a scheduler and a fiber that can act as the main fiber, and returns that fiber. Instructions such as `repeat`, `spawn`, `event`, `call`, `join` or `ramp` are added in sequence to the fibers to define their runtime behaviour. `run()` also starts the scheduler’s clock and schedules the main fiber to begin immediately.
-
-Here the main fiber has a single `repeat` instruction, which creates a fiber, runs it to completion, then begins the same fiber again immediately. That repeated fiber itself spawns two child fibers: the first one handles the A and B button, while the second one just waits for a click event from the R button. The `join` instruction then makes the fiber _yield_ while it waits for these two child fibers to end (we will come back to the `First` parameter below). The first child fiber itself spawns two new fibers, one that listens to click events from the A button, and one that listens to click events from the B button, before waiting for them for end as well with another `join`.
-
-When this program starts running, all these fibers are spawned and start running successively in depth-first order, each eventually yielding in order to wait for either an event to occur, or their child fibers to end. The `event` instruction waits for an event from a target, and ends when that event occurs. If the user presses the A button first, the corresponding `event` instruction ends, and the scheduler resumes the execution of its fiber. The next instruction is `call`, which executes a function synchronously, ending as the function returns. In this case, after the A button was pressed, it becomes disabled, and the fiber keeps executing; but now it reaches its end as there are no more instructions to execute. Its parent fiber is notified, but because it has another child that has not ended yet, nothing more happens.
-
-If the user presses the B button next, the corresponding `event` instruction ends and the B button gets disabled as well. That fiber ends and notifies its parent. Now that _both_ of its children have ended, the parent’s `join` instruction ends as well, and execution of the fiber resumes: the O light gets turned on synchronously, then a `ramp` instruction begins. A ramp is a delay of a given duration that can also execute a callback function at regular intervals; here, it does nothing and has an inifinite duration, resulting in the fiber being suspended indefinitely (leaving the buttons in their disabled state, and the O light being on).
-
-Once the user presses the R button, the second fiber in the repeat body ends and notifies its parent. This time, the `join` instruction has an extra parameter (`First`), which is a _join delegate_. Delegates have methods that get called when a join begins or when a child fiber ends; `First` is a common delegate that has a method that gets called when the first child ends and then _cancels_ all the remaining siblings. In this case, this means that the sibling fiber that was suspended indefinitely gets cancelled.
-
-Cancellation is a kind of _error_. Since fibers can run arbitrary computations, errors may occur during execution. The fiber then enters an error state and resumes execution, except that instructions are skipped when the fiber is in error; this results in fibers ending immediately on error by default. However, it is possible to ensure that an instruction (or a sequence of instructions) still runs even when the fiber has an error by wrapping it in `ever`, which is a mechanism for error recovery (sort of similar to a `finally` block after a try).
-
-When the suspended fiber gets cancelled, this means that its error is set to a Cancel error, so execution resumes, effectively ending the infinite ramp. The next instruction is indeed wrapped in `ever` so it does run normally; its effect is to restore the initial state of the A, B and O elements. Then the fiber ends and the parent is notified; the `join(First)` instruction ends as well, and that fiber ends. Because it is wrapped in a `repeat` instruction, it immediately begins again, setting up event listeners for A, B, and R again and waiting for clicks on this buttons to resume execution.
-
-In the second iteration, let’s say that the user clicks on B, then A. Everything happens in the same way than before because the inner `join` instruction waits for the A and B buttons to be pressed in any order. Now in the third iteration, the user presses A, then R. Pressing R results in the fiber waiting for A and B to be cancelled; since only A was pressed, it is still waiting on the `join` to end, with one child fiber still waiting for a click event on B. Cancellation propagates to child fibers, so that fiber gets cancelled as well; the B button does not get disabled, and the fiber ends as well as its parent, which still runs the last `call` instruction to reset the state of the A button.
 
 The structure of the Epistrophy program is very similar to that of the Esterel program, but less succinct and more complex; more imperative. There are two reasons to that: first, it does more than Esterel, which only handles signals (the `call` instructions have no equivalent in the Esterel program); second, Epistrophy works at a much lower level than Esterel, so a construct like `[await A || await B]` requires spawning two fibers, setting up event listeners, and joining. The solution to both of these problems is higher-level timing and synchronization constructs that will enhance the expressivity of Epistrophy, and which are under active development.
 
