@@ -418,3 +418,14 @@ named `name` to `value` _in its original scope_, that is, the scope of the
 fiber in which this property was originally defined (see example usage above).
 If this property was not previously defined, then it is set on the fiber’s own
 scope.
+
+### Transport Bar
+
+The shell also provides a transport bar that can be added to a page to let the
+user control the timing for the application. The transport bar has its own
+scheduler, so fibers can directly be scheduled from the transport bar.
+
+* `TransportBar.element` is the HTML element for the transport bar.
+* `TransportBar.record()` starts or resumes recording, _i.e._, running the
+transport bar’s scheduler.
+* `TransportBar.pause()` pauses the transport bar’s scheduler.
