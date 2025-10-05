@@ -427,5 +427,6 @@ scheduler, so fibers can directly be scheduled from the transport bar.
 
 * `TransportBar.element` is the HTML element for the transport bar.
 * `TransportBar.record()` starts or resumes recording, _i.e._, running the
-transport bar’s scheduler.
-* `TransportBar.pause()` pauses the transport bar’s scheduler.
+transport bar’s scheduler. Return the transport bar.
+* `TransportBar.pause()` pauses the transport bar’s scheduler. Return the
+transport bar (which is paused by default).
