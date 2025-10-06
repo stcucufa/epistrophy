@@ -423,10 +423,15 @@ scope.
 
 The shell also provides a transport bar that can be added to a page to let the
 user control the timing for the application. The transport bar has its own
-scheduler, so fibers can directly be scheduled from the transport bar.
+scheduler, so fibers can directly be scheduled from the transport bar. Create a
+new transport bar with `new TransportBar()`, which is paused by default.
 
-* `TransportBar.element` is the HTML element for the transport bar.
+* `TransportBar.element` is the HTML element for the transport bar which can be
+inserted anywhere on a page.
+* `TransportBar.schedule(f)` creates a new fiber and schedules it immediately
+(using the transport bar’s own scheduler). If `f` is provided, it is called on
+the new fiber immediately (like `Fiber.spawn(f)`). The fiber is returned.
 * `TransportBar.record()` starts or resumes recording, _i.e._, running the
 transport bar’s scheduler. Return the transport bar.
 * `TransportBar.pause()` pauses the transport bar’s scheduler. Return the
-transport bar (which is paused by default).
+transport bar.
