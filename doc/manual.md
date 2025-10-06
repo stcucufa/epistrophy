@@ -431,7 +431,7 @@ inserted anywhere on a page.
 * `TransportBar.schedule(f)` creates a new fiber and schedules it immediately
 (using the transport bar’s own scheduler). If `f` is provided, it is called on
 the new fiber immediately (like `Fiber.spawn(f)`). The fiber is returned.
-* `TransportBar.record()` starts or resumes recording, _i.e._, running the
+* `TransportBar.play()` starts or resumes playing, _i.e._, running the
 transport bar’s scheduler. Return the transport bar.
 * `TransportBar.pause()` pauses the transport bar’s scheduler. Return the
 transport bar.
