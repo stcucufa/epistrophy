@@ -6,7 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { run } from "../lib/shell.js";
+import { TransportBar } from "../lib/shell.js";
 import { Canvas, Turtle } from "./turtle.js";
 
 const range = document.querySelector(`input[type="range"]`);
@@ -14,8 +14,11 @@ const span = document.querySelector("span");
 const pause = document.querySelector(`input[type="checkbox"]`);
 const infinity = document.querySelector("button");
 
+const transport = new TransportBar();
+document.querySelector(".transport").appendChild(transport.element);
+
 const canvas = new Canvas(document.querySelector("canvas"));
-const turtle = new Turtle(run(), canvas).
+const turtle = new Turtle(transport.schedule(), canvas).
     to("triangle", (turtle, size) => turtle.
         repeat(3, turtle => turtle.
             forward(size).
@@ -82,7 +85,9 @@ turtle.
         <h1>Animated turtle graphics example</h1>
         <div class="example" style="padding: 0.5em">
             <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
+            <div class="transport"></div>
         </div>
+        <p>Press the record button (&#x23fa;) to start, then the pause button (&#x23f8;) to pause.</p>
         <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
         Computer as a Medium for Exploring Mathematics</a>, by Harold Abelson and Andrea diSessa, MIT Press, 1981 (chapter
         1, page 9). Implementing <a href="https://en.wikipedia.org/wiki/Turtle_graphics">turtle graphics</a> in JS is

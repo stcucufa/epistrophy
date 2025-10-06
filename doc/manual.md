@@ -418,3 +418,20 @@ named `name` to `value` _in its original scope_, that is, the scope of the
 fiber in which this property was originally defined (see example usage above).
 If this property was not previously defined, then it is set on the fiber’s own
 scope.
+
+### Transport Bar
+
+The shell also provides a transport bar that can be added to a page to let the
+user control the timing for the application. The transport bar has its own
+scheduler, so fibers can directly be scheduled from the transport bar. Create a
+new transport bar with `new TransportBar()`, which is paused by default.
+
+* `TransportBar.element` is the HTML element for the transport bar which can be
+inserted anywhere on a page.
+* `TransportBar.schedule(f)` creates a new fiber and schedules it immediately
+(using the transport bar’s own scheduler). If `f` is provided, it is called on
+the new fiber immediately (like `Fiber.spawn(f)`). The fiber is returned.
+* `TransportBar.record()` starts or resumes recording, _i.e._, running the
+transport bar’s scheduler. Return the transport bar.
+* `TransportBar.pause()` pauses the transport bar’s scheduler. Return the
+transport bar.

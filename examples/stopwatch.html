@@ -6,13 +6,16 @@
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
         <script type="module">
-import { run } from "../lib/shell.js";
+import { TransportBar } from "../lib/shell.js";
 
 const range = document.querySelector("input");
 const button = document.querySelector("button");
 const progress = document.querySelector("progress");
+const transport = new TransportBar().record();
 
-run().
+document.querySelector(".transport").appendChild(transport.element);
+
+transport.schedule(fiber => fiber.
     repeat(fiber => fiber.
         event(button, "click").
         call(() => { button.disabled = true; }).
@@ -27,17 +30,21 @@ run().
         ramp(333).
         ramp(111, ({ p }) => { progress.value = (1 - p) * progress.max; }).
         call(() => { button.disabled = false; })
-    );
+    )
+);
 
         </script>
     </head>
     <body>
         <h1>Stopwatch example</h1>
-        <p class="example">
-            <input type="range" min="1" max="60" value="30"/>
-            <progress value="0"></progress>
-            <button type="button">Start</button>
-        </p>
+        <div class="example">
+            <div>
+                <input type="range" min="1" max="60" value="30"/>
+                <progress value="0"></progress>
+                <button type="button">Start</button>
+            </div>
+            <div class="transport"></div>
+        </div>
         <details open>
             <summary>Source</summary>
             <pre></pre>
