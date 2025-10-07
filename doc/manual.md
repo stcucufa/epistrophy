@@ -427,11 +427,15 @@ scheduler, so fibers can directly be scheduled from the transport bar. Create a
 new transport bar with `new TransportBar()`, which is paused by default.
 
 * `TransportBar.element` is the HTML element for the transport bar which can be
-inserted anywhere on a page.
+inserted anywhere on a page. The transport bar can be styled with CSS; in
+particular, the `--ep-transport-button-foreground` and
+`--ep-transport-button-background` properties should be defined to be the
+foreground and background color of the buttons (which get reversed for the
+selected button).
 * `TransportBar.schedule(f)` creates a new fiber and schedules it immediately
 (using the transport bar’s own scheduler). If `f` is provided, it is called on
 the new fiber immediately (like `Fiber.spawn(f)`). The fiber is returned.
-* `TransportBar.record()` starts or resumes recording, _i.e._, running the
+* `TransportBar.play()` starts or resumes playing, _i.e._, running the
 transport bar’s scheduler. Return the transport bar.
 * `TransportBar.pause()` pauses the transport bar’s scheduler. Return the
 transport bar.
