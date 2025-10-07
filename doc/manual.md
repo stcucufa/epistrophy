@@ -411,6 +411,22 @@ fiber.
 * `Fiber.mapfirst(f)` is similar to `map`, but ends with the value of the first
 child that ends.
 
+* `Fiber.each(f)` is similar to `Fiber.repeat()` except that the child fiber
+is spawned for every element of the parent fiber’s (Array) `value`, and
+initialized with that value. This is a concurrent version of `Array.each`.
+
+For example, to display an array of images in quick succession for a
+flibpook-style animation with a given fps (frame per second) rate:
+
+```js
+fiber.
+    K(IMGs).
+    each(fiber => fiber.
+        call(({ value: image }) => { drawImage(image); }).
+        ramp(1000 / fps)
+    );
+```
+
 These additional methods are available at runtime:
 
 * `ScheduledFiber.setOriginalValue(name, value)`: sets the value of a property
