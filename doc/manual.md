@@ -119,7 +119,9 @@ fiber to run at time t (in milliseconds). The original fiber is returned.
 `Scheduler.clock` returns the scheduler’s clock; the main methods of the clock
 are: `Clock.start()` to start the clock, `Clock.stop()` to stop the clock, and
 `Clock.now` to access the current clock time (total running time in
-milliseconds since the clock started).
+milliseconds since the clock started). The clock can also be paused with
+`Clock.pause()` and resumed with `Clock.resume()` (which resumes a paused clock
+and also starts a stopped clock).
 
 ## Runtime
 
