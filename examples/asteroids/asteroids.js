@@ -17,9 +17,9 @@ run().
 
     // Keyboard handling (see actual handlers below).
     spawn(fiber => fiber.
-        call(({ value: { inputs } }) => {
-            window.addEventListener("keydown", event => keydown(event, inputs));
-            window.addEventListener("keyup", event => keyup(event, inputs));
+        call(({ value: game }) => {
+            window.addEventListener("keydown", event => keydown(event, game));
+            window.addEventListener("keyup", event => keyup(event, game));
         })
     ).
 
@@ -40,31 +40,43 @@ run().
         )
     ).
 
-    // Enemies (asteroids, TODO: UFO)
+    // Show title and wait for a key before continuing.
+    call(({ value: game }) => { game.showTitle(); }).
+    event(({ value: game }) => game, "anykey").
+    call(({ value: game }) => { game.hideTitle(); }).
+
+    // Game loop.
     spawn(fiber => fiber.
-        call(({ value: game }) => Array(4).fill().map(() => game.asteroid()))
-    ).
+        // Enemies (asteroids, TODO: UFO)
+        spawn(fiber => fiber.
+            call(({ value: game }) => Array(4).fill().map(() => game.asteroid()))
+        ).
 
-    // Player loop: spawn a new ship and wait for it to be destroyed, then for
-    // the debris to clear up before spawning a new one.
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
+        // Player loop: spawn a new ship and wait for it to be destroyed, then for
+        // the debris to clear up before spawning a new one, as long as the player
+        // has lives left.
+        spawn(fiber => fiber.
+            repeat(fiber => fiber.
 
-            // Create a ship and use it as value for the fiber; also save to scope.
-            call(({ scope, value: game }) => {
-                scope.ship = game.ship();
-                return scope.ship;
-            }).
+                // Create a ship and use it as value for the fiber; also save to scope.
+                call(({ scope, value: game }) => {
+                    scope.ship = game.ship();
+                    return scope.ship;
+                }).
 
-            // Listen to the ship being removed to end the loop with the spawn
-            // delay duration (the longest that a debris particle can last).
-            event(({ value: ship }) => ship.game, "collided", {
-                eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
-            }).
-            call(({ value: ship }) => ship.debrisDur[1]).
+                // Listen to the ship being removed to end the loop with the spawn
+                // delay duration (the longest that a debris particle can last).
+                event(({ value: ship }) => ship.game, "collided", {
+                    eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
+                }).
+                call(({ value: ship }) => ship.debrisDur[1]).
 
-            // Wait until spawning again.
-            ramp(({ value }) => value)
+                // Wait until spawning again.
+                ramp(({ value }) => value),
+
+                // End when no mores ships remain.
+                { repeatShouldEnd: (_, { value: { shipsRemaining } }) => shipsRemaining < 0 }
+            )
         )
     );
 
@@ -73,38 +85,40 @@ run().
 // right arrow; allow both arrows to be pressed at the same time by using the
 // direction of the last pressed arrow).
 
-function keydown(event, inputs) {
+function keydown(event, { inputs }) {
     if (event.altKey || event.ctrlKey || event.isComposing || event.metaKey || event.shiftKey) {
         return;
     }
+    inputs.add(event.key);
     switch (event.key) {
         case "ArrowLeft":
             if (!event.repeat) {
-                if (inputs.Right) {
-                    delete inputs.Right;
-                    inputs.RL = true;
+                if (inputs.has("Right")) {
+                    inputs.delete("Right");
+                    inputs.add("RL");
                 }
-                inputs.Left = true;
+                inputs.add("Left");
             }
             break;
         case "ArrowRight":
             if (!event.repeat) {
-                if (inputs.Left) {
-                    delete inputs.Left;
-                    inputs.LR = true;
+                if (inputs.has("Left")) {
+                    inputs.delete("Left");
+                    inputs.add("LR");
                 }
-                inputs.Right = true;
+                inputs.add("Right");
             }
             break;
         case "ArrowUp":
             if (!event.repeat) {
-                inputs.Thrust = true;
+                inputs.add("Thrust");
             }
             break;
         case "z":
             if (!event.repeat) {
-                inputs.Shoot = true;
+                inputs.add("Shoot");
             }
+            break;
         case "ArrowDown":
         case " ":
             // Do nothing but avoid scrolling the page
@@ -115,25 +129,33 @@ function keydown(event, inputs) {
     event.preventDefault();
 }
 
-function keyup(event, inputs) {
+function keyup(event, game) {
+    const { inputs } = game;
+    const anykey = inputs.has(event.key);
     switch (event.key) {
         case "ArrowLeft":
-            delete inputs.Left;
-            if (inputs.RL || inputs.LR) {
-                delete inputs.RL;
-                delete inputs.LR;
-                inputs.Right = true;
+            inputs.delete("Left");
+            if (inputs.has("RL") || inputs.has("LR")) {
+                inputs.delete("RL");
+                inputs.delete("LR");
+                inputs.add("Right");
             }
             break;
         case "ArrowRight":
-            delete inputs.Right;
-            if (inputs.RL || inputs.LR) {
-                delete inputs.RL;
-                delete inputs.LR;
-                inputs.Left = true;
+            inputs.delete("Right");
+            if (inputs.has("RL") || inputs.has("LR")) {
+                inputs.delete("RL");
+                inputs.delete("LR");
+                inputs.add("Left");
             }
             break;
         case "ArrowUp":
-            delete inputs.Thrust;
+            inputs.delete("Thrust");
+            break;
+        default:
+            inputs.delete(event.key);
+    }
+    if (anykey && !inputs.has(event.key)) {
+        game.customEvent("anykey");
     }
 }
