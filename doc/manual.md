@@ -391,16 +391,20 @@ fiber.repeat(fiber => fiber.
 the value of the fiber is updated after each iteration with the value of the
 inner fiber.
 
-* `Fiber.map(f)` is similar to `spawn`, except that a new instance of the
-child fiber is created for _every_ element of the (Array) `value` of the fiber,
-setting the initial value of the child fiber to that item (instead of the
-whole array); the result values are collected in a new Array in the order in
-which the fibers _ended_. If a child fiber ends in error, the other fibers
-are cancelled and the parent fiber ends with that error.
+* `Fiber.mapspawn(f)` is similar to `Fiber.spawn(f)` except that it spawns a
+new instance of the child fiber for _every_ item of the (Array) `value` of the
+fiber, and sets the initial value of the instance to that item. This is a
+concurrent version of `Array.each()`.
 
-* `Fiber.maporder(f)` is identical to `map` except that the values of the child
-fibers are collected in the order in which the fibers began (_i.e._,
-maintaining the same order as the input values).
+* `Fiber.map(f)` is similar to `Fiber.mapspawn(f)` but joins once all child
+fibers were spawned, and collects the end value of every child fiber in a new
+array in the order in which they _ended_. If a child fiber ends in error, the
+other fibers are cancelled and the parent fiber ends with that error.
+
+* `Fiber.maporder(f)` is similar to `Fiber.map(f)` except that the values of
+the child fibers are collected in the order in which the fibers began (_i.e._,
+maintaining the same order as the input values). This is a concurrent version
+of `Array.map()`.
 
 For example, to load an array of images given an array of URLs:
 
@@ -410,12 +414,12 @@ fiber.
     map(fiber => fiber.await(async ({ value }) => loadImage(value)));
 ```
 
-* `Fiber.mapfirst(f)` is similar to `map`, but ends with the value of the first
-child that ends.
+* `Fiber.mapfirst(f)` is similar to `Fiber.map(f)`, but ends with the value of
+the first child that ends and cancels all the other children.
 
 * `Fiber.each(f)` is similar to `Fiber.repeat()` except that the child fiber
 is spawned for every element of the parent fiber’s (Array) `value`, and
-initialized with that value. This is a concurrent version of `Array.each`.
+initialized with that value. This is a sequential version of `Array.each()`.
 
 For example, to display an array of images in quick succession for a
 flibpook-style animation with a given fps (frame per second) rate:
