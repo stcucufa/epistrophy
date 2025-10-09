@@ -1,98 +1,139 @@
-import Scheduler from "../../lib/scheduler.js";
-import { First } from "../../lib/fiber.js";
-import { K } from "../../lib/util.js";
+import { run, FirstValue } from "../../lib/shell.js";
 import Game from "./game.js";
 
 const UpdateDuration = 1000 / Game.UpdateFPS;
 
-// Handle a key down/up event for a given fiber, looking for a specific key.
-function handleKey(fiber, key, on, off) {
-    const eventShouldBeIgnored = event => event.key !== key;
-    fiber.repeat(fiber => {
-        fiber.event(window, "keydown", {
-            eventShouldBeIgnored,
-            eventWasHandled(event) { event.preventDefault(); }
-        });
-        if (on) {
-            fiber.effect(on);
-        }
-        fiber.event(window, "keyup", { eventShouldBeIgnored });
-        if (off) {
-            fiber.effect(off);
-        }
-    });
-}
+run().
 
-Scheduler.run().
-    exec(() => new Game(document.querySelector("canvas"))).
+    // Create a game object and add it to the scope of the main fiber; this is
+    // also the initial value of the fiber.
+    call(({ scope }) => {
+        scope.game = new Game(document.querySelector("canvas"));
+        return scope.game;
+    }).
 
-    // Draw loop
-    spawn(fiber => fiber.named("draw-loop").
-        ramp(Infinity, {
-            rampDidProgress(_, { value: game }) {
-                game.draw();
-            }
+    // Draw loop: draw the game.
+    spawn(fiber => fiber.ramp(Infinity, ({ value: game }) => { game.draw(); })).
+
+    // Keyboard handling (see actual handlers below).
+    spawn(fiber => fiber.
+        call(({ value: { inputs } }) => {
+            window.addEventListener("keydown", event => keydown(event, inputs));
+            window.addEventListener("keyup", event => keyup(event, inputs));
         })
     ).
 
-    // Enemies (asteroids, TODO: UFO)
-    spawn(fiber => fiber.named("enemies").
-        exec(({ value: game }) => Array(4).fill().map(() => game.asteroid())).
-        map(fiber => fiber.
-            effect(({ value: asteroid }) => { console.info(asteroid); }).
-            repeat(fiber => fiber.
-                delay(UpdateDuration).
-                effect(({ value: asteroid }) => { asteroid.update(); })
+    // Update loop: update all game objects and gather the list of new objects
+    // resulting from the updates, setting a timeout to remove all those that
+    // have a duration (particles).
+    spawn(fiber => fiber.
+        repeat(fiber => fiber.
+            ramp(UpdateDuration).
+            call(({ value: game }) => {
+                const [enter] = game.update();
+                return [...enter].filter(object => object.durationMs >= 0);
+            }).
+            mapspawn(fiber => fiber.
+                ramp(({ value: { durationMs } }) => durationMs).
+                call(({ value: object }) => { object.game.removeObject(object); })
             )
         )
     ).
 
-    // Player loop
-    spawn(fiber => fiber.named("ship").
-        exec(({ value: game }) => game.ship()).
-        store("ship").
+    // Enemies (asteroids, TODO: UFO)
+    spawn(fiber => fiber.
+        call(({ value: game }) => Array(4).fill().map(() => game.asteroid()))
+    ).
+
+    // Player loop: spawn a new ship and wait for it to be destroyed, then for
+    // the debris to clear up before spawning a new one.
+    spawn(fiber => fiber.
         repeat(fiber => fiber.
 
-            // Keys: left and right to turn, up to accelerate.
-            spawn(fiber => fiber.named("key-left").
-                macro(handleKey, "ArrowLeft",
-                    ({ value: ship }) => { ship.angularVelocity = -ship.maxAngularVelocity; },
-                    ({ value: ship }) => { ship.angularVelocity = Math.max(0, ship.angularVelocity); }
-                )
-            ).
-            spawn(fiber => fiber.named("key-right").
-                macro(handleKey, "ArrowRight",
-                    ({ value: ship }) => { ship.angularVelocity = ship.maxAngularVelocity; },
-                    ({ value: ship }) => { ship.angularVelocity = Math.min(0, ship.angularVelocity); }
-                )
-            ).
-            spawn(fiber => fiber.named("key-up").
-                macro(handleKey, "ArrowUp",
-                    ({ value: ship }) => { ship.acceleration = ship.maxAcceleration; },
-                    ({ value: ship }) => { ship.acceleration = ship.game.Friction; }
-                )
-            ).
+            // Create a ship and use it as value for the fiber; also save to scope.
+            call(({ scope, value: game }) => {
+                scope.ship = game.ship();
+                return scope.ship;
+            }).
 
-            // Ship updates
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    delay(UpdateDuration).
-                    exec(({ scope: { ship } }) => ship.update()).
-                    map(fiber => fiber.
-                        spawn(fiber => fiber.
-                            repeat(fiber => fiber.
-                                delay(UpdateDuration).
-                                effect(({ value: particle }) => particle.update())
-                            )
-                        ).
-                        spawn(fiber => fiber.delay(({ value: { durationMs } }) => durationMs)).
-                        join(First).
-                        effect(({ value: particle }) => { particle.game.removeObject(particle); })
-                    )
-                )
-            ).
+            // Listen to the ship being removed to end the loop with the spawn
+            // delay duration (the longest that a debris particle can last).
+            event(({ value: ship }) => ship.game, "collided", {
+                eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
+            }).
+            call(({ value: ship }) => ship.debrisDur[1]).
 
-            // FIXME end when the ship is destroyed
-            join(First)
+            // Wait until spawning again.
+            ramp(({ value }) => value)
         )
     );
+
+// Keydown and keyup event handlers; translate raw inputs to input states of
+// the game. T is for thrust (up arrow), L/R for left/right rotation (left and
+// right arrow; allow both arrows to be pressed at the same time by using the
+// direction of the last pressed arrow).
+
+function keydown(event, inputs) {
+    if (event.altKey || event.ctrlKey || event.isComposing || event.metaKey || event.shiftKey) {
+        return;
+    }
+    switch (event.key) {
+        case "ArrowLeft":
+            if (!event.repeat) {
+                if (inputs.Right) {
+                    delete inputs.Right;
+                    inputs.RL = true;
+                }
+                inputs.Left = true;
+            }
+            break;
+        case "ArrowRight":
+            if (!event.repeat) {
+                if (inputs.Left) {
+                    delete inputs.Left;
+                    inputs.LR = true;
+                }
+                inputs.Right = true;
+            }
+            break;
+        case "ArrowUp":
+            if (!event.repeat) {
+                inputs.Thrust = true;
+            }
+            break;
+        case "z":
+            if (!event.repeat) {
+                inputs.Shoot = true;
+            }
+        case "ArrowDown":
+        case " ":
+            // Do nothing but avoid scrolling the page
+            break;
+        default:
+            return;
+    }
+    event.preventDefault();
+}
+
+function keyup(event, inputs) {
+    switch (event.key) {
+        case "ArrowLeft":
+            delete inputs.Left;
+            if (inputs.RL || inputs.LR) {
+                delete inputs.RL;
+                delete inputs.LR;
+                inputs.Right = true;
+            }
+            break;
+        case "ArrowRight":
+            delete inputs.Right;
+            if (inputs.RL || inputs.LR) {
+                delete inputs.RL;
+                delete inputs.LR;
+                inputs.Left = true;
+            }
+            break;
+        case "ArrowUp":
+            delete inputs.Thrust;
+    }
+}
