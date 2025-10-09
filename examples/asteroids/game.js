@@ -21,7 +21,12 @@ export default class Game extends EventTarget {
         this.objects = [new Background(this)];
         this.collidesWithAsteroid = [];
         this.collidesWithBullet = [];
-        this.inputs = {};
+        this.inputs = new Set();
+        this.shipsRemaining = 3;
+    }
+
+    customEvent(type, detail) {
+        customEvent.call(this, type, detail);
     }
 
     // Get a clear drawing context at the right device pixel ratio.
@@ -93,11 +98,19 @@ export default class Game extends EventTarget {
         delete object.game;
     }
 
+    showTitle() {
+        return this.title = this.addObject(new Text("ASTEROIDS"));
+    }
+
+    hideTitle() {
+        this.removeObject(this.title);
+        delete this.title;
+    }
+
     // Add a new ship to the game at the center of the screen.
     ship() {
-        for (const key of Object.keys(this.inputs)) {
-            delete this.inputs[key];
-        }
+        this.inputs.clear();
+        this.shipsRemaining -= 1;
         return this.ship = this.addObject(new Ship(this.width / 2, this.height / 2, -π / 2));
     }
 
@@ -140,6 +153,24 @@ class Background {
     }
 }
 
+class Text {
+    FgColor = HighlightColor;
+
+    constructor(text) {
+        this.text = text;
+    }
+
+    draw(context, game) {
+        context.save();
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.font = `96px system-ui`;
+        context.fillStyle = this.FgColor;
+        context.fillText(this.text, game.width / 2, game.height / 2);
+        context.restore();
+    }
+}
+
 // Base class for sprites (all moving objects in the game, including
 // particles). Sprites have position, radius, velocity, acceleration,
 // heading and angular velocity.
@@ -170,7 +201,7 @@ class Sprite {
             if (collides(this, other)) {
                 leave.add(other);
                 other.collided(enter, this);
-                customEvent.call(this.game, "collided", { object: other, with: this });
+                this.game.customEvent("collided", { object: other, with: this });
             }
         }
     }
@@ -294,11 +325,12 @@ class Ship extends Sprite {
     // Set the acceleration and angular velocity based on inputs then emit
     // exhaust particles if thrusting.
     update(enter, leave, inputs) {
-        this.acceleration = inputs.Thrust ? this.maxAcceleration : this.friction;
-        this.angularVelocity = inputs.Right ? this.maxAngularVelocity : inputs.Left ? -this.maxAngularVelocity : 0;
+        this.acceleration = inputs.has("Thrust") ? this.maxAcceleration : this.friction;
+        this.angularVelocity = inputs.has("Right") ? this.maxAngularVelocity :
+            inputs.has("Left") ? -this.maxAngularVelocity : 0;
         super.update(enter, leave, inputs);
-        if (inputs.Shoot) {
-            delete inputs.Shoot;
+        if (inputs.has("Shoot")) {
+            inputs.delete("Shoot");
             enter.add(new Bullet(this.x + this.dx, this.y + this.dy, this.angle));
         }
         if (this.acceleration > 0) {
