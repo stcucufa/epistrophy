@@ -1,5 +1,5 @@
-import { run, FirstValue } from "../../lib/shell.js";
-import Game from "./game.js";
+import { run, First, FirstValue } from "../../lib/shell.js";
+import Game, { Text } from "./game.js";
 
 const UpdateDuration = 1000 / Game.UpdateFPS;
 
@@ -15,13 +15,12 @@ run().
     // Draw loop: draw the game.
     spawn(fiber => fiber.ramp(Infinity, ({ value: game }) => { game.draw(); })).
 
-    // Keyboard handling (see actual handlers below).
-    spawn(fiber => fiber.
-        call(({ value: game }) => {
-            window.addEventListener("keydown", event => keydown(event, game));
-            window.addEventListener("keyup", event => keyup(event, game));
-        })
-    ).
+    // Keyboard handling (see actual handlers below). Because we use regular
+    // event listeners, this only needs to be setup once.
+    call(({ value: game }) => {
+        window.addEventListener("keydown", event => keydown(event, game));
+        window.addEventListener("keyup", event => keyup(event, game));
+    }).
 
     // Update loop: update all game objects and gather the list of new objects
     // resulting from the updates, setting a timeout to remove all those that
@@ -40,16 +39,20 @@ run().
         )
     ).
 
-    // Show title and wait for a key before continuing.
-    call(({ value: game }) => { game.showTitle(); }).
-    event(({ value: game }) => game, "anykey").
-    call(({ value: game }) => { game.hideTitle(); }).
-
     // Game loop.
-    spawn(fiber => fiber.
+    repeat(fiber => fiber.
+
+        call(fiber => { console.log(`>>> Game loop: ${fiber.id}`); }).
+
+        // Title screen.
+        call(({ value: game }) => { game.reset(); }).
+        append(text("ASTEROIDS")).
+
         // Enemies (asteroids, TODO: UFO)
         spawn(fiber => fiber.
-            call(({ value: game }) => Array(4).fill().map(() => game.asteroid()))
+            call(({ value: game }) => Array(4).fill().map(() => game.asteroid())).
+            // TODO inner loop
+            ramp(Infinity)
         ).
 
         // Player loop: spawn a new ship and wait for it to be destroyed, then for
@@ -76,9 +79,16 @@ run().
 
                 // End when no mores ships remain.
                 { repeatShouldEnd: (_, { value: { shipsRemaining } }) => shipsRemaining < 0 }
-            )
-        )
-    );
+            ).
+
+            // Game over
+            append(text("GAME OVER"))
+        ).
+
+        join(First).
+
+        call(fiber => { console.log(`<<< Game loop: ${fiber.id}`); })
+);
 
 // Keydown and keyup event handlers; translate raw inputs to input states of
 // the game. T is for thrust (up arrow), L/R for left/right rotation (left and
@@ -152,10 +162,20 @@ function keyup(event, game) {
         case "ArrowUp":
             inputs.delete("Thrust");
             break;
-        default:
-            inputs.delete(event.key);
     }
+    inputs.delete(event.key);
     if (anykey && !inputs.has(event.key)) {
         game.customEvent("anykey");
     }
+}
+
+// Show text and wait for any key before removing it.
+function text(t) {
+    return fiber => fiber.
+        call(({ value: game, scope }) => { scope.text = game.addObject(new Text(t)); }).
+        event(({ value: game }) => game, "anykey").
+        call(({ value: game, scope }) => {
+            game.removeObject(scope.text);
+            delete scope.text;
+        });
 }

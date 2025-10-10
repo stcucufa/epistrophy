@@ -16,15 +16,21 @@ export default class Game extends EventTarget {
     constructor(canvas) {
         super();
         this.canvas = canvas;
+        this.objects =  [];
         this.width = canvas.clientWidth;
         this.height = canvas.clientHeight;
+        this.inputs = new Set();
+    }
+
+    // Reset game: new background and reset all ships.
+    reset() {
         this.objects = [new Background(this)];
         this.collidesWithAsteroid = [];
         this.collidesWithBullet = [];
-        this.inputs = new Set();
         this.shipsRemaining = 3;
     }
 
+    // Call customEvent on the game object directly.
     customEvent(type, detail) {
         customEvent.call(this, type, detail);
     }
@@ -98,15 +104,6 @@ export default class Game extends EventTarget {
         delete object.game;
     }
 
-    showTitle() {
-        return this.title = this.addObject(new Text("ASTEROIDS"));
-    }
-
-    hideTitle() {
-        this.removeObject(this.title);
-        delete this.title;
-    }
-
     // Add a new ship to the game at the center of the screen.
     ship() {
         this.inputs.clear();
@@ -153,7 +150,7 @@ class Background {
     }
 }
 
-class Text {
+export class Text {
     FgColor = HighlightColor;
 
     constructor(text) {
