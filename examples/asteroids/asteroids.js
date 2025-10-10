@@ -42,8 +42,6 @@ run().
     // Game loop.
     repeat(fiber => fiber.
 
-        call(fiber => { console.log(`>>> Game loop: ${fiber.id}`); }).
-
         // Title screen.
         call(({ value: game }) => { game.reset(); }).
         append(text("ASTEROIDS")).
@@ -72,22 +70,22 @@ run().
                 event(({ value: ship }) => ship.game, "collided", {
                     eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
                 }).
-                call(({ value: ship }) => ship.debrisDur[1]).
 
                 // Wait until spawning again.
-                ramp(({ value }) => value),
+                ramp(({ value: ship }) => ship.debrisDur[1]).
+
+                // Remove a life.
+                call(({ scope: { game } }) => { game.removeObject(game.lives.pop()); }),
 
                 // End when no mores ships remain.
-                { repeatShouldEnd: (_, { value: { shipsRemaining } }) => shipsRemaining < 0 }
+                { repeatShouldEnd: (_, { value: { lives } }) => lives.length === 0 }
             ).
 
             // Game over
             append(text("GAME OVER"))
         ).
 
-        join(First).
-
-        call(fiber => { console.log(`<<< Game loop: ${fiber.id}`); })
+        join(First)
 );
 
 // Keydown and keyup event handlers; translate raw inputs to input states of
