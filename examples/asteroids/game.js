@@ -27,7 +27,7 @@ export default class Game extends EventTarget {
         this.objects = [new Background(this)];
         this.collidesWithAsteroid = [];
         this.collidesWithBullet = [];
-        this.shipsRemaining = 3;
+        this.lives = new Array(3).fill().map((_, i) => this.addObject(new Life(i)));
     }
 
     // Call customEvent on the game object directly.
@@ -107,7 +107,6 @@ export default class Game extends EventTarget {
     // Add a new ship to the game at the center of the screen.
     ship() {
         this.inputs.clear();
-        this.shipsRemaining -= 1;
         return this.ship = this.addObject(new Ship(this.width / 2, this.height / 2, -π / 2));
     }
 
@@ -297,10 +296,6 @@ class Ship extends Sprite {
     debrisVelocity = 0.1;
     debrisDur = [1000, 2000];
 
-    constructor(x, y, angle) {
-        super(x, y, angle);
-    }
-
     draw(context) {
         this.beginPath(context);
         context.moveTo(2 * this.radius, 0);
@@ -346,6 +341,19 @@ class Ship extends Sprite {
                 this.x, this.y, this.radius * (0.5 + Math.random()), velocity, random(...this.debrisDur)
             ));
         }
+    }
+}
+
+class Life extends Sprite {
+    constructor(i) {
+        const radius = 4;
+        super(4 * (i + 1) * radius, 4 * radius);
+        this.angle = -Math.PI / 2;
+        this.radius = radius;
+    }
+
+    draw(context) {
+        Ship.prototype.draw.call(this, context);
     }
 }
 
