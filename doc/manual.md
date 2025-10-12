@@ -53,7 +53,7 @@ eventually returned;
 * _spawn_ schedules a new child fiber (with its own sequence of instructions)
 to begin in the same instant;
 * _join_ waits until all spawned children have ended;
-* _seq_ wraps a sequence of instructions.
+* _seq_ embeds a subsequence of instructions in the fiber.
 
 When a fiber is running, it keeps executing instructions one after the other
 until it reaches the end of the sequence (which ends the fiber), or an
@@ -207,7 +207,7 @@ methods, if present, are called:
     delegate object itself as `this`). Recall that the fiber instance itself is
     the parent of the child fiber.
 * `seq` is a special case of spawning and joining: it spawns a child fiber and
-yield, with the child fiber beginning _immediately_ (even before any other
+yields, with the child fiber beginning _immediately_ (even before any other
 child fibers that may have been spawned in the same instant), resuming when the
 child has ended with the child value. In effect, the parent fiber behaves as if
 the child fiber instructions had been inserted in its own list of instructions.
