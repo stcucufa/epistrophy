@@ -242,6 +242,8 @@ special Cancel error and scheduling the fiber to resume in the current instant
 (unless the current instruction of the fiber is inside an `ever` block, in
 which case the fiber continues running normally). If the fiber is joining,
 child fibers are cancelled as well.
+* `Scheduler.setRateForFiber(fiber, rate)` sets the _rate_ of the fiber, that
+is the inverse of its time scale (see below).
 * `Scheduler.setRampDurationForFiber(fiber, dur)` updates the duration of the
 current ramp of `fiber` to the new duration `dur` (a number of milliseconds).
 This has no effect if there is no ongoing fiber. If the new duration is shorter
@@ -373,6 +375,10 @@ fiber.append(fiber => {
 * `Fiber.K(x)` is a special case of `Fiber.call(f)` where `f` is a constant
 function that returns `x` (_i.e._, `K(x)` ≡ `call(() => x)`). This is useful
 for setting the value of a fiber to a known, constant value.
+
+* `Fiber.scale(x)` sets the _time scale_ of the fiber, that is the amount of
+time in milliseconds of one unit. For instant, to specify times in seconds,
+use `scale(1000)`. Scale must be a finite number greater than 0.
 
 * `Fiber.repeat(f, delegate)` spawns a new child fiber and immediately joins;
 when the child fiber ends, it is immediately spawned again, repeating forever.
