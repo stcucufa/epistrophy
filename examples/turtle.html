@@ -5,20 +5,28 @@
         <meta charset="utf-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <link rel="stylesheet" href="style.css"/>
+        <style>
+
+div.transport {
+    text-align: center;
+}
+
+        </style>
         <script type="module">
 import { TransportBar } from "../lib/shell.js";
 import { Canvas, Turtle } from "./turtle.js";
 
 const range = document.querySelector(`input[type="range"]`);
 const span = document.querySelector("span");
-const pause = document.querySelector(`input[type="checkbox"]`);
-const infinity = document.querySelector("button");
 
 const transport = new TransportBar();
-document.querySelector(".transport").appendChild(transport.element);
+const div = document.querySelector(".transport");
+div.insertBefore(transport.element, div.firstChild);
+
+let turtleFiber;
 
 const canvas = new Canvas(document.querySelector("canvas"));
-const turtle = new Turtle(transport.schedule(), canvas).
+const turtle = new Turtle(transport.schedule().call(fiber => { turtleFiber = fiber; }), canvas).
     to("triangle", (turtle, size) => turtle.
         repeat(3, turtle => turtle.
             forward(size).
@@ -79,13 +87,37 @@ turtle.
     wait(700).
     hide();
 
+transport.schedule().repeat(fiber => fiber.
+    call((fiber, scheduler) => {
+        const rate = 1.26 ** range.value;
+        span.textContent = rate.toFixed(2);
+        if (turtleFiber) {
+            scheduler.setRateForFiber(turtleFiber, rate);
+        }
+    }).
+    event(range, "input")
+);
+
         </script>
     </head>
     <body>
         <h1>Animated turtle graphics example</h1>
         <div class="example" style="padding: 0.5em">
             <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
-            <div class="transport"></div>
+            <div class="transport">
+                <div>
+                    <label for="speed">Turtle speed:</label>
+                    <input type="range" name="speed" list="markers" min="-6" max="6" step="any" value="0"></input>
+                    <span style="min-width: 2.2em; display: inline-block">---</span>
+                    <datalist id="markers">
+                        <option value="-6"></option>
+                        <option value="-3"></option>
+                        <option value="0"></option>
+                        <option value="3"></option>
+                        <option value="6"></option>
+                    </datalist>
+                </div>
+            </div>
         </div>
         <p>Press the play button (&#x23f5;) to start, then the pause button (&#x23f8;) to pause.</p>
         <p>This example is adapted from <a href="https://direct.mit.edu/books/oa-monograph/4663/">Turtle Geometry: The
