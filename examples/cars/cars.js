@@ -1,5 +1,5 @@
 import { loadImage, random } from "../../lib/util.js";
-import { run, First, FirstValue, PreventDefault } from "../../lib/shell.js";
+import { run, First, PreventDefault } from "../../lib/shell.js";
 
 // Game duration in milliseconds.
 const GameDuration = 5000;
