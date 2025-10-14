@@ -190,4 +190,9 @@ export class Turtle {
         };
         return this;
     }
+
+    speed(s) {
+        this.fiber.call((fiber, scheduler) => { scheduler.setRateForFiber(fiber, s); });
+        return this;
+    }
 }

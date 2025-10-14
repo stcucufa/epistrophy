@@ -16,19 +16,20 @@ const transport = new TransportBar().play();
 document.querySelector(".transport").appendChild(transport.element);
 
 transport.schedule(fiber => fiber.
+    scale(1000).
     repeat(fiber => fiber.
         event(button, "click").
         call(() => { button.disabled = true; }).
         ramp(
-            () => 1000 * range.value,
+            () => range.value,
             (fiber, scheduler) => {
                 progress.max = range.value;
-                progress.value = fiber.ramp.elapsed / 1000;
-                scheduler.setRampDurationForFiber(fiber, 1000 * range.value);
+                progress.value = fiber.ramp.elapsed;
+                scheduler.setRampDurationForFiber(fiber, range.value);
             }
         ).
-        ramp(333).
-        ramp(111, ({ p }) => { progress.value = (1 - p) * progress.max; }).
+        ramp(0.333).
+        ramp(0.111, ({ p }) => { progress.value = (1 - p) * progress.max; }).
         call(() => { button.disabled = false; })
     )
 );
