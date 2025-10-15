@@ -381,8 +381,9 @@ flows twice as fast in a fiber with a rate of 2 than it does in its parent;
 twice as slow with a rate of 0.5. Rate must be a finite number greater than 0.
 
 * `Fiber.scale(x)` sets the _time scale_ of the fiber, that is the amount of
-time in milliseconds of one unit. For instant, to specify times in seconds,
-use `scale(1000)`. Scale must be a finite number greater than 0.
+time in milliseconds of one unit. This is the inverse of the rate. For
+instance, to specify times in seconds, use `scale(1000)`. Scale must be a
+finite number greater than 0.
 
 * `Fiber.repeat(f, delegate)` spawns a new child fiber and immediately joins;
 when the child fiber ends, it is immediately spawned again, repeating forever.
