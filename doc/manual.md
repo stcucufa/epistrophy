@@ -376,6 +376,10 @@ fiber.append(fiber => {
 function that returns `x` (_i.e._, `K(x)` ≡ `call(() => x)`). This is useful
 for setting the value of a fiber to a known, constant value.
 
+* `Fiber.rate(x)` sets the rate of the fiber relative to its parent: time
+flows twice as fast in a fiber with a rate of 2 than it does in its parent;
+twice as slow with a rate of 0.5. Rate must be a finite number greater than 0.
+
 * `Fiber.scale(x)` sets the _time scale_ of the fiber, that is the amount of
 time in milliseconds of one unit. For instant, to specify times in seconds,
 use `scale(1000)`. Scale must be a finite number greater than 0.
