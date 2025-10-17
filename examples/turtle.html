@@ -7,6 +7,12 @@
         <link rel="stylesheet" href="style.css"/>
         <style>
 
+svg.turtle {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4/3;
+}
+
 div.transport {
     text-align: center;
 }
@@ -14,7 +20,7 @@ div.transport {
         </style>
         <script type="module">
 import { TransportBar } from "../lib/shell.js";
-import { Canvas, Turtle } from "./turtle.js";
+import Turtle from "./turtle.js";
 
 const range = document.querySelector(`input[type="range"]`);
 const span = document.querySelector("span");
@@ -25,8 +31,14 @@ div.insertBefore(transport.element, div.firstChild);
 
 let turtleFiber;
 
-const canvas = new Canvas(document.querySelector("canvas"));
-const turtle = new Turtle(transport.schedule().call(fiber => { turtleFiber = fiber; }), canvas).
+const turtle = new Turtle(transport.schedule().call(fiber => { turtleFiber = fiber; }));
+const svg = document.querySelector("svg");
+const width = svg.clientWidth * window.devicePixelRatio;
+const height = svg.clientHeight * window.devicePixelRatio;
+svg.setAttribute("viewBox", `-${width / 2} -${height / 2} ${width} ${height}`);
+svg.appendChild(turtle.element);
+
+turtle.
     to("triangle", (turtle, size) => turtle.
         repeat(3, turtle => turtle.
             forward(size).
@@ -98,17 +110,26 @@ transport.schedule().repeat(fiber => fiber.
     event(range, "input")
 );
 
+transport.schedule().
+    event(() => document.querySelector("button.infinity"), "click").
+    call((_, scheduler) => {
+        range.disabled = true;
+        span.textContent = "∞";
+        if (turtleFiber) {
+            scheduler.setRateForFiber(turtleFiber, Infinity);
+        }
+    });
+
         </script>
     </head>
     <body>
         <h1>Animated turtle graphics example</h1>
         <div class="example" style="padding: 0.5em">
-            <canvas style="width: 100%; aspect-ratio: 4/3; display: block"></canvas>
+            <svg class="turtle"></svg>
             <div class="transport">
                 <div>
                     <label for="speed">Turtle speed:</label>
                     <input type="range" name="speed" list="markers" min="-6" max="6" step="any" value="0"></input>
-                    <span style="min-width: 2.2em; display: inline-block">---</span>
                     <datalist id="markers">
                         <option value="-6"></option>
                         <option value="-3"></option>
@@ -116,6 +137,8 @@ transport.schedule().repeat(fiber => fiber.
                         <option value="3"></option>
                         <option value="6"></option>
                     </datalist>
+                    <button type="button" class="infinity">∞</button>
+                    <span style="min-width: 2.2em; display: inline-block">---</span>
                 </div>
             </div>
         </div>

@@ -1,79 +1,37 @@
-import { extend } from "../lib/util.js";
+import { extend, svg } from "../lib/util.js";
 
 const π = Math.PI;
 
 const ease = p => p * p * (3 - 2 * p);
 
-export class Canvas {
-    constructor(element) {
-        this.element = element;
-        element.width = window.devicePixelRatio * element.clientWidth;
-        element.height = window.devicePixelRatio * element.clientHeight;
-        this.imageData = this.context.getImageData(0, 0, this.width, this.height);
-    }
-
-    get context() {
-        return this.element.getContext("2d");
-    }
-
-    get width() {
-        return this.element.width;
-    }
-
-    get height() {
-        return this.element.height;
-    }
-
-    save() {
-        this.imageData = this.context.getImageData(0, 0, this.width, this.height);
-    }
-}
-
-export class Turtle {
-    constructor(fiber, canvas, color = "#1d2b53") {
+export default class Turtle {
+    constructor(fiber) {
         this.fiber = fiber;
-        this.canvas = canvas;
+        this.canvas = svg("g");
         this.x = 0;
         this.y = 0;
         this.heading = -π / 2;
         this.isPenDown = true;
         this.isVisible = true;
-        this.color = color;
-        this.velocity = 1;
-        this.angularVelocity = 0.5;
-        fiber.call(() => { this.drawSelf(); });
+        this.dot = svg("circle", { stroke: "none", fill: "currentColor", r: this.r / 4 });
+        this.turtle = svg("g",
+            this.dot,
+            svg("path", { d: `M${this.r},0L${-this.r},${0.8 * this.r}L${-this.r},${-0.8 * this.r}z` })
+        );
+        this.element = svg("g", {
+            fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linejoin": "round"
+        }, this.canvas, this.turtle);
+        this.update();
     }
 
+    velocity = 1;
+    angularVelocity = 0.5;
     r = 24;
 
-    drawSelf(clear = false) {
-        const context = this.canvas.context;
-        if (clear) {
-            context.putImageData(this.canvas.imageData, 0, 0);
-        }
-        if (!this.isVisible) {
-            return;
-        }
-        context.save();
-        context.strokeStyle = this.color;
-        context.lineWidth = 3;
-        context.lineJoin = "round";
-        context.translate(this.canvas.width / 2 + this.x, this.canvas.height / 2 + this.y);
-        context.rotate(this.heading);
-        context.beginPath();
-        context.moveTo(this.r, 0);
-        context.lineTo(-this.r, 0.8 * this.r);
-        context.lineTo(-this.r, -0.8 * this.r);
-        context.closePath();
-        context.stroke();
-        if (this.isPenDown) {
-            context.beginPath();
-            context.moveTo(0, 0);
-            context.arc(0, 0, 0.25 * this.r, 0, 2 * π);
-            context.fill();
-        }
-        context.restore();
-        return this;
+    update() {
+        this.turtle.setAttribute("transform", `translate(${this.x}, ${this.y}) rotate(${this.heading * 180 / π})`);
+        this.turtle.setAttribute("opacity", this.isVisible ? 1 : 0);
+        this.dot.setAttribute("opacity", this.isPenDown ? 1 : 0);
     }
 
     forward(d) {
@@ -82,31 +40,16 @@ export class Turtle {
                 x: this.x,
                 y: this.y,
                 dx: d * Math.cos(this.heading),
-                dy: d * Math.sin(this.heading)
+                dy: d * Math.sin(this.heading),
+                line: this.isPenDown ? this.canvas.appendChild(svg("line", { x1: this.x, y1: this.y })) : null
             })).
-            ramp(() => Math.abs(d) / this.velocity, ({ p, value: { x, y, dx, dy } }) => {
+            ramp(() => Math.abs(d) / this.velocity, ({ p, value: { x, y, dx, dy, line } }) => {
                 const t = ease(p);
                 this.x = x + t * dx;
                 this.y = y + t * dy;
-                const context = this.canvas.context;
-                context.putImageData(this.canvas.imageData, 0, 0);
-                if (this.isPenDown) {
-                    context.save();
-                    context.strokeStyle = this.color;
-                    context.lineJoin = "round";
-                    context.lineCap = "round";
-                    context.lineWidth = 3;
-                    context.translate(this.canvas.width / 2, this.canvas.height / 2);
-                    context.beginPath();
-                    context.moveTo(x, y);
-                    context.lineTo(this.x, this.y);
-                    context.stroke();
-                    context.restore();
-                    if (p === 1) {
-                        this.canvas.save();
-                    }
-                }
-                this.drawSelf();
+                line?.setAttribute("x2", this.x);
+                line?.setAttribute("y2", this.y);
+                this.update();
             });
         return this;
     }
@@ -121,7 +64,7 @@ export class Turtle {
             call(() => this.heading).
             ramp(() => Math.abs(a) / this.angularVelocity, ({ p, value: heading }) => {
                 this.heading = heading + ease(p) * th;
-                this.drawSelf(true);
+                this.update();
             });
         return this;
     }
@@ -134,7 +77,7 @@ export class Turtle {
         this.fiber.call(() => {
             if (this.isPenDown) {
                 this.isPenDown = false;
-                this.drawSelf(true);
+                this.update();
             }
         });
         return this;
@@ -144,7 +87,7 @@ export class Turtle {
         this.fiber.call(() => {
             if (!this.isPenDown) {
                 this.isPenDown = true;
-                this.drawSelf(true);
+                this.update();
             }
         });
         return this;
@@ -154,7 +97,7 @@ export class Turtle {
         this.fiber.call(() => {
             if (this.isVisible) {
                 this.isVisible = false;
-                this.drawSelf(true);
+                this.update();
             }
         });
         return this;
@@ -164,7 +107,7 @@ export class Turtle {
         this.fiber.call(() => {
             if (!this.isVisible) {
                 this.isVisible = true;
-                this.drawSelf(true);
+                this.update();
             }
         });
         return this;
