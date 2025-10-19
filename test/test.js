@@ -1,5 +1,5 @@
 import { K, show, typeOf, isAsync } from "../lib/util.js";
-import { Fiber, run } from "../lib/shell.js";
+import { run, FirstValue } from "../lib/shell.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
@@ -103,12 +103,14 @@ class Test {
         this.console = { assert, error, warn };
     }
 
-    cleanup() {
+    cleanup(tests) {
         for (const [key, value] of Object.entries(this.console)) {
             console[key] = value;
         }
         delete this.console;
+        tests.count += 1;
         if (this.skipped) {
+            tests.skip += 1;
             return;
         }
         if (this.expectations === 0) {
@@ -120,6 +122,10 @@ class Test {
         if (this.expectsError && this.errors === 0) {
             this.fail("no errors during test");
         }
+        if (!this.passes) {
+            tests.fail += 1;
+        }
+        return summary(tests);
     }
 
     reportTestError(error) {
@@ -129,28 +135,26 @@ class Test {
         }
     }
 
-    async runAsync(ol) {
-        this.prepare(ol);
+    async runAsync(tests) {
+        this.prepare(tests.ol);
         try {
             await this.f(this);
         } catch (error) {
             this.reportTestError(error);
         } finally {
-            this.cleanup();
+            return this.cleanup(tests);
         }
-        return this;
     }
 
-    run(ol) {
-        this.prepare(ol);
+    run(tests) {
+        this.prepare(tests.ol);
         try {
             this.f(this);
         } catch (error) {
             this.reportTestError(error);
         } finally {
-            this.cleanup();
+            return this.cleanup(tests);
         }
-        return this;
     }
 
     // Assertions
@@ -215,12 +219,10 @@ class Test {
     }
 }
 
-// Setup the scheduler and main fiber. New fibers will be created for the tests
-// and those will be spawned from the main fiber as soon as it starts
-// executing.
+// Setup the scheduler and main fiber.
 
-const testFibers = [];
-const fiber = run().
+const mainFiber = run();
+const testsFiber = mainFiber.spawn().
     call((fiber, scheduler) => {
         const parentElement = document.querySelector("div.tests") ?? document.body;
         const ol = parentElement.appendChild(document.createElement("ol"));
@@ -228,24 +230,12 @@ const fiber = run().
             ol.setAttribute("start", targetIndex);
         }
         const p = parentElement.appendChild(document.createElement("p"));
-        fiber.scope.tests = summary({ count: 0, fail: 0, skip: 0, ol, p });
-        // Spawn the test fibers
-        for (const test of testFibers) {
-            scheduler.attachFiber(fiber, test);
-        }
-    }).
-    join({
-        childFiberDidJoin({ scope: { test, tests } }) {
-            tests.count += 1;
-            if (test.skipped) {
-                tests.skip += 1;
-            } else if (!test.passes) {
-                tests.fail += 1;
-            }
-            summary(tests);
-        }
-    }).
-    call(({ scope: { tests } }) => { summary(tests, true); });
+        return { count: 0, fail: 0, skip: 0, ol, p };
+    });
+mainFiber.
+    join(FirstValue).
+    call(({ value }) => summary(value, true));
+
 
 // Update the p element with the test summary.
 function summary(tests, done = false) {
@@ -270,13 +260,16 @@ let index = 0;
 export default function test(title, f) {
     index += 1;
     if (isNaN(targetIndex) || index === targetIndex) {
-        const t = new Test(title, index, f);
-        testFibers.push(new Fiber().
-            call(({ scope }) => { scope.test = t; }).
-            append(fiber => isAsync(f) ?
-                fiber.await(async ({ scope }) => { await scope.test.runAsync(scope.tests.ol); }) :
-                fiber.call(({ scope }) => { scope.test.run(scope.tests.ol); })
-            )
-        );
+        if (typeof f === "function") {
+            const t = new Test(title, index, f);
+            if (isAsync(f)) {
+                testsFiber.await(async ({ value }) => await t.runAsync(value));
+            } else {
+                testsFiber.call(({ value }) => t.run(value));
+            }
+        } else {
+            // TODO
+            const url = title;
+        }
     }
 }
