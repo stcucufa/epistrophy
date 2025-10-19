@@ -262,16 +262,11 @@ let index = 0;
 export default function test(title, f) {
     index += 1;
     if (isNaN(targetIndex) || index === targetIndex) {
-        if (typeof f === "function") {
-            const t = new Test(title, index, f);
-            if (isAsync(f)) {
-                testsFiber.await(async ({ value }) => await t.runAsync(value));
-            } else {
-                testsFiber.call(({ value }) => t.run(value));
-            }
+        const t = new Test(title, index, f);
+        if (isAsync(f)) {
+            testsFiber.await(async ({ value }) => await t.runAsync(value));
         } else {
-            // TODO
-            const url = title;
+            testsFiber.call(({ value }) => t.run(value));
         }
     }
 }
