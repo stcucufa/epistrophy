@@ -219,7 +219,9 @@ class Test {
     }
 }
 
-// Setup the scheduler and main fiber.
+// Setup the scheduler and main fiber, spawning a child fiber for running the
+// tests in sequence (added by the test() function), then joining to show that
+// the test suite has completed.
 
 const mainFiber = run();
 const testsFiber = mainFiber.spawn().
