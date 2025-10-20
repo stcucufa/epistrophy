@@ -34,11 +34,15 @@ const Equal = {
 };
 
 class Test {
-    constructor(title, index, f) {
+    constructor(suite, title, f) {
+        this.suite = suite;
         this.title = title;
-        this.index = index;
         this.f = f;
         this.expectations = 0;
+    }
+
+    get element() {
+        return this.suite.elementByTest.get(this);
     }
 
     static DefaultMessageOK = "expectation was met";
@@ -49,30 +53,27 @@ class Test {
     report(message, expected) {
         if (expected) {
             this.passes = false;
-            this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.DefaultMessageKO} (expected ${expected})`;
+            this.element.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.DefaultMessageKO} (expected ${expected})`;
         } else {
-            this.li.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessageOK}`;
+            this.element.innerHTML += ` <span class="ok">ok</span> ${message ?? Test.DefaultMessageOK}`;
         }
         this.expectations += 1;
     }
 
     fail(message) {
         this.passes = false;
-        this.li.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.FailDefaultMessage}`;
+        this.element.innerHTML += ` <span class="ko">ko</span> ${message ?? Test.FailDefaultMessage}`;
         this.expectations += 1;
     }
 
     skip(message) {
         this.skipped = true;
-        this.li.innerHTML += ` <span class="skip">...</span> ${message ?? Test.SkipDefaultMessage}`;
+        this.element.innerHTML += ` <span class="skip">...</span> ${message ?? Test.SkipDefaultMessage}`;
         this.expectations += 1;
         throw Error("skipped");
     }
 
-    prepare(ol) {
-        this.li = ol.appendChild(html("li",
-            html("a", { class: "test", href: `#${isNaN(targetIndex) ? this.index : ""}` }, this.title)
-        ));
+    prepare() {
         this.passes = true;
         const assert = console.assert;
         console.assert = (...args) => {
@@ -104,15 +105,15 @@ class Test {
         this.console = { assert, error, warn };
     }
 
-    cleanup(tests) {
+    cleanup() {
         for (const [key, value] of Object.entries(this.console)) {
             console[key] = value;
         }
         delete this.console;
-        tests.count += 1;
+        this.suite.count += 1;
         if (this.skipped) {
-            tests.skip += 1;
-            return;
+            this.suite.skip += 1;
+            return this.suite;
         }
         if (this.expectations === 0) {
             this.fail("no expectations in test");
@@ -124,9 +125,9 @@ class Test {
             this.fail("no errors during test");
         }
         if (!this.passes) {
-            tests.fail += 1;
+            this.suite.fail += 1;
         }
-        return summary(tests);
+        return this.suite.summary();
     }
 
     reportTestError(error) {
@@ -136,25 +137,25 @@ class Test {
         }
     }
 
-    async runAsync(tests) {
-        this.prepare(tests.ol);
+    async runAsync(suite) {
+        this.prepare();
         try {
             await this.f(this);
         } catch (error) {
             this.reportTestError(error);
         } finally {
-            return this.cleanup(tests);
+            return this.cleanup(suite);
         }
     }
 
-    run(tests) {
-        this.prepare(tests.ol);
+    run() {
+        this.prepare();
         try {
             this.f(this);
         } catch (error) {
             this.reportTestError(error);
         } finally {
-            return this.cleanup(tests);
+            return this.cleanup();
         }
     }
 
@@ -220,54 +221,64 @@ class Test {
     }
 }
 
+class Suite {
+    constructor() {
+        const parentElement = document.querySelector("div.tests") ?? document.body;
+        this.ol = parentElement.appendChild(html("ol"));
+        if (!isNaN(targetIndex)) {
+            ol.setAttribute("start", targetIndex);
+        }
+        this.p = parentElement.appendChild(html("p"));
+        this.elementByTest = new Map();
+        this.count = 0;
+        this.fail = 0;
+        this.skip = 0;
+        const fiber = run().K(this);
+        this.testsFiber = fiber.spawn();
+        fiber.join(FirstValue).call(({ value: suite }) => suite.summary(true));
+    }
+
+    test(title, index, f) {
+        const test = new Test(this, title, f);
+        const li = this.ol.appendChild(html("li",
+            html("a", { class: "test", href: `#${isNaN(targetIndex) ? index : ""}` }, title)
+        ));
+        this.elementByTest.set(test, li);
+        if (isAsync(f)) {
+            this.testsFiber.await(async () => await test.runAsync());
+        } else {
+            this.testsFiber.call(() => test.run());
+        }
+    }
+
+    // Update the p element with the test summary.
+    summary(done = false) {
+        const total = this.count - this.skip;
+        const skipped = this.skip > 0 ? `, <span class="skip">...</span> ${this.skip} skipped` : "";
+        this.p.classList.add("report");
+        this.p.innerHTML = this.fail === 0 ?
+            `${done ? `<span class="ok">ok</span>` : `<span class="pending">...</span>`} this: ${total}${skipped}` :
+            `<span class="ko">ko</span> Test failures: ${this.fail}/${total} (${
+                (100 * this.fail / total).toFixed(2).replace(/\.00$/, "")
+            }%)${skipped}`;
+        this.p.scrollIntoView({ block: "end" });
+        return this;
+    }
+}
+
 // Setup the scheduler and main fiber, spawning a child fiber for running the
 // tests in sequence (added by the test() function), then joining to show that
 // the test suite has completed.
 
-const mainFiber = run();
-const testsFiber = mainFiber.spawn().
-    call((fiber, scheduler) => {
-        const parentElement = document.querySelector("div.tests") ?? document.body;
-        const ol = parentElement.appendChild(html("ol"));
-        if (!isNaN(targetIndex)) {
-            ol.setAttribute("start", targetIndex);
-        }
-        const p = parentElement.appendChild(html("p"));
-        return { count: 0, fail: 0, skip: 0, ol, p };
-    });
-mainFiber.
-    join(FirstValue).
-    call(({ value }) => summary(value, true));
-
-
-// Update the p element with the test summary.
-function summary(tests, done = false) {
-    const total = tests.count - tests.skip;
-    const skipped = tests.skip > 0 ? `, <span class="skip">...</span> ${tests.skip} skipped` : "";
-    tests.p.classList.add("report");
-    tests.p.innerHTML = tests.fail === 0 ?
-        `${done ? `<span class="ok">ok</span>` : `<span class="pending">...</span>`} Tests: ${total}${skipped}` :
-        `<span class="ko">ko</span> Test failures: ${tests.fail}/${total} (${
-            (100 * tests.fail / total).toFixed(2).replace(/\.00$/, "")
-        }%)${skipped}`;
-    tests.p.scrollIntoView({ block: "end" });
-    return tests;
-}
+const targetIndex = parseInt(window.location.hash.substr(1));
+const suite = new Suite();
 
 // Export the test function, creating a new fiber for every test to run in
 // parallel.
 
-const targetIndex = parseInt(window.location.hash.substr(1));
-let index = 0;
-
 export default function test(title, f) {
-    index += 1;
+    const index = suite.elementByTest.size;
     if (isNaN(targetIndex) || index === targetIndex) {
-        const t = new Test(title, index, f);
-        if (isAsync(f)) {
-            testsFiber.await(async ({ value }) => await t.runAsync(value));
-        } else {
-            testsFiber.call(({ value }) => t.run(value));
-        }
+        suite.test(title, index, f);
     }
 }
