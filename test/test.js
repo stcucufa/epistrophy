@@ -1,4 +1,4 @@
-import { K, show, typeOf, isAsync } from "../lib/util.js";
+import { html, isAsync, K, show, typeOf } from "../lib/util.js";
 import { run, FirstValue } from "../lib/shell.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
@@ -70,8 +70,9 @@ class Test {
     }
 
     prepare(ol) {
-        this.li = ol.appendChild(document.createElement("li"));
-        this.li.innerHTML = `<a class="test" href="#${isNaN(targetIndex) ? this.index : ""}">${this.title}</a>`;
+        this.li = ol.appendChild(html("li",
+            html("a", { class: "test", href: `#${isNaN(targetIndex) ? this.index : ""}` }, this.title)
+        ));
         this.passes = true;
         const assert = console.assert;
         console.assert = (...args) => {
@@ -227,11 +228,11 @@ const mainFiber = run();
 const testsFiber = mainFiber.spawn().
     call((fiber, scheduler) => {
         const parentElement = document.querySelector("div.tests") ?? document.body;
-        const ol = parentElement.appendChild(document.createElement("ol"));
+        const ol = parentElement.appendChild(html("ol"));
         if (!isNaN(targetIndex)) {
             ol.setAttribute("start", targetIndex);
         }
-        const p = parentElement.appendChild(document.createElement("p"));
+        const p = parentElement.appendChild(html("p"));
         return { count: 0, fail: 0, skip: 0, ol, p };
     });
 mainFiber.
