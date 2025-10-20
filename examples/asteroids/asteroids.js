@@ -69,10 +69,20 @@ run().
                     }
                 }).
                 join().
-                // FIXME 5104 Asteroids: minimum duration for READY screen
-                append(text("READY")).
-                ramp(1000).
-                call(({ value: game }) => { game.level += 1; })
+
+                // Next level
+                call(({ value: game }) => { game.level += 1; }).
+                call(({ value: game, scope }) => {
+                    game.inputs.clear();
+                    scope.text = game.addObject(new Text(`LEVEL ${game.level}`));
+                }).
+                spawn(fiber => fiber.event(({ value: game }) => game, "anykey")).
+                spawn(fiber => fiber.ramp(1000)).
+                join().
+                call(({ value: game, scope }) => {
+                    game.removeObject(scope.text);
+                    delete scope.text;
+                })
             )
         ).
 

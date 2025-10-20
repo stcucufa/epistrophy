@@ -245,7 +245,7 @@ class Bullet extends PointParticle {
     fgColor = HighlightColor;
     velocity = 10;
     radius = 3;
-    durationMs = 500;
+    durationMs = 700;
     disappearsOnCollision = true;
 
     constructor(x, y, angle) {
