@@ -49,27 +49,31 @@ run().
         // Enemies
         // FIXME 500E Asteroids: UFO
         spawn(fiber => fiber.
-            call((fiber, scheduler) => {
-                const asteroidFiber = new Fiber().
-                    event(({ value: asteroid }) => asteroid, "collided", {
-                        eventWasHandled({ detail: { results } }) {
-                            for (const asteroid of results) {
-                                wait(asteroid);
+            repeat(fiber => fiber.
+                call((fiber, scheduler) => {
+                    const asteroidFiber = new Fiber().
+                        event(({ value: asteroid }) => asteroid, "collided", {
+                            eventWasHandled({ detail: { results } }) {
+                                for (const asteroid of results) {
+                                    wait(asteroid);
+                                }
                             }
-                        }
-                    });
-                function wait(asteroid) {
-                    const scheduledFiber = scheduler.attachFiber(fiber, asteroidFiber);
-                    scheduledFiber.value = asteroid;
-                }
-                const game = fiber.value;
-                for (let i = game.level; i > 0; --i) {
-                    wait(game.asteroid());
-                }
-            }).
-            join().
-            call(() => { console.log("No asteroids"); }).
-            ramp(Infinity)
+                        });
+                    function wait(asteroid) {
+                        const scheduledFiber = scheduler.attachFiber(fiber, asteroidFiber);
+                        scheduledFiber.value = asteroid;
+                    }
+                    const game = fiber.value;
+                    for (let i = game.level; i > 0; --i) {
+                        wait(game.asteroid());
+                    }
+                }).
+                join().
+                // FIXME 5104 Asteroids: minimum duration for READY screen
+                append(text("READY")).
+                ramp(1000).
+                call(({ value: game }) => { game.level += 1; })
+            )
         ).
 
         // Player loop: spawn a new ship and wait for it to be destroyed, then for
@@ -185,7 +189,10 @@ function keyup(event, game) {
 // Show text and wait for any key before removing it.
 function text(t) {
     return fiber => fiber.
-        call(({ value: game, scope }) => { scope.text = game.addObject(new Text(t)); }).
+        call(({ value: game, scope }) => {
+            game.inputs.clear();
+            scope.text = game.addObject(new Text(t));
+        }).
         event(({ value: game }) => game, "anykey").
         call(({ value: game, scope }) => {
             game.removeObject(scope.text);
