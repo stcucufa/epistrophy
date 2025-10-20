@@ -22,17 +22,18 @@ export default class Game extends EventTarget {
         this.inputs = new Set();
     }
 
+    // Call customEvent on the game object directly.
+    customEvent(type, detail) {
+        customEvent.call(this, type, detail);
+    }
+
     // Reset game: new background and reset all ships.
     reset() {
         this.objects = [new Background(this)];
         this.collidesWithAsteroid = [];
         this.collidesWithBullet = [];
         this.lives = new Array(3).fill().map((_, i) => this.addObject(new Life(i)));
-    }
-
-    // Call customEvent on the game object directly.
-    customEvent(type, detail) {
-        customEvent.call(this, type, detail);
+        this.level = 1;
     }
 
     // Get a clear drawing context at the right device pixel ratio.
@@ -170,7 +171,7 @@ export class Text {
 // Base class for sprites (all moving objects in the game, including
 // particles). Sprites have position, radius, velocity, acceleration,
 // heading and angular velocity.
-class Sprite {
+class Sprite extends EventTarget {
     fgColor = ForegroundColor;
     lineWidth = 2;
     lineJoin = "round";
@@ -180,9 +181,15 @@ class Sprite {
     maxVelocity = Infinity;
 
     constructor(x, y, angle = 0) {
+        super();
         this.x = x;
         this.y = y;
         this.angle = angle;
+    }
+
+    // Call customEvent on the sprite object directly.
+    customEvent(type, detail) {
+        customEvent.call(this, type, detail);
     }
 
     update() {
@@ -196,8 +203,8 @@ class Sprite {
         for (const other of others) {
             if (collides(this, other)) {
                 leave.add(other);
-                other.collided(enter, this);
-                this.game.customEvent("collided", { object: other, with: this });
+                const results = other.collided(enter, this);
+                other.customEvent("collided", { with: this, results });
             }
         }
     }
@@ -336,11 +343,13 @@ class Ship extends Sprite {
     // Emit debris particle after a collision.
     collided(enter) {
         const velocity = this.maxVelocity * this.debrisVelocity;
-        for (let i = random(...this.debris); i >= 0; --i) {
-            enter.add(new DebrisParticle(
+        return Array(random(...this.debris)).fill().map(() => {
+            const debris = new DebrisParticle(
                 this.x, this.y, this.radius * (0.5 + Math.random()), velocity, random(...this.debrisDur)
-            ));
-        }
+            );
+            enter.add(debris);
+            return debris;
+        });
     }
 }
 
@@ -416,14 +425,15 @@ class Asteroid extends Sprite {
     // Split the asteroid in two (unless it is at the smallest size), making
     // debris in the process.
     collided(enter, other) {
-        if (this.radius > this.minRadius) {
-            enter.add(new Asteroid(this.x, this.y, this, this.heading + π / 2));
-            enter.add(new Asteroid(this.x, this.y, this, this.heading - π / 2));
-        }
         for (let i = this.radius * (3 + Math.random()); i >= 0; --i) {
             enter.add(new DustParticle(other.x, other.y, this.velocity * 0.5 * Math.random()));
         }
         other.disabled = true;
+        return this.radius > this.minRadius ? [π / 2, -π / 2].map(h => {
+            const asteroid = new Asteroid(this.x, this.y, this, this.heading + h);
+            enter.add(asteroid);
+            return asteroid;
+        }) : [];
     }
 }
 

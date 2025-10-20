@@ -1,4 +1,4 @@
-import { run, First, FirstValue } from "../../lib/shell.js";
+import { run, Fiber, First, FirstValue } from "../../lib/shell.js";
 import Game, { Text } from "./game.js";
 
 const UpdateDuration = 1000 / Game.UpdateFPS;
@@ -46,10 +46,29 @@ run().
         call(({ value: game }) => { game.reset(); }).
         append(text("ASTEROIDS")).
 
-        // Enemies (asteroids, TODO: UFO)
+        // Enemies
+        // FIXME 500E Asteroids: UFO
         spawn(fiber => fiber.
-            call(({ value: game }) => Array(4).fill().map(() => game.asteroid())).
-            // TODO inner loop
+            call((fiber, scheduler) => {
+                const asteroidFiber = new Fiber().
+                    event(({ value: asteroid }) => asteroid, "collided", {
+                        eventWasHandled({ detail: { results } }) {
+                            for (const asteroid of results) {
+                                wait(asteroid);
+                            }
+                        }
+                    });
+                function wait(asteroid) {
+                    const scheduledFiber = scheduler.attachFiber(fiber, asteroidFiber);
+                    scheduledFiber.value = asteroid;
+                }
+                const game = fiber.value;
+                for (let i = game.level; i > 0; --i) {
+                    wait(game.asteroid());
+                }
+            }).
+            join().
+            call(() => { console.log("No asteroids"); }).
             ramp(Infinity)
         ).
 
@@ -67,11 +86,7 @@ run().
 
                 // Listen to the ship being removed to end the loop with the spawn
                 // delay duration (the longest that a debris particle can last).
-                event(({ value: ship }) => ship.game, "collided", {
-                    eventShouldBeIgnored: (event, { value: ship }) => event.detail.object !== ship
-                }).
-
-                // Wait until spawning again.
+                event(({ value: ship }) => ship, "collided").
                 ramp(({ value: ship }) => ship.debrisDur[1]).
 
                 // Remove a life.
