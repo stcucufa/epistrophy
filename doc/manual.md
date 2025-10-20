@@ -463,6 +463,17 @@ fiber in which this property was originally defined (see example usage above).
 If this property was not previously defined, then it is set on the fiber’s own
 scope.
 
+### Scheduler utilities
+
+The shell adds convenience methods to the scheduler:
+
+* `Schedler.run()` is the same as `run()` but requires a scheduler to have been
+created first.
+
+* `Scheduler.attachFiberWithValue(fiber, child, value)` is the same as
+`Scheduler.attachFiber`, but also sets the initial value of the scheduled
+child fiber.
+
 ### Transport Bar
 
 The shell also provides a transport bar that can be added to a page to let the
