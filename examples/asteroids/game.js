@@ -115,6 +115,13 @@ export default class Game extends EventTarget {
     asteroid() {
         return this.addObject(new Asteroid(this.width * Math.random(), this.height * Math.random()));
     }
+
+    // Add a new saucer to the game at a random position and angle.
+    saucer() {
+        return this.addObject(
+            new Saucer(this.width * Math.random(), this.height * Math.random(), 0.1 - (0.2 * Math.random()))
+        );
+    }
 }
 
 // Background: a static star field. It is generated once per game and then
@@ -434,6 +441,49 @@ class Asteroid extends Sprite {
             enter.add(asteroid);
             return asteroid;
         }) : [];
+    }
+}
+
+class Saucer extends Sprite {
+    radius = 12;
+    velocity = 3;
+    collidesWithBullet = true;
+    debris = [6, 12];
+    debrisDur = [1000, 2000];
+
+    constructor(x, y, angle) {
+        super(x, y);
+        this.heading = Math.random() * 2 * π;
+    }
+
+    draw(context) {
+        const R = this.radius * 4 / 3;
+        const r = R / 2;
+        this.beginPath(context);
+        context.moveTo(R, 0);
+        context.lineTo(-R, 0);
+        context.lineTo(-r, -r);
+        context.lineTo(r, -r);
+        context.lineTo(R, 0);
+        context.lineTo(r, r);
+        context.lineTo(-r, r);
+        context.lineTo(-R, 0);
+        context.moveTo(-r / 2, -r);
+        context.lineTo(-0.375 * R, -r);
+        context.lineTo(-r / 2, -R);
+        context.lineTo(r / 2, -R);
+        context.lineTo(0.375 * R, -r);
+        this.stroke(context);
+    }
+
+    collided(enter) {
+        return Array(random(...this.debris)).fill().map(() => {
+            const debris = new DebrisParticle(
+                this.x, this.y, 0.5 * this.radius * (0.5 + Math.random()), 0.5 * this.velocity, random(...this.debrisDur)
+            );
+            enter.add(debris);
+            return debris;
+        });
     }
 }
 

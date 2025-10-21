@@ -1,4 +1,5 @@
 import { run, Fiber, First, FirstValue } from "../../lib/shell.js";
+import { random } from "../../lib/util.js";
 import Game, { Text } from "./game.js";
 
 const UpdateDuration = 1000 / Game.UpdateFPS;
@@ -47,24 +48,39 @@ run().
         append(text("ASTEROIDS")).
 
         // Enemies
-        // FIXME 500E Asteroids: UFO
         spawn(fiber => fiber.
             repeat(fiber => fiber.
-                call((fiber, scheduler) => {
-                    const asteroidFiber = new Fiber().
-                        event(({ value: asteroid }) => asteroid, "collided", {
-                            eventWasHandled({ detail: { results } }) {
-                                for (const asteroid of results) {
-                                    scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
+
+                // Spawn asteroids while they can be split; also spawn UFOs as
+                // long as there are asteroids.
+                spawn(fiber => fiber.
+                    call((fiber, scheduler) => {
+                        const asteroidFiber = new Fiber().
+                            event(({ value: asteroid }) => asteroid, "collided", {
+                                eventWasHandled({ detail: { results } }) {
+                                    for (const asteroid of results) {
+                                        scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
+                                    }
                                 }
-                            }
-                        });
-                    const game = fiber.value;
-                    for (let i = game.level; i > 0; --i) {
-                        scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
-                    }
-                }).
-                join().
+                            });
+                        const game = fiber.value;
+                        for (let i = game.level; i > 0; --i) {
+                            scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
+                        }
+                    }).
+                    join()
+                ).
+                spawn(fiber => fiber.
+                    repeat(fiber => fiber.
+                        ramp(() => random(2000, 3000)).
+                        call(({ value: game }) => game.saucer()).
+                        ever(fiber => fiber.
+                            event(({ value: saucer }) => saucer, "collided").
+                            ramp(2000)
+                        )
+                    )
+                ).
+                join(First).
 
                 // Next level
                 call(({ value: game }) => { game.level += 1; }).
