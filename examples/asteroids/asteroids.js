@@ -84,17 +84,11 @@ run().
 
                 // Next level
                 call(({ value: game }) => { game.level += 1; }).
-                call(({ value: game, scope }) => {
-                    game.inputs.clear();
-                    scope.text = game.addObject(new Text(`LEVEL ${game.level}`));
-                }).
+                call(({ value: game }) => game.addObject(new Text(`LEVEL ${game.level}`))).
                 spawn(fiber => fiber.event(({ value: game }) => game, "anykey")).
                 spawn(fiber => fiber.ramp(1000)).
                 join().
-                call(({ value: game, scope }) => {
-                    game.removeObject(scope.text);
-                    delete scope.text;
-                })
+                call(({ value: text }) => text.removeFromGame())
             )
         ).
 
@@ -211,13 +205,7 @@ function keyup(event, game) {
 // Show text and wait for any key before removing it.
 function text(t) {
     return fiber => fiber.
-        call(({ value: game, scope }) => {
-            game.inputs.clear();
-            scope.text = game.addObject(new Text(t));
-        }).
+        call(({ value: game }) => game.addObject(new Text(t)).
         event(({ value: game }) => game, "anykey").
-        call(({ value: game, scope }) => {
-            game.removeObject(scope.text);
-            delete scope.text;
-        });
+        call(({ value: text }) => text.removeFromGame());
 }

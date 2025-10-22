@@ -173,6 +173,11 @@ export class Text {
         context.fillText(this.text, game.width / 2, game.height / 2);
         context.restore();
     }
+
+    removeFromGame() {
+        this.game.removeObject(this);
+        return this;
+    }
 }
 
 // Base class for sprites (all moving objects in the game, including
