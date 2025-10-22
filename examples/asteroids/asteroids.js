@@ -55,17 +55,13 @@ run().
                         event(({ value: asteroid }) => asteroid, "collided", {
                             eventWasHandled({ detail: { results } }) {
                                 for (const asteroid of results) {
-                                    wait(asteroid);
+                                    scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
                                 }
                             }
                         });
-                    function wait(asteroid) {
-                        const scheduledFiber = scheduler.attachFiber(fiber, asteroidFiber);
-                        scheduledFiber.value = asteroid;
-                    }
                     const game = fiber.value;
                     for (let i = game.level; i > 0; --i) {
-                        wait(game.asteroid());
+                        scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
                     }
                 }).
                 join().
