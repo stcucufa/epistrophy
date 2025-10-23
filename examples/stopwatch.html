@@ -22,10 +22,10 @@ transport.schedule(fiber => fiber.
         call(() => { button.disabled = true; }).
         ramp(
             () => range.value,
-            (fiber, scheduler) => {
+            fiber => {
                 progress.max = range.value;
                 progress.value = fiber.ramp.elapsed;
-                scheduler.setRampDurationForFiber(fiber, range.value);
+                fiber.scheduler.setRampDurationForFiber(fiber, range.value);
             }
         ).
         ramp(0.333).

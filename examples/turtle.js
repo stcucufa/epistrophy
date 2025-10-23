@@ -135,7 +135,7 @@ export default class Turtle {
     }
 
     speed(s) {
-        this.fiber.call((fiber, scheduler) => { scheduler.setRateForFiber(fiber, s); });
+        this.fiber.call(fiber => { fiber.scheduler.setRateForFiber(fiber, s); });
         return this;
     }
 }

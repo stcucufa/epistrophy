@@ -50,9 +50,9 @@ run().
         // FIXME 500E Asteroids: UFO
         spawn(fiber => fiber.
             repeat(fiber => fiber.
-                call((fiber, scheduler) => {
+                call(fiber => {
                     const asteroidFiber = new Fiber().
-                        event(({ value: asteroid }) => asteroid, "collided", {
+                        event(({ value: asteroid, scheduler }) => asteroid, "collided", {
                             eventWasHandled({ detail: { results } }) {
                                 for (const asteroid of results) {
                                     scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
@@ -61,7 +61,7 @@ run().
                         });
                     const game = fiber.value;
                     for (let i = game.level; i > 0; --i) {
-                        scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
+                        fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
                     }
                 }).
                 join().
