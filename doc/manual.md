@@ -357,6 +357,11 @@ See the definition of `Fiber.K()` and `Fiber.repeatValue()` below.
 
 The shell adds convenience methods to fibers:
 
+* `Fiber.named(name)` gives a name to the fiber. This sets the `name` property
+of the fiber as well as the `name` property of any `ScheduledFiber` scheduled
+from this fiber; this is useful for debugging and identifying a fiber at
+runtime.
+
 * `Fiber.append(f)` calls the function `f` with the fiber as its argument and
 returns the fiber. This allows setting up more complex chains of operations
 in the same manner as adding a single instruction. For example, given a
