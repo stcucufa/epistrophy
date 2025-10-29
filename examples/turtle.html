@@ -95,9 +95,7 @@ turtle.
         thing(250).
         right(10).
         forward(125)
-    ).
-    wait(700).
-    hide();
+    );
 
 transport.schedule().repeat(fiber => fiber.
     call((fiber, scheduler) => {
