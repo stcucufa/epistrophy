@@ -98,11 +98,11 @@ turtle.
     );
 
 transport.schedule().repeat(fiber => fiber.
-    call((fiber, scheduler) => {
+    call(fiber => {
         const rate = 1.26 ** range.value;
         span.textContent = rate.toFixed(2);
         if (turtleFiber) {
-            scheduler.setRateForFiber(turtleFiber, rate);
+            fiber.scheduler.setRateForFiber(turtleFiber, rate);
         }
     }).
     event(range, "input")
@@ -110,7 +110,7 @@ transport.schedule().repeat(fiber => fiber.
 
 transport.schedule().
     event(() => document.querySelector("button.infinity"), "click").
-    call((_, scheduler) => {
+    call(({ scheduler }) => {
         range.disabled = true;
         span.textContent = "∞";
         if (turtleFiber) {
