@@ -21,11 +21,11 @@ transport.schedule(fiber => fiber.
         event(button, "click").
         call(() => { button.disabled = true; }).
         ramp(
-            () => range.value,
+            () => range.valueAsNumber,
             fiber => {
                 progress.max = range.value;
                 progress.value = fiber.ramp.elapsed;
-                fiber.scheduler.setRampDurationForFiber(fiber, range.value);
+                fiber.scheduler.setRampDurationForFiber(fiber, range.valueAsNumber);
             }
         ).
         ramp(0.333).
