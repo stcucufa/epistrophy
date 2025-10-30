@@ -110,7 +110,7 @@ transport.schedule().repeat(fiber => fiber.
 
 transport.schedule().
     event(() => document.querySelector("button.infinity"), "click").
-    call((_, scheduler) => {
+    call(({ scheduler }) => {
         range.disabled = true;
         span.textContent = "∞";
         if (turtleFiber) {
