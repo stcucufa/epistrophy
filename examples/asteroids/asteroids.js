@@ -52,10 +52,10 @@ run().
             repeat(fiber => fiber.
                 call(fiber => {
                     const asteroidFiber = new Fiber().
-                        event(({ value: asteroid, scheduler }) => asteroid, "collided", {
+                        event(({ value: asteroid }) => asteroid, "collided", {
                             eventWasHandled({ detail: { results } }) {
                                 for (const asteroid of results) {
-                                    scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
+                                    fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
                                 }
                             }
                         });

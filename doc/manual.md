@@ -201,6 +201,9 @@ methods, if present, are called:
     with the child fiber instance as argument (and the delegate object itself
     as `this`). Recall that the fiber instance itself is the parent of the
     child fiber.
+    * `finalChildFiberDidJoin(child)`: this is called after `childFiberDidJoin`
+    and may return `true` to cause the join to end immediately, even if there
+    are still children that have not ended.
 * `seq` is a special case of spawning and joining: it spawns a child fiber and
 yields, with the child fiber beginning _immediately_ (even before any other
 child fibers that may have been spawned in the same instant), resuming when the
