@@ -24,6 +24,7 @@ import Turtle from "./turtle.js";
 
 const range = document.querySelector(`input[type="range"]`);
 const span = document.querySelector("span");
+const infinityButton = document.querySelector("button.infinity");
 
 const transport = new TransportBar();
 const div = document.querySelector(".transport");
@@ -109,14 +110,18 @@ transport.schedule().repeat(fiber => fiber.
 );
 
 transport.schedule().
-    event(() => document.querySelector("button.infinity"), "click").
+    event(infinityButton, "click").
     call(({ scheduler }) => {
-        range.disabled = true;
         span.textContent = "∞";
         if (turtleFiber) {
             scheduler.setRateForFiber(turtleFiber, Infinity);
         }
     });
+
+transport.scheduler.clock.addEventListener("state", ({ detail: { state } }) => {
+    range.disabled = state !== "playing";
+    infinityButton.disabled = state !== "playing";
+});
 
         </script>
     </head>

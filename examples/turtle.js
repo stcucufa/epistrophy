@@ -19,7 +19,7 @@ export default class Turtle {
             svg("path", { d: `M${this.r},0L${-this.r},${0.8 * this.r}L${-this.r},${-0.8 * this.r}z` })
         );
         this.element = svg("g", {
-            fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linejoin": "round"
+            fill: "none", stroke: "currentColor", "stroke-width": 3, "stroke-linecap": "round"
         }, this.canvas, this.turtle);
         this.update();
     }
