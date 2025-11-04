@@ -63,3 +63,8 @@ div.tests span.pending {
 div.tests p.report {
     padding-bottom: 4em;
 }
+
+iframe {
+    border: none;
+    height: 0;
+}

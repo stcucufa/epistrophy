@@ -1,4 +1,4 @@
-import { html, isAsync, K, show, typeOf } from "../lib/util.js";
+import { customEvent, html, isAsync, K, show, typeOf } from "../lib/util.js";
 import { run, FirstValue } from "../lib/shell.js";
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
@@ -221,10 +221,10 @@ class Test {
     }
 }
 
-class Suite {
-    constructor() {
-        const parentElement = document.querySelector("div.tests") ?? document.body;
-        this.ol = parentElement.appendChild(html("ol"));
+class Suite extends EventTarget {
+    constructor(parentElement) {
+        super();
+        this.ol = parentElement.querySelector("ol") ?? parentElement.appendChild(html("ol"));
         if (!isNaN(targetIndex)) {
             ol.setAttribute("start", targetIndex);
         }
@@ -233,17 +233,39 @@ class Suite {
         this.count = 0;
         this.fail = 0;
         this.skip = 0;
-        const fiber = run().K(this);
+        const fiber = run().named(document.title).K(this).spawn(fiber => fiber.ramp(10));
         this.testsFiber = fiber.spawn();
-        fiber.join(FirstValue).call(({ value: suite }) => suite.summary(true));
+        fiber.join().call(() => { suite.summary(true); });
+        for (const li of parentElement.querySelectorAll("li:not(.notest)")) {
+            this.testsFiber.
+                call(fiber => document.body.appendChild(html("iframe", { src: li.textContent }))).
+                event(this, "ready", {
+                    eventWasHandled(event, { value: iframe }) {
+                        li.innerHTML = `<a href="${iframe.src}">${event.detail.title}<a> <span class="pending">...</span>`;
+                    }
+                }).
+                event(this, "done").
+                call(({ value: iframe }) => { iframe.remove(); });
+        }
+        this.send("ready", { title: document.title });
     }
 
+    // Use postMessage to send messages to the parent window when running
+    // inside an iframe.
+    send(type, data = {}) {
+        if (window.parent !== window) {
+            window.parent.postMessage(JSON.stringify({ type, ...data }));
+        }
+    }
+
+    // Run a test then send a message with the results.
     test(title, index, f) {
         const test = new Test(this, title, f);
         const li = this.ol.appendChild(html("li",
             html("a", { class: "test", href: `#${isNaN(targetIndex) ? index : ""}` }, title)
         ));
         this.elementByTest.set(test, li);
+        // this.testsFiber.call(() => { this.send("begin", { title }); });
         if (isAsync(f)) {
             this.testsFiber.await(async () => await test.runAsync());
         } else {
@@ -262,6 +284,9 @@ class Suite {
                 (100 * this.fail / total).toFixed(2).replace(/\.00$/, "")
             }%)${skipped}`;
         this.p.scrollIntoView({ block: "end" });
+        if (done) {
+            this.send("done", { tests: this.count });
+        }
         return this;
     }
 }
@@ -271,7 +296,11 @@ class Suite {
 // the test suite has completed.
 
 const targetIndex = parseInt(window.location.hash.substr(1));
-const suite = new Suite();
+const suite = new Suite(document.querySelector("div.tests") ?? document.body);
+window.addEventListener("message", event => {
+    const { type, ...detail } = JSON.parse(event.data);
+    window.setTimeout(() => customEvent.call(suite, type, detail), 0);
+});
 
 // Export the test function, creating a new fiber for every test to run in
 // parallel.
