@@ -1,5 +1,8 @@
 import { customEvent, html, isAsync, K, show, typeOf } from "../lib/util.js";
-import { run, FirstValue } from "../lib/shell.js";
+import { run, First } from "../lib/shell.js";
+
+// Very short delay for iframe loading.
+const IFRAME_DELAY = 10;
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
@@ -127,6 +130,7 @@ class Test {
         if (!this.passes) {
             this.suite.fail += 1;
         }
+        this.suite.send("end", { status: this.passes ? "ok" : "ko" });
         return this.suite.summary();
     }
 
@@ -233,10 +237,18 @@ class Suite extends EventTarget {
         this.count = 0;
         this.fail = 0;
         this.skip = 0;
-        const fiber = run().named(document.title).K(this).spawn(fiber => fiber.ramp(10));
+        const fiber = run().K(this).spawn(fiber => fiber.ramp(IFRAME_DELAY));
         this.testsFiber = fiber.spawn();
         fiber.join().call(() => { suite.summary(true); });
+
         for (const li of parentElement.querySelectorAll("li:not(.notest)")) {
+            // FIXME 5401 Batching
+            const begin = ({ detail: { title } }) => {
+                li.innerHTML += ` ${title} `;
+            };
+            const end = ({ detail: { status } }) => {
+                li.innerHTML += ` <span class="${status}">${status}</span>`;
+            };
             this.testsFiber.
                 call(fiber => document.body.appendChild(html("iframe", { src: li.textContent }))).
                 event(this, "ready", {
@@ -244,7 +256,19 @@ class Suite extends EventTarget {
                         li.innerHTML = `<a href="${iframe.src}">${event.detail.title}<a> <span class="pending">...</span>`;
                     }
                 }).
-                event(this, "done").
+                spawn(fiber => fiber.
+                    call(() => {
+                        this.addEventListener("begin", begin);
+                        this.addEventListener("end", end);
+                    }).
+                    ramp(Infinity).
+                    ever(fiber => fiber.call(() => {
+                        this.removeEventListener("begin", begin);
+                        this.removeEventListener("end", end);
+                    }))
+                ).
+                spawn(fiber => fiber.event(this, "done")).
+                join(First).
                 call(({ value: iframe }) => { iframe.remove(); });
         }
         this.send("ready", { title: document.title });
@@ -265,7 +289,7 @@ class Suite extends EventTarget {
             html("a", { class: "test", href: `#${isNaN(targetIndex) ? index : ""}` }, title)
         ));
         this.elementByTest.set(test, li);
-        // this.testsFiber.call(() => { this.send("begin", { title }); });
+        this.testsFiber.call(() => { this.send("begin", { title }); });
         if (isAsync(f)) {
             this.testsFiber.await(async () => await test.runAsync());
         } else {

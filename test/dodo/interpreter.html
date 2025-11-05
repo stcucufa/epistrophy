@@ -11,11 +11,11 @@ import test from "../test.js";
 import parse, { Backtick, Space, consolidateText } from "../../dodo/parser.js";
 import run from "../../dodo/interpreter.js";
 
-test("Self-evaluating expression", t => {
+test("Self-evaluating expression (number)", t => {
     t.same(run("{ seq `17 }"), 17, "number");
 });
 
-test("Self-evaluating expression", t => {
+test("Self-evaluating expression (string)", t => {
     t.same(run(`{ seq "Hello, world!" }`), "Hello, world!", "string");
 });
 
@@ -132,6 +132,8 @@ test("define for functions (raw)", t => {
         </script>
     </head>
     <body>
+        <h1>Testin’ Dodo 🦤: Interpreter</h1>
+        <div class="tests"></div>
         <p>
             <a href="../dodo.html">Back</a>
         </p>
