@@ -147,6 +147,69 @@ test("Unquoting identifier", t => {
     t.equal(x.content, ["x"], "with one argument");
 });
 
+test("Verbatim attribute", t => {
+    const { root } = parse(`{ p foo: """{ bar: "baz" }""" }`);
+    t.equal(root.attributes, { foo: `{ bar: "baz" }` });
+});
+
+test("String in content", t => {
+    const { root } = parse(`{ p " Hello, world! " (a string) }`);
+    t.equal(root.content, [new String(" Hello, world! "), Space, "(a", Space, "string)"],
+        "is a content element of its own");
+    t.equal(consolidateText(root.content), [" Hello, world!  (a string)"], "consolidated");
+});
+
+test("Verbatim string in content", t => {
+    const { root } = parse(`{ p """"Hello, world!"""" (a string within a string) }`);
+    t.equal(consolidateText(root.content), [`"Hello, world!" (a string within a string)`], "consolidated");
+});
+
+test("Newline and tab", t => {
+    const { root } = parse(`{ p "Hello,\\tworld!\\n" }`);
+    t.equal(root.content, [new String("Hello,\tworld!\n")], "unescaped");
+});
+
+test("Newline in string", t => {
+    t.throws(() => parse(`{ p "Hello,
+world!" }`), "error");
+});
+
+test("Newline in string (escaped)", t => {
+    const { root } = parse(`{ p "Hello,\\
+world!" }`);
+    t.equal(root.content, [new String("Hello,\nworld!")], "unescaped");
+});
+
+test("Newline in verbatim string", t => {
+    const { root } = parse(`{ p """Hello,
+world!""" }`);
+    t.equal(root.content, [new String("Hello,\nworld!")], "as is");
+});
+
+test("Matching verbatim strings", t => {
+    const { root } = parse(`{ p """<bar foo=""""{ attribute "foo" }""""/>""" }`);
+    const content = consolidateText(root.content);
+    t.same(content.length, 3, "content length");
+    t.same(content[0], `<bar foo="`, "first string");
+    t.same(content[2], `"/>`, "second string");
+});
+
+test("Warn if # if not surrounded by whitespace", t => {
+    t.expectsWarning = true;
+    const { root } = parse("{ link: foo#bar\n}");
+    t.same(root.attributes.link, "foo", "skipped #bar");
+});
+
+test("Warn if # if not surrounded by whitespace (no warning; space before)", t => {
+    const { root } = parse("{ link: foo #bar\n}");
+    t.same(root.attributes.link, "foo", "#bar is a comment");
+});
+
+test("Warn if # if not surrounded by whitespace (no warning; space after)", t => {
+    const { root } = parse("{ link: foo# bar\n}");
+    t.same(root.attributes.link, "foo", "# bar is a comment");
+});
+
         </script>
     </head>
     <body>
