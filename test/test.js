@@ -353,7 +353,7 @@ const targetIndex = parseInt(window.location.hash.substr(1));
 const suite = new Suite(document.querySelector("div.tests") ?? document.body);
 window.addEventListener("message", event => {
     const { type, ...detail } = JSON.parse(event.data);
-    window.setTimeout(() => customEvent.call(suite, type, detail), 0);
+    customEvent.call(suite, type, detail);
 });
 
 // Export the test function, creating a new fiber for every test to run in
