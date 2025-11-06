@@ -252,8 +252,13 @@ class Suite extends EventTarget {
                 }).
                 event(this, "done", {
                     eventWasHandled: (event, fiber) => {
-                        fiber.scope.view.done(this, event.detail.status);
+                        const { status, count, fail, skip } = event.detail;
+                        fiber.scope.view.done(this, status);
                         delete fiber.scope.view;
+                        this.count += count;
+                        this.fail += fail;
+                        this.skip += skip;
+                        this.summary();
                     }
                 }).
                 call(({ value: iframe }) => { iframe.remove(); });
@@ -297,7 +302,12 @@ class Suite extends EventTarget {
             }%)${skipped}`;
         this.p.scrollIntoView({ block: "end" });
         if (done) {
-            this.send("done", { status: this.fail === 0 ? "ok" : "ko" });
+            this.send("done", {
+                count: this.count,
+                skip: this.skip,
+                fail: this.fail,
+                status: this.fail === 0 ? "ok" : "ko",
+            });
         }
         return this;
     }
