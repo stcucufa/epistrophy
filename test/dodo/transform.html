@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Transform</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="../style.css"/>
+        <script type="module">
+
+import test from "../test.js";
+import parse from "../../dodo/parser.js";
+import transform from "../../dodo/transform.js";
+
+// FIXME 4W03 Dodo: transform tests
+
+test("Transform: not a transform", t => {
+    t.throws(() => transform(parse("{ hello }")), "throws");
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Testin’ Dodo 🦤: Transforms</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="../dodo.html">Back</a>
+        </p>
+    </body>
+</html>

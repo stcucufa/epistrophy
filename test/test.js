@@ -1,5 +1,8 @@
-import { html, isAsync, K, show, typeOf } from "../lib/util.js";
-import { run, FirstValue } from "../lib/shell.js";
+import { customEvent, html, isAsync, K, show, typeOf } from "../lib/util.js";
+import { run, First } from "../lib/shell.js";
+
+// Very short delay for iframe loading.
+const IFRAME_DELAY = 10;
 
 window.addEventListener("hashchange", () => { window.location.reload(); });
 
@@ -127,6 +130,7 @@ class Test {
         if (!this.passes) {
             this.suite.fail += 1;
         }
+        this.suite.send("end", { status: this.passes ? "ok" : "ko" });
         return this.suite.summary();
     }
 
@@ -221,10 +225,10 @@ class Test {
     }
 }
 
-class Suite {
-    constructor() {
-        const parentElement = document.querySelector("div.tests") ?? document.body;
-        this.ol = parentElement.appendChild(html("ol"));
+class Suite extends EventTarget {
+    constructor(parentElement) {
+        super();
+        this.ol = parentElement.querySelector("ol") ?? parentElement.appendChild(html("ol"));
         if (!isNaN(targetIndex)) {
             ol.setAttribute("start", targetIndex);
         }
@@ -233,17 +237,52 @@ class Suite {
         this.count = 0;
         this.fail = 0;
         this.skip = 0;
-        const fiber = run().K(this);
+        const fiber = run().K(this).spawn(fiber => fiber.ramp(IFRAME_DELAY));
         this.testsFiber = fiber.spawn();
-        fiber.join(FirstValue).call(({ value: suite }) => suite.summary(true));
+        fiber.join().call(() => { suite.summary(true); });
+        for (const li of parentElement.querySelectorAll("li:not(.notest)")) {
+            this.testsFiber.
+                call(fiber => document.body.appendChild(html("iframe", { src: li.textContent }))).
+                event(this, "ready", {
+                    eventWasHandled: (event, fiber) => {
+                        const view = new TestView(this, event.detail.title, fiber.value.src);
+                        li.parentElement.replaceChild(view.element, li);
+                        fiber.scope.view = view;
+                    }
+                }).
+                event(this, "done", {
+                    eventWasHandled: (event, fiber) => {
+                        const { status, count, fail, skip } = event.detail;
+                        fiber.scope.view.done(this, status);
+                        delete fiber.scope.view;
+                        this.count += count;
+                        this.fail += fail;
+                        this.skip += skip;
+                        this.summary();
+                    }
+                }).
+                call(({ value: iframe }) => { iframe.remove(); });
+        }
+        this.send("ready", { title: document.title });
     }
 
+    // Use postMessage to send messages to the parent window when running
+    // inside an iframe.
+    // FIXME 5401 Batching
+    send(type, data = {}) {
+        if (window.parent !== window) {
+            window.parent.postMessage(JSON.stringify({ type, ...data }));
+        }
+    }
+
+    // Run a test then send a message with the results.
     test(title, index, f) {
         const test = new Test(this, title, f);
         const li = this.ol.appendChild(html("li",
             html("a", { class: "test", href: `#${isNaN(targetIndex) ? index : ""}` }, title)
         ));
         this.elementByTest.set(test, li);
+        this.testsFiber.call(() => { this.send("begin", { title }); });
         if (isAsync(f)) {
             this.testsFiber.await(async () => await test.runAsync());
         } else {
@@ -262,7 +301,47 @@ class Suite {
                 (100 * this.fail / total).toFixed(2).replace(/\.00$/, "")
             }%)${skipped}`;
         this.p.scrollIntoView({ block: "end" });
+        if (done) {
+            this.send("done", {
+                count: this.count,
+                skip: this.skip,
+                fail: this.fail,
+                status: this.fail === 0 ? "ok" : "ko",
+            });
+        }
         return this;
+    }
+}
+
+// Show test results.
+class TestView {
+    constructor(suite, title, href) {
+        this.statusElement = html("span", { class: "pending" }, "...");
+        this.element = html("li", html("a", { href }, title), " ", this.statusElement);
+        console.log(this.statusElement.parentElement);
+        suite.addEventListener("begin", this);
+        suite.addEventListener("end", this);
+    }
+
+    handleEvent(event) {
+        switch (event.type) {
+            case "begin":
+                this.element.appendChild(document.createTextNode(" " + event.detail.title + " "));
+                this.currentTestStatus = this.element.appendChild(html("span", { class: "pending" }, "..."));
+                break;
+            case "end":
+                const { status } = event.detail;
+                this.currentTestStatus.setAttribute("class", status);
+                this.currentTestStatus.textContent = status;
+                break;
+        }
+    }
+
+    done(suite, status) {
+        suite.removeEventListener("begin", this);
+        suite.removeEventListener("end", this);
+        this.statusElement.setAttribute("class", status);
+        this.statusElement.textContent = status;
     }
 }
 
@@ -271,7 +350,11 @@ class Suite {
 // the test suite has completed.
 
 const targetIndex = parseInt(window.location.hash.substr(1));
-const suite = new Suite();
+const suite = new Suite(document.querySelector("div.tests") ?? document.body);
+window.addEventListener("message", event => {
+    const { type, ...detail } = JSON.parse(event.data);
+    customEvent.call(suite, type, detail);
+});
 
 // Export the test function, creating a new fiber for every test to run in
 // parallel.
