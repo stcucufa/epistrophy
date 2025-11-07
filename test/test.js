@@ -230,10 +230,11 @@ class Suite extends EventTarget {
         super();
         this.ol = parentElement.querySelector("ol") ?? parentElement.appendChild(html("ol"));
         if (!isNaN(targetIndex)) {
-            ol.setAttribute("start", targetIndex);
+            this.ol.setAttribute("start", targetIndex);
         }
         this.p = parentElement.appendChild(html("p"));
         this.elementByTest = new Map();
+        this.overallTestCount = 0;
         this.count = 0;
         this.fail = 0;
         this.skip = 0;
@@ -360,7 +361,7 @@ window.addEventListener("message", event => {
 // parallel.
 
 export default function test(title, f) {
-    const index = suite.elementByTest.size;
+    const index = suite.overallTestCount++;
     if (isNaN(targetIndex) || index === targetIndex) {
         suite.test(title, index, f);
     }
