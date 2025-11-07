@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Graph API: leaf nodes</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { nop } from "../lib/util.js";
+import Graph from "../lib/graph.js";
+
+test("Graph.call(f)", t => {
+    const graph = new Graph();
+    const call = graph.call(nop);
+    t.same(call.graph, graph, "created and belongs to the graph");
+    t.same(call.f, nop, "do nothing");
+    t.same(call.begin, 0, "default begin (0)");
+    t.same(call.dur, 0, "default dur (0)");
+});
+
+test("Graph.call(f, attributes)", t => {
+    const graph = new Graph();
+    const call = graph.call(nop, { begin: 17, dur: 23 });
+    t.same(call.f, nop, "do nothing");
+    t.same(call.begin, 17, "begin");
+    t.same(call.dur, 23, "dur");
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Testin’ Epistrophy: Graph API: leaf nodes</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>
