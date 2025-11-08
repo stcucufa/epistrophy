@@ -9,56 +9,56 @@
 
 import test from "./test.js";
 import { customEvent, nop, timeout } from "../lib/util.js";
-import Graph from "../lib/graph.js";
+import { Graph, Call, Event, Await } from "../lib/graph.js";
 
-test("Graph.call(f)", t => {
+test("Call(f)", t => {
     const graph = new Graph();
-    const call = graph.call(nop);
+    const call = graph.addNode(new Call(nop));
     t.same(call.graph, graph, "created and belongs to the graph");
     t.same(call.f, nop, "do nothing");
     t.same(call.begin, 0, "default begin (0)");
     t.same(call.dur, 0, "default dur (0)");
 });
 
-test("Graph.call(f, attributes)", t => {
+test("Call(f, attributes)", t => {
     const graph = new Graph();
-    const call = graph.call(nop, { begin: 17, dur: 23 });
+    const call = graph.addNode(new Call(nop, { begin: 17, dur: 23 }));
     t.same(call.f, nop, "do nothing");
     t.same(call.begin, 17, "begin");
     t.same(call.dur, 23, "dur");
-    const callWithDur = graph.call(nop, { dur: 31 });
+    const callWithDur = graph.addNode(new Call(nop, { dur: 31 }));
     t.same(callWithDur.dur, 31, "another dur");
     t.same(callWithDur.begin, 0, "but default begin");
 });
 
-test("Graph.call begin", t => {
+test("Call: begin attribute", t => {
     const graph = new Graph();
-    graph.call(({ now, scheduler }) => {
+    graph.addNode(new Call(({ now, scheduler }) => {
         t.same(scheduler.now, 0, "default begin");
         t.same(now, 0, "local time");
-    });
-    graph.call(({ now, scheduler }) => {
+    }));
+    graph.addNode(new Call(({ now, scheduler }) => {
         t.same(scheduler.now, 17, "begin (17)");
         t.same(now, 0, "local time (17)");
-    }, { begin: 17 });
-    graph.call(({ now, scheduler }) => {
+    }, { begin: 17 }));
+    graph.addNode(new Call(({ now, scheduler }) => {
         t.above(scheduler.now, 0, "begin (dynamic)");
         t.same(now, 0, "local time (dynamic)");
-    }, { begin: ({ id }) => id.match(/\d+/g).reduce((z, n) => z + parseInt(n), 0) });
+    }, { begin: ({ id }) => id.match(/\d+/g).reduce((z, n) => z + parseInt(n), 0) }));
     graph.scheduler.clock.now = Infinity;
 });
 
-test("Graph.event(target, type)", t => {
+test("Event(target, type)", t => {
     const graph = new Graph();
-    const event = graph.event(window, "hello");
+    const event = graph.addNode(new Event(window, "hello"));
     t.same(event.target, window, "event target");
     t.same(event.type, "hello", "event type");
     t.same(event.dur, null, "default duration (unresolved)");
 });
 
-test("Graph.event(target, type, attributes): delegate attribute", t => {
+test("Event(target, type, attributes): delegate attribute", t => {
     const graph = new Graph();
-    const event = graph.event(window, "hello", {
+    const event = graph.addNode(new Event(window, "hello", {
         begin: 17,
         delegate: {
             eventWasHandled(e, fiber) {
@@ -67,16 +67,16 @@ test("Graph.event(target, type, attributes): delegate attribute", t => {
                 t.same(fiber.now, 6, "local time");
             }
         }
-    });
+    }));
     graph.scheduler.clock.now = 23;
     customEvent.call(window, "hello");
     graph.scheduler.clock.now = Infinity;
 });
 
-test("Graph.await(f)", t => {
+test("Await(f)", t => {
     const graph = new Graph();
     const delay = () => timeout(17);
-    const call = graph.await(delay);
+    const call = graph.addNode(new Await(delay));
     t.same(call.graph, graph, "created and belongs to the graph");
     t.same(call.f, delay, "timeout(17)");
     t.same(call.begin, 0, "default begin (0)");
@@ -86,13 +86,13 @@ test("Graph.await(f)", t => {
 test("Graph.await(f, delegate)", t => {
     t.skip("4T02 Async test review");
     const graph = new Graph();
-    const call = graph.await(() => timeout(17), {
+    const call = graph.addNode(wait(() => timeout(17), {
         delegate: {
             asyncWillEndWithValue(_, { now }) {
                 t.above(now, 17, "timed out");
             }
         }
-    });
+    }));
     graph.run();
 });
 
