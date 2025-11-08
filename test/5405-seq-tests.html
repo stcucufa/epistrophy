@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Graph API: seq tests</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { nop } from "../lib/util.js";
+import { Graph, Seq, Call } from "../lib/graph.js";
+
+test("Seq(): empty seq", t => {
+    const graph = new Graph();
+    const seq = graph.addNode(new Seq());
+    t.equal(seq.children, [], "no children");
+});
+
+test("Seq(children)", t => {
+    const graph = new Graph();
+    const seq = graph.addNode(new Seq([
+        new Call(nop, { dur: 17 }),
+        new Call(({ now }) => { t.same(now, 17, "sequencing children"); })
+    ]));
+    graph.scheduler.clock.now = Infinity;
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Testin’ Epistrophy: Graph API: seq tests</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>

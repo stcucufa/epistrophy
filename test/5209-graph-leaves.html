@@ -9,7 +9,7 @@
 
 import test from "./test.js";
 import { customEvent, nop, timeout } from "../lib/util.js";
-import { Graph, Call, Event, Await } from "../lib/graph.js";
+import { Graph, Seq, Call, Event, Await } from "../lib/graph.js";
 
 test("Call(f)", t => {
     const graph = new Graph();
@@ -48,6 +48,19 @@ test("Call: begin attribute", t => {
     graph.scheduler.clock.now = Infinity;
 });
 
+test("Call: dur attribute", t => {
+    const graph = new Graph();
+    graph.addNode(new Seq([
+        new Call(nop),
+        new Call(({ now }) => { t.same(now, 0, "default dur (0)"); }),
+        new Call(nop, { dur: 7777 }),
+        new Call(({ now }) => { t.same(now, 7777, "literal dur (number)"); }),
+        new Call(nop, { dur: ({ id }) => id.match(/\d+/g).reduce((z, n) => z + parseInt(n), 0) }),
+        new Call(({ now }) => { t.above(now, 7777, `variable dur (${now - 7777})`); })
+    ]));
+    graph.scheduler.clock.now = Infinity;
+});
+
 test("Event(target, type)", t => {
     const graph = new Graph();
     const event = graph.addNode(new Event(window, "hello"));
@@ -83,7 +96,7 @@ test("Await(f)", t => {
     t.same(call.dur, null, "default dur (unresolved)");
 });
 
-test("Graph.await(f, delegate)", t => {
+test("Await(f, delegate)", t => {
     t.skip("4T02 Async test review");
     const graph = new Graph();
     const call = graph.addNode(wait(() => timeout(17), {
