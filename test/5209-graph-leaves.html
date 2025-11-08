@@ -8,7 +8,7 @@
         <script type="module">
 
 import test from "./test.js";
-import { nop } from "../lib/util.js";
+import { customEvent, nop } from "../lib/util.js";
 import Graph from "../lib/graph.js";
 
 test("Graph.call(f)", t => {
@@ -31,11 +31,46 @@ test("Graph.call(f, attributes)", t => {
     t.same(callWithDur.begin, 0, "but default begin");
 });
 
-test("Graph.call begin and duration", async t => {
+test("Graph.call begin", t => {
     const graph = new Graph();
-    let called = false;
-    const call = graph.call(() => { called = true; }, { begin: 17, dur: 23 });
-    graph.scheduler.run();
+    graph.call(({ now, scheduler }) => {
+        t.same(scheduler.now, 0, "default begin");
+        t.same(now, 0, "local time");
+    });
+    graph.call(({ now, scheduler }) => {
+        t.same(scheduler.now, 17, "begin (17)");
+        t.same(now, 0, "local time (17)");
+    }, { begin: 17 });
+    graph.call(({ now, scheduler }) => {
+        t.above(scheduler.now, 0, "begin (dynamic)");
+        t.same(now, 0, "local time (dynamic)");
+    }, { begin: ({ id }) => id.match(/\d+/g).reduce((z, n) => z + parseInt(n), 0) });
+    graph.scheduler.clock.now = Infinity;
+});
+
+test("Graph.event(target, type)", t => {
+    const graph = new Graph();
+    const event = graph.event(window, "hello");
+    t.same(event.target, window, "event target");
+    t.same(event.type, "hello", "event type");
+    t.same(event.dur, Infinity, "default duration (∞)");
+});
+
+test("Graph.event(target, type, attributes): delegate attribute", t => {
+    const graph = new Graph();
+    const event = graph.event(window, "hello", {
+        begin: 17,
+        delegate: {
+            eventWasHandled(e, fiber) {
+                t.same(e.currentTarget, window, "event target (window)");
+                t.same(e.type, "hello", `event type ("hello")`);
+                t.same(fiber.now, 6, "local time");
+            }
+        }
+    });
+    graph.scheduler.clock.now = 23;
+    customEvent.call(window, "hello");
+    graph.scheduler.clock.now = Infinity;
 });
 
         </script>

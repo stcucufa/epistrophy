@@ -230,7 +230,7 @@ class Suite extends EventTarget {
         super();
         this.ol = parentElement.querySelector("ol") ?? parentElement.appendChild(html("ol"));
         if (!isNaN(targetIndex)) {
-            this.ol.setAttribute("start", targetIndex);
+            this.ol.setAttribute("start", targetIndex + 1);
         }
         this.p = parentElement.appendChild(html("p"));
         this.elementByTest = new Map();
