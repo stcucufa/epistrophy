@@ -8,7 +8,7 @@
         <script type="module">
 
 import test from "./test.js";
-import { customEvent, nop } from "../lib/util.js";
+import { customEvent, nop, timeout } from "../lib/util.js";
 import Graph from "../lib/graph.js";
 
 test("Graph.call(f)", t => {
@@ -75,11 +75,25 @@ test("Graph.event(target, type, attributes): delegate attribute", t => {
 
 test("Graph.await(f)", t => {
     const graph = new Graph();
-    const call = graph.await(nop);
+    const delay = () => timeout(17);
+    const call = graph.await(delay);
     t.same(call.graph, graph, "created and belongs to the graph");
-    t.same(call.f, nop, "do nothing");
+    t.same(call.f, delay, "timeout(17)");
     t.same(call.begin, 0, "default begin (0)");
     t.same(call.dur, null, "default dur (unresolved)");
+});
+
+test("Graph.await(f, delegate)", t => {
+    t.skip("4T02 Async test review");
+    const graph = new Graph();
+    const call = graph.await(() => timeout(17), {
+        delegate: {
+            asyncWillEndWithValue(_, { now }) {
+                t.above(now, 17, "timed out");
+            }
+        }
+    });
+    graph.run();
 });
 
         </script>
