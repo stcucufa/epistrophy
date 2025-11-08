@@ -53,7 +53,7 @@ test("Graph.event(target, type)", t => {
     const event = graph.event(window, "hello");
     t.same(event.target, window, "event target");
     t.same(event.type, "hello", "event type");
-    t.same(event.dur, Infinity, "default duration (∞)");
+    t.same(event.dur, null, "default duration (unresolved)");
 });
 
 test("Graph.event(target, type, attributes): delegate attribute", t => {
@@ -71,6 +71,15 @@ test("Graph.event(target, type, attributes): delegate attribute", t => {
     graph.scheduler.clock.now = 23;
     customEvent.call(window, "hello");
     graph.scheduler.clock.now = Infinity;
+});
+
+test("Graph.await(f)", t => {
+    const graph = new Graph();
+    const call = graph.await(nop);
+    t.same(call.graph, graph, "created and belongs to the graph");
+    t.same(call.f, nop, "do nothing");
+    t.same(call.begin, 0, "default begin (0)");
+    t.same(call.dur, null, "default dur (unresolved)");
 });
 
         </script>
