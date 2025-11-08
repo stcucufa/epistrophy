@@ -26,6 +26,16 @@ test("Graph.call(f, attributes)", t => {
     t.same(call.f, nop, "do nothing");
     t.same(call.begin, 17, "begin");
     t.same(call.dur, 23, "dur");
+    const callWithDur = graph.call(nop, { dur: 31 });
+    t.same(callWithDur.dur, 31, "another dur");
+    t.same(callWithDur.begin, 0, "but default begin");
+});
+
+test("Graph.call begin and duration", async t => {
+    const graph = new Graph();
+    let called = false;
+    const call = graph.call(() => { called = true; }, { begin: 17, dur: 23 });
+    graph.scheduler.run();
 });
 
         </script>
