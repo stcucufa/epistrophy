@@ -319,7 +319,6 @@ class TestView {
     constructor(suite, title, href) {
         this.statusElement = html("span", { class: "pending" }, "...");
         this.element = html("li", html("a", { href }, title), " ", this.statusElement);
-        console.log(this.statusElement.parentElement);
         suite.addEventListener("begin", this);
         suite.addEventListener("end", this);
     }
