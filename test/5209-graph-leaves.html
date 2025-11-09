@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Graph API: leaf nodes</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { customEvent, nop, timeout } from "../lib/util.js";
+import { Graph, Call, Event, Await } from "../lib/graph.js";
+
+test("Call(f)", t => {
+    const graph = new Graph();
+    const call = graph.addNode(new Call(nop));
+    t.same(call.graph, graph, "created and belongs to the graph");
+    t.same(call.f, nop, "do nothing");
+    t.same(call.begin, 0, "default begin (0)");
+    t.same(call.dur, 0, "default dur (0)");
+});
+
+test("Call(f, attributes)", t => {
+    const graph = new Graph();
+    const call = graph.addNode(new Call(nop, { begin: 17, dur: 23 }));
+    t.same(call.f, nop, "do nothing");
+    t.same(call.begin, 17, "begin");
+    t.same(call.dur, 23, "dur");
+    const callWithDur = graph.addNode(new Call(nop, { dur: 31 }));
+    t.same(callWithDur.dur, 31, "another dur");
+    t.same(callWithDur.begin, 0, "but default begin");
+});
+
+test("Call: begin attribute", t => {
+    const graph = new Graph();
+    graph.addNode(new Call(({ now, scheduler }) => {
+        t.same(scheduler.now, 0, "default begin");
+        t.same(now, 0, "local time");
+    }));
+    graph.addNode(new Call(({ now, scheduler }) => {
+        t.same(scheduler.now, 17, "begin (17)");
+        t.same(now, 0, "local time (17)");
+    }, { begin: 17 }));
+    graph.addNode(new Call(({ now, scheduler }) => {
+        t.above(scheduler.now, 0, "begin (dynamic)");
+        t.same(now, 0, "local time (dynamic)");
+    }, { begin: ({ id }) => id.match(/\d+/g).reduce((z, n) => z + parseInt(n), 0) }));
+    graph.scheduler.clock.now = Infinity;
+});
+
+test("Event(target, type)", t => {
+    const graph = new Graph();
+    const event = graph.addNode(new Event(window, "hello"));
+    t.same(event.target, window, "event target");
+    t.same(event.type, "hello", "event type");
+    t.same(event.dur, null, "default duration (unresolved)");
+});
+
+test("Event(target, type, attributes): delegate attribute", t => {
+    const graph = new Graph();
+    const event = graph.addNode(new Event(window, "hello", {
+        begin: 17,
+        delegate: {
+            eventWasHandled(e, fiber) {
+                t.same(e.currentTarget, window, "event target (window)");
+                t.same(e.type, "hello", `event type ("hello")`);
+                t.same(fiber.now, 6, "local time");
+            }
+        }
+    }));
+    graph.scheduler.clock.now = 23;
+    customEvent.call(window, "hello");
+    graph.scheduler.clock.now = Infinity;
+});
+
+test("Await(f)", t => {
+    const graph = new Graph();
+    const delay = () => timeout(17);
+    const call = graph.addNode(new Await(delay));
+    t.same(call.graph, graph, "created and belongs to the graph");
+    t.same(call.f, delay, "timeout(17)");
+    t.same(call.begin, 0, "default begin (0)");
+    t.same(call.dur, null, "default dur (unresolved)");
+});
+
+test("Graph.await(f, delegate)", t => {
+    t.skip("4T02 Async test review");
+    const graph = new Graph();
+    const call = graph.addNode(wait(() => timeout(17), {
+        delegate: {
+            asyncWillEndWithValue(_, { now }) {
+                t.above(now, 17, "timed out");
+            }
+        }
+    }));
+    graph.run();
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Testin’ Epistrophy: Graph API: leaf nodes</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>
