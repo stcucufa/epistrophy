@@ -8,6 +8,58 @@
         <script type="module">
 
 import test from "./test.js";
+import { customEvent, nop } from "../lib/util.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
+
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (ramp)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        ramp(Infinity, nop),
+        0
+    );
+    scheduler.clock.now = 17;
+    t.same(scheduledFiber.effectiveRate, 1, "rate = 1");
+    t.same(scheduledFiber.now, 17, "ramp progressed");
+    scheduler.setRateForFiber(scheduledFiber, 0);
+    scheduler.clock.now = 31;
+    t.same(scheduledFiber.effectiveRate, 0, "rate = 0");
+    t.same(scheduledFiber.now, 17, "ramp did not progress");
+    scheduler.setRateForFiber(scheduledFiber, 1);
+    scheduler.clock.now = 71;
+    t.same(scheduledFiber.effectiveRate, 1, "rate = 1");
+    t.same(scheduledFiber.now, 57, "ramp did progress");
+});
+
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (event)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    const events = [];
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        repeat(fiber => fiber.
+            event(window, "hello", {
+                eventWasHandled(event, { now }) { events.push([event.detail.id, now]); }
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = 17;
+    customEvent.call(window, "hello", { id: "A" });
+    scheduler.clock.now = 19;
+    scheduler.setRateForFiber(scheduledFiber, 0);
+    scheduler.clock.now = 23;
+    customEvent.call(window, "hello", { id: "B" });
+    scheduler.clock.now = 31;
+    scheduler.setRateForFiber(scheduledFiber, 1);
+    scheduler.clock.now = 47;
+    customEvent.call(window, "hello", { id: "C" });
+    scheduler.clock.now = Infinity;
+    t.equal(events, [["A", 17], ["C", 16]], "event sequence");
+});
+
+
 
         </script>
     </head>
