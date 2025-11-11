@@ -59,6 +59,33 @@ test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (event
     t.equal(events, [["A", 17], ["C", 18]], "event sequence");
 });
 
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (await)", t => {
+    t.skip("4T02 Async test review");
+});
+
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (ramp/repeat)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    let ticks = 0;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        repeat(fiber => fiber.
+            ramp(111, ({ effectiveRate, p, scheduler }) => {
+                console.log(`Now: ${scheduler.now} — Ramp: ${p} — Rate: ${effectiveRate}`);
+            }).
+            call(() => { ticks += 1; })
+        ),
+        0
+    );
+    scheduler.clock.now = 300;
+    t.same(ticks, 2, "two ticks before pausing");
+    scheduler.setRateForFiber(scheduledFiber, 0);
+    scheduler.clock.now = 1300;
+    t.same(ticks, 2, "still two ticks after pausing");
+    scheduler.setRateForFiber(scheduledFiber, 1);
+    scheduler.clock.now = 1600;
+    t.same(ticks, 5, "three more ticks after resuming");
+});
 
 
         </script>
