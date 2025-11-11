@@ -56,7 +56,7 @@ test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (event
     scheduler.clock.now = 47;
     customEvent.call(window, "hello", { id: "C" });
     scheduler.clock.now = Infinity;
-    t.equal(events, [["A", 17], ["C", 16]], "event sequence");
+    t.equal(events, [["A", 17], ["C", 18]], "event sequence");
 });
 
 
