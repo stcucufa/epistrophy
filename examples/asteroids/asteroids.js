@@ -12,9 +12,6 @@ run().
         return scope.game;
     }).
 
-    // Draw loop: draw the game.
-    spawn(fiber => fiber.ramp(Infinity, ({ value: game }) => { game.draw(); })).
-
     // Keyboard handling (see actual handlers below). Because we use regular
     // event listeners, this only needs to be setup once.
     call(({ value: game }) => {
@@ -22,96 +19,122 @@ run().
         window.addEventListener("keyup", event => keyup(event, game));
     }).
 
-    // Update loop: update all game objects and gather the list of new objects
-    // resulting from the updates, setting a timeout to remove all those that
-    // have a duration (particles).
+    // Pause and resume.
     spawn(fiber => fiber.
         repeat(fiber => fiber.
-            ramp(UpdateDuration).
-            call(({ value: game }) => {
-                const [enter] = game.update();
-                return [...enter].filter(object => object.durationMs >= 0);
+            event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
+            call(({ scheduler }) => {
+                for (const fiber of scheduler.fibers) {
+                    if (fiber.name === "Game") {
+                        const rate = fiber.rate;
+                        scheduler.setRateForFiber(fiber, 0);
+                        return [fiber, rate];
+                    }
+                }
             }).
-            mapspawn(fiber => fiber.
-                ramp(({ value: { durationMs } }) => durationMs).
-                call(({ value: object }) => { object.game.removeObject(object); })
-            )
+            event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
+            call(({ scheduler, value }) => {
+                scheduler.setRateForFiber(...value);
+            })
         )
     ).
 
-    // Game loop.
-    repeat(fiber => fiber.
+    spawn(fiber => fiber.named("Game").
 
-        // Title screen.
-        call(({ value: game }) => { game.reset(); }).
-        append(text("ASTEROIDS")).
+        // Draw loop: draw the game.
+        spawn(fiber => fiber.ramp(Infinity, ({ value: game }) => { game.draw(); })).
 
-        // Enemies
-        // FIXME 500E Asteroids: UFO
+        // Update loop: update all game objects and gather the list of new
+        // objects resulting from the updates, setting a timeout to remove all
+        // those that have a duration (particles).
         spawn(fiber => fiber.
             repeat(fiber => fiber.
-                call(fiber => {
-                    const asteroidFiber = new Fiber().
-                        event(({ value: asteroid }) => asteroid, "collided", {
-                            eventWasHandled({ detail: { results } }) {
-                                for (const asteroid of results) {
-                                    fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
-                                }
-                            }
-                        });
-                    const game = fiber.value;
-                    for (let i = game.level; i > 0; --i) {
-                        fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
-                    }
+                ramp(UpdateDuration).
+                call(({ value: game }) => {
+                    const [enter] = game.update();
+                    return [...enter].filter(object => object.durationMs >= 0);
                 }).
-                join().
-
-                // Next level
-                call(({ value: game }) => { game.level += 1; }).
-                call(({ value: game, scope }) => {
-                    game.inputs.clear();
-                    scope.text = game.addObject(new Text(`LEVEL ${game.level}`));
-                }).
-                spawn(fiber => fiber.event(({ value: game }) => game, "anykey")).
-                spawn(fiber => fiber.ramp(1000)).
-                join().
-                call(({ value: game, scope }) => {
-                    game.removeObject(scope.text);
-                    delete scope.text;
-                })
+                mapspawn(fiber => fiber.
+                    ramp(({ value: { durationMs } }) => durationMs).
+                    call(({ value: object }) => { object.game.removeObject(object); })
+                )
             )
         ).
 
-        // Player loop: spawn a new ship and wait for it to be destroyed, then for
-        // the debris to clear up before spawning a new one, as long as the player
-        // has lives left.
-        spawn(fiber => fiber.
-            repeat(fiber => fiber.
+        // Game loop.
+        repeat(fiber => fiber.
 
-                // Create a ship and use it as value for the fiber; also save to scope.
-                call(({ scope, value: game }) => {
-                    scope.ship = game.ship();
-                    return scope.ship;
-                }).
+            // Title screen.
+            call(({ value: game }) => { game.reset(); }).
+            append(text("ASTEROIDS")).
 
-                // Listen to the ship being removed to end the loop with the spawn
-                // delay duration (the longest that a debris particle can last).
-                event(({ value: ship }) => ship, "collided").
-                ramp(({ value: ship }) => ship.debrisDur[1]).
+            // Enemies
+            // FIXME 500E Asteroids: UFO
+            spawn(fiber => fiber.
+                repeat(fiber => fiber.
+                    call(fiber => {
+                        const asteroidFiber = new Fiber().
+                            event(({ value: asteroid }) => asteroid, "collided", {
+                                eventWasHandled({ detail: { results } }) {
+                                    for (const asteroid of results) {
+                                        fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
+                                    }
+                                }
+                            });
+                        const game = fiber.value;
+                        for (let i = game.level; i > 0; --i) {
+                            fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
+                        }
+                    }).
+                    join().
 
-                // Remove a life.
-                call(({ scope: { game } }) => { game.removeObject(game.lives.pop()); }),
-
-                // End when no mores ships remain.
-                { repeatShouldEnd: (_, { value: { lives } }) => lives.length === 0 }
+                    // Next level
+                    call(({ value: game }) => { game.level += 1; }).
+                    call(({ value: game, scope }) => {
+                        game.inputs.clear();
+                        scope.text = game.addObject(new Text(`LEVEL ${game.level}`));
+                    }).
+                    spawn(fiber => fiber.event(({ value: game }) => game, "anykey")).
+                    spawn(fiber => fiber.ramp(1000)).
+                    join().
+                    call(({ value: game, scope }) => {
+                        game.removeObject(scope.text);
+                        delete scope.text;
+                    })
+                )
             ).
 
-            // Game over
-            append(text("GAME OVER"))
-        ).
+            // Player loop: spawn a new ship and wait for it to be destroyed, then for
+            // the debris to clear up before spawning a new one, as long as the player
+            // has lives left.
+            spawn(fiber => fiber.
+                repeat(fiber => fiber.
 
-        join(First)
-);
+                    // Create a ship and use it as value for the fiber; also save to scope.
+                    call(({ scope, value: game }) => {
+                        scope.ship = game.ship();
+                        return scope.ship;
+                    }).
+
+                    // Listen to the ship being removed to end the loop with the spawn
+                    // delay duration (the longest that a debris particle can last).
+                    event(({ value: ship }) => ship, "collided").
+                    ramp(({ value: ship }) => ship.debrisDur[1]).
+
+                    // Remove a life.
+                    call(({ scope: { game } }) => { game.removeObject(game.lives.pop()); }),
+
+                    // End when no mores ships remain.
+                    { repeatShouldEnd: (_, { value: { lives } }) => lives.length === 0 }
+                ).
+
+                // Game over
+                append(text("GAME OVER"))
+            ).
+
+            join(First)
+        )
+    );
 
 // Keydown and keyup event handlers; translate raw inputs to input states of
 // the game. T is for thrust (up arrow), L/R for left/right rotation (left and
