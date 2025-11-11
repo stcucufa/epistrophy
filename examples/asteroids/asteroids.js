@@ -19,27 +19,19 @@ run().
         window.addEventListener("keyup", event => keyup(event, game));
     }).
 
-    // Pause and resume.
+    // Pause and resume the game fiber when pressing P.
     spawn(fiber => fiber.
         repeat(fiber => fiber.
             event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
-            call(({ scheduler }) => {
-                for (const fiber of scheduler.fibers) {
-                    if (fiber.name === "Game") {
-                        const rate = fiber.rate;
-                        scheduler.setRateForFiber(fiber, 0);
-                        return [fiber, rate];
-                    }
-                }
-            }).
-            event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
-            call(({ scheduler, value }) => {
-                scheduler.setRateForFiber(...value);
-            })
+            call(({ scheduler, scope: { gameFiber } }) => { scheduler.setRateForFiber(gameFiber, 1 - gameFiber.rate); })
         )
     ).
 
-    spawn(fiber => fiber.named("Game").
+    spawn(fiber => fiber.
+
+        // Register self in the parent scope as the game fiber to be paused by
+        // its sibling.
+        call(fiber => { fiber.parent.scope.gameFiber = fiber; }).
 
         // Draw loop: draw the game.
         spawn(fiber => fiber.ramp(Infinity, ({ value: game }) => { game.draw(); })).
@@ -137,12 +129,12 @@ run().
     );
 
 // Keydown and keyup event handlers; translate raw inputs to input states of
-// the game. T is for thrust (up arrow), L/R for left/right rotation (left and
-// right arrow; allow both arrows to be pressed at the same time by using the
-// direction of the last pressed arrow).
+// the game. Allow both arrows to be pressed at the same time by using the
+// direction of the last pressed arrow). Skip modifiers as well as the P key
+// which is reserved for pause.
 
 function keydown(event, { inputs }) {
-    if (event.altKey || event.ctrlKey || event.isComposing || event.metaKey || event.shiftKey) {
+    if (event.altKey || event.ctrlKey || event.isComposing || event.metaKey || event.shiftKey || event.key === "p") {
         return;
     }
     inputs.add(event.key);
