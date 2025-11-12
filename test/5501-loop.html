@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Shell: loop</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { customEvent, nop } from "../lib/util.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
+
+test("Fiber.loop(f)", t => {
+    const scheduler = new Scheduler();
+    let count;
+    scheduler.scheduleFiber(new Fiber().
+        K(17).
+        loop(fiber => fiber.
+            call(({ value }) => {
+                count = value;
+                return value + 1;
+            }).
+            ramp(111)
+        ),
+        0
+    );
+    scheduler.clock.now = 100;
+    t.same(count, 17, "first iteration");
+    scheduler.clock.now = 1000;
+    t.same(count, 26, "more iterations");
+});
+
+test("Set rate for loop", t => {
+    const scheduler = new Scheduler();
+    t.skip("TODO");
+});
+
+
+        </script>
+    </head>
+    <body>
+        <h1>Shell: loop</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>

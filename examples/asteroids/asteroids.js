@@ -39,7 +39,7 @@ run().
         // Update loop: update all game objects and gather the list of new
         // objects resulting from the updates, setting a timeout to remove all
         // those that have a duration (particles).
-        spawn(fiber => fiber.
+        loop(fiber => fiber.
             ramp(UpdateDuration).
             call(({ value: game }) => {
                 const [enter] = game.update();
@@ -49,11 +49,7 @@ run().
                 ramp(({ value: { durationMs } }) => durationMs).
                 call(({ value: object }) => { object.game.removeObject(object); })
             ).
-            // FIXME 5501 Shell: loop
-            call(fiber => {
-                fiber.ip = 0;
-                return fiber.parent.value;
-            })
+            call(({ parent: { value: game } }) => game)
         ).
 
         // Game loop.
