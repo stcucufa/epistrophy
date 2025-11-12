@@ -40,17 +40,20 @@ run().
         // objects resulting from the updates, setting a timeout to remove all
         // those that have a duration (particles).
         spawn(fiber => fiber.
-            repeat(fiber => fiber.
-                ramp(UpdateDuration).
-                call(({ value: game }) => {
-                    const [enter] = game.update();
-                    return [...enter].filter(object => object.durationMs >= 0);
-                }).
-                mapspawn(fiber => fiber.
-                    ramp(({ value: { durationMs } }) => durationMs).
-                    call(({ value: object }) => { object.game.removeObject(object); })
-                )
-            )
+            ramp(UpdateDuration).
+            call(({ value: game }) => {
+                const [enter] = game.update();
+                return [...enter].filter(object => object.durationMs >= 0);
+            }).
+            mapspawn(fiber => fiber.
+                ramp(({ value: { durationMs } }) => durationMs).
+                call(({ value: object }) => { object.game.removeObject(object); })
+            ).
+            // FIXME 5501 Shell: loop
+            call(fiber => {
+                fiber.ip = 0;
+                return fiber.parent.value;
+            })
         ).
 
         // Game loop.
