@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Kernel: pause (fiber rate 0)</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { customEvent, nop } from "../lib/util.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
+
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (ramp)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        ramp(Infinity, nop),
+        0
+    );
+    scheduler.clock.now = 17;
+    t.same(scheduledFiber.effectiveRate, 1, "rate = 1");
+    t.same(scheduledFiber.now, 17, "ramp progressed");
+    scheduler.setRateForFiber(scheduledFiber, 0);
+    scheduler.clock.now = 31;
+    t.same(scheduledFiber.effectiveRate, 0, "rate = 0");
+    t.same(scheduledFiber.now, 17, "ramp did not progress");
+    scheduler.setRateForFiber(scheduledFiber, 1);
+    scheduler.clock.now = 71;
+    t.same(scheduledFiber.effectiveRate, 1, "rate = 1");
+    t.same(scheduledFiber.now, 57, "ramp did progress");
+});
+
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (event)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    const events = [];
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        repeat(fiber => fiber.
+            event(window, "hello", {
+                eventWasHandled(event, { now }) { events.push([event.detail.id, now]); }
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = 17;
+    customEvent.call(window, "hello", { id: "A" });
+    scheduler.clock.now = 19;
+    scheduler.setRateForFiber(scheduledFiber, 0);
+    scheduler.clock.now = 23;
+    customEvent.call(window, "hello", { id: "B" });
+    scheduler.clock.now = 31;
+    scheduler.setRateForFiber(scheduledFiber, 1);
+    scheduler.clock.now = 47;
+    customEvent.call(window, "hello", { id: "C" });
+    scheduler.clock.now = Infinity;
+    t.equal(events, [["A", 17], ["C", 18]], "event sequence");
+});
+
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (await)", t => {
+    t.skip("4T02 Async test review");
+});
+
+test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (ramp/repeat)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    let ticks = 0;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        repeat(fiber => fiber.
+            ramp(111, ({ effectiveRate, p, scheduler }) => {
+                console.log(`Now: ${scheduler.now} — Ramp: ${p} — Rate: ${effectiveRate}`);
+            }).
+            call(() => { ticks += 1; })
+        ),
+        0
+    );
+    scheduler.clock.now = 300;
+    t.same(ticks, 2, "two ticks before pausing");
+    scheduler.setRateForFiber(scheduledFiber, 0);
+    scheduler.clock.now = 1300;
+    t.same(ticks, 2, "still two ticks after pausing");
+    scheduler.setRateForFiber(scheduledFiber, 1);
+    scheduler.clock.now = 1600;
+    t.same(ticks, 5, "three more ticks after resuming");
+});
+
+
+        </script>
+    </head>
+    <body>
+        <h1>Kernel: pause (fiber rate 0)</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>
