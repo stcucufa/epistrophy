@@ -21,7 +21,7 @@ run().
 
     // Pause and resume the game fiber when pressing P.
     spawn(fiber => fiber.
-        repeat(fiber => fiber.
+        loop(fiber => fiber.
             event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
             call(({ scheduler, scope: { gameFiber } }) => { scheduler.setRateForFiber(gameFiber, 1 - gameFiber.rate); })
         )
@@ -53,7 +53,7 @@ run().
         ).
 
         // Game loop.
-        repeat(fiber => fiber.
+        loop(fiber => fiber.
 
             // Title screen.
             call(({ value: game }) => { game.reset(); }).
@@ -62,7 +62,7 @@ run().
             // Enemies
             // FIXME 500E Asteroids: UFO
             spawn(fiber => fiber.
-                repeat(fiber => fiber.
+                loop(fiber => fiber.
                     call(fiber => {
                         const asteroidFiber = new Fiber().
                             event(({ value: asteroid }) => asteroid, "collided", {

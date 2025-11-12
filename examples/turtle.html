@@ -98,7 +98,7 @@ turtle.
         forward(125)
     );
 
-transport.schedule().repeat(fiber => fiber.
+transport.schedule().loop(fiber => fiber.
     call(fiber => {
         const rate = 1.26 ** range.value;
         span.textContent = rate.toFixed(2);

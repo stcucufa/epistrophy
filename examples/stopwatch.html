@@ -17,7 +17,7 @@ document.querySelector(".transport").appendChild(transport.element);
 
 transport.schedule(fiber => fiber.
     scale(1000).
-    repeat(fiber => fiber.
+    loop(fiber => fiber.
         event(button, "click").
         call(() => { button.disabled = true; }).
         ramp(
