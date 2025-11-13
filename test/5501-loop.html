@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Shell: loop</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { customEvent, nop } from "../lib/util.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
+
+test("Fiber.loop(f)", t => {
+    const scheduler = new Scheduler();
+    let count;
+    scheduler.scheduleFiber(new Fiber().
+        K(17).
+        loop(φ => φ.
+            call(({ value }) => {
+                count = value;
+                return value + 1;
+            }).
+            ramp(111)
+        ),
+        0
+    );
+    scheduler.clock.now = 100;
+    t.same(count, 17, "first iteration");
+    scheduler.clock.now = 1000;
+    t.same(count, 26, "more iterations");
+});
+
+test("Error breaks a loop", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        call(({ now }) => { console.log(now); }).
+        loop(φ => φ.
+            ramp(111).
+            call(({ now }) => {
+                console.log(now);
+                if (now > 500) {
+                    throw("AUGH!");
+                }
+            })
+        ).
+        join().
+        call(({ now }) => { t.same(now, 555, "exited from the loop"); }),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+test("Set rate for loop", t => {
+    const scheduler = new Scheduler();
+    let fiber;
+    let iterations = 0;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { fiber = φ; }).
+        loop(φ => φ.
+            ramp(111).
+            spawn(φ => φ.
+                ramp(55).
+                call(() => { iterations += 1; })
+            )
+        ).
+        ramp(Infinity, nop),
+        0
+    );
+    scheduler.clock.now = 600;
+    t.same(iterations, 4, "four iterations so far");
+    // At this point, a ramp for the fifth iteration is active but should be
+    // paused by pausing the top-level fiber. Using loop instead of repeat
+    // ensures that the inner fiber is not orphaned and thus is paused as well.
+    scheduler.setRateForFiber(fiber, 0);
+    scheduler.clock.now = 700;
+    t.same(iterations, 4, "still four iterations");
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Shell: loop</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>

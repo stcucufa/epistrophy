@@ -390,6 +390,11 @@ time in milliseconds of one unit. This is the inverse of the rate. For
 instance, to specify times in seconds, use `scale(1000)`. Scale must be a
 finite number greater than 0.
 
+* `Fiber.loop(f)` is a version of spawn that adds an instruction at the end of
+the fiber to immediately jump to the beginning of the fiber, making in effect
+an infinite loop. Unlike `Fiber.repeat()` below, the fiber is spawned only
+_once_, so each new iteration begins with the latest value of the fiber.
+
 * `Fiber.repeat(f, delegate)` spawns a new child fiber and immediately joins;
 when the child fiber ends, it is immediately spawned again, repeating forever.
 If no argument is provided, then the child fiber is returned. If present, `f`

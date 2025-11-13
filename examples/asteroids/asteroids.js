@@ -20,11 +20,9 @@ run().
     }).
 
     // Pause and resume the game fiber when pressing P.
-    spawn(fiber => fiber.
-        repeat(fiber => fiber.
-            event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
-            call(({ scheduler, scope: { gameFiber } }) => { scheduler.setRateForFiber(gameFiber, 1 - gameFiber.rate); })
-        )
+    loop(fiber => fiber.
+        event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
+        call(({ scheduler, scope: { gameFiber } }) => { scheduler.setRateForFiber(gameFiber, 1 - gameFiber.rate); })
     ).
 
     spawn(fiber => fiber.
@@ -39,7 +37,7 @@ run().
         // Update loop: update all game objects and gather the list of new
         // objects resulting from the updates, setting a timeout to remove all
         // those that have a duration (particles).
-        spawn(fiber => fiber.
+        loop(fiber => fiber.
             ramp(UpdateDuration).
             call(({ value: game }) => {
                 const [enter] = game.update();
@@ -49,15 +47,11 @@ run().
                 ramp(({ value: { durationMs } }) => durationMs).
                 call(({ value: object }) => { object.game.removeObject(object); })
             ).
-            // FIXME 5501 Shell: loop
-            call(fiber => {
-                fiber.ip = 0;
-                return fiber.parent.value;
-            })
+            call(fiber => fiber.parent.value)
         ).
 
         // Game loop.
-        repeat(fiber => fiber.
+        loop(fiber => fiber.
 
             // Title screen.
             call(({ value: game }) => { game.reset(); }).
@@ -65,38 +59,36 @@ run().
 
             // Enemies
             // FIXME 500E Asteroids: UFO
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    call(fiber => {
-                        const asteroidFiber = new Fiber().
-                            event(({ value: asteroid }) => asteroid, "collided", {
-                                eventWasHandled({ detail: { results } }) {
-                                    for (const asteroid of results) {
-                                        fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
-                                    }
+            loop(fiber => fiber.
+                call(fiber => {
+                    const asteroidFiber = new Fiber().
+                        event(({ value: asteroid }) => asteroid, "collided", {
+                            eventWasHandled({ detail: { results } }) {
+                                for (const asteroid of results) {
+                                    fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, asteroid);
                                 }
-                            });
-                        const game = fiber.value;
-                        for (let i = game.level; i > 0; --i) {
-                            fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
-                        }
-                    }).
-                    join().
+                            }
+                        });
+                    const game = fiber.value;
+                    for (let i = game.level; i > 0; --i) {
+                        fiber.scheduler.attachFiberWithValue(fiber, asteroidFiber, game.asteroid());
+                    }
+                }).
+                join().
 
-                    // Next level
-                    call(({ value: game }) => { game.level += 1; }).
-                    call(({ value: game, scope }) => {
-                        game.inputs.clear();
-                        scope.text = game.addObject(new Text(`LEVEL ${game.level}`));
-                    }).
-                    spawn(fiber => fiber.event(({ value: game }) => game, "anykey")).
-                    spawn(fiber => fiber.ramp(1000)).
-                    join().
-                    call(({ value: game, scope }) => {
-                        game.removeObject(scope.text);
-                        delete scope.text;
-                    })
-                )
+                // Next level
+                call(({ value: game }) => { game.level += 1; }).
+                call(({ value: game, scope }) => {
+                    game.inputs.clear();
+                    scope.text = game.addObject(new Text(`LEVEL ${game.level}`));
+                }).
+                spawn(fiber => fiber.event(({ value: game }) => game, "anykey")).
+                spawn(fiber => fiber.ramp(1000)).
+                join().
+                call(({ value: game, scope }) => {
+                    game.removeObject(scope.text);
+                    delete scope.text;
+                })
             ).
 
             // Player loop: spawn a new ship and wait for it to be destroyed, then for
