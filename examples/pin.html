@@ -39,29 +39,44 @@ import { run } from "../lib/shell.js";
 
 const output = document.querySelector("div.keypad output");
 const buttons = [...document.querySelectorAll("div.keypad button")];
-const pin = Math.random().toString(12).substr(2, 4).toUpperCase();
-document.querySelector("span.pin").textContent = pin;
+const pin = document.querySelector("span.pin").textContent;
 
 run().
-    call(() => { output.textContent = ""; }).
-    repeat(φ => φ.
-        K(buttons).
-        mapfirst(φ => φ.
-            event(({ value: button }) => button, "click").
-            call(({ value: button }) => { output.textContent += button.textContent; })
-        ),
-        { repeatShouldEnd: n => n === 4 }
+    loop(φ => φ.
+        repeatValue(φ => φ.
+            call(() => { output.textContent = ""; }).
+            repeat(φ => φ.
+                K(buttons).
+                mapfirst(φ => φ.
+                    event(({ value: button }) => button, "click").
+                    call(({ value: button }) => { output.textContent += button.textContent; })
+                ),
+                { repeatShouldEnd: n => n === 4 }
+            ).
+            ramp(400).
+            call(() => output.textContent === pin).
+            call(({ value: ok }) => { output.textContent = ok ? "OK" : "ERR" }).
+            ramp(1000),
+            {
+                repeatShouldEnd: (n, fiber) => {
+                    const ok = fiber.value;
+                    delete fiber.value;
+                    if (ok || n < 3) {
+                        return ok;
+                    }
+                    throw new Error("LOCKED");
+                }
+            }
+        )
     ).
-    ramp(500).
-    call(() => { output.textContent = output.textContent === pin ? "OK" : "ERR"; });
-
+    call(() => { output.value = "LOCKED"; });
         </script>
     </head>
     <body>
         <h1>PIN example</h1>
         <div class="example">
             <div class="keypad">
-                <output>****</output>
+                <output></output>
 
                 <button type="button">7</button>
                 <button type="button">8</button>
@@ -81,7 +96,8 @@ run().
             </div>
         </div>
         <p>
-            Type in your secret PIN (<span class="pin"></span>)on the keypad.
+            Type in your secret PIN (<span class="pin">6732</span>) on the keypad.
+            Caution! Your card will be locked if you fail three times.
         </p>
         <details>
             <summary>Source</summary>
