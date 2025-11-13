@@ -31,6 +31,26 @@ test("Fiber.loop(f)", t => {
     t.same(count, 26, "more iterations");
 });
 
+test("Error breaks a loop", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        call(({ now }) => { console.log(now); }).
+        loop(φ => φ.
+            ramp(111).
+            call(({ now }) => {
+                console.log(now);
+                if (now > 500) {
+                    throw("AUGH!");
+                }
+            })
+        ).
+        join().
+        call(({ now }) => { t.same(now, 555, "exited from the loop"); }),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
 test("Set rate for loop", t => {
     const scheduler = new Scheduler();
     let fiber;
@@ -56,7 +76,6 @@ test("Set rate for loop", t => {
     scheduler.clock.now = 700;
     t.same(iterations, 4, "still four iterations");
 });
-
 
         </script>
     </head>
