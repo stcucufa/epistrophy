@@ -63,7 +63,7 @@ run().
 
     // Main game loop: show the splash screen, then start the game on a key
     // press, and wait for another key press before starting a new iteration.
-    repeat(fiber => fiber.
+    loop(fiber => fiber.
 
         // Reset the progress bar and show the splash screen until a key is
         // pressed.
@@ -82,15 +82,13 @@ run().
 
         // Animation loop: toggle car images at 10 FPS (i.e., every 100ms) and
         // update the progress bar for the duration of the game.
-        spawn(fiber => fiber.
-            repeat(fiber => fiber.
-                ramp(100).
-                call(({ scope: { cars } }) => {
-                    for (const car of cars) {
-                        car.frame = 1 - car.frame;
-                    }
-                })
-            )
+        loop(fiber => fiber.
+            ramp(100).
+            call(({ scope: { cars } }) => {
+                for (const car of cars) {
+                    car.frame = 1 - car.frame;
+                }
+            })
         ).
 
         // Initialize the game loop with the player car as the first car.
@@ -103,20 +101,18 @@ run().
 
             // The player loop updates the lane of the player car based on
             // keyboard input.
-            spawn(fiber => fiber.
-                repeat(fiber => fiber.
-                    event(window, "keydown", {
-                        eventWasHandled(event, { scope: { cars: [car] } }) {
-                            if (event.key === "ArrowUp") {
-                                car.lane = Math.max(0, car.lane - 1);
-                                event.preventDefault();
-                            } else if (event.key === "ArrowDown") {
-                                car.lane = Math.min(Lanes.length - 1, car.lane + 1);
-                                event.preventDefault();
-                            }
+            loop(fiber => fiber.
+                event(window, "keydown", {
+                    eventWasHandled(event, { scope: { cars: [car] } }) {
+                        if (event.key === "ArrowUp") {
+                            car.lane = Math.max(0, car.lane - 1);
+                            event.preventDefault();
+                        } else if (event.key === "ArrowDown") {
+                            car.lane = Math.min(Lanes.length - 1, car.lane + 1);
+                            event.preventDefault();
                         }
-                    })
-                )
+                    }
+                })
             ).
 
             // Spawn a new fiber for a random number of other cars. Each car
