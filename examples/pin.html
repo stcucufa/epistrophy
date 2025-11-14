@@ -7,6 +7,10 @@
         <link rel="stylesheet" href="style.css"/>
         <style>
 
+span.pin {
+    font-weight: bold;
+}
+
 div.keypad {
     --button-size: 4em;
     --gap: 0.5em;
@@ -47,7 +51,6 @@ run().
         // Listen to buttons then check the output against the PIN.
         loop(φ => φ.
             call(() => { output.textContent = ""; }).
-
             // Each button outputs itself; repeat exactly four times.
             loop(φ => φ.
                 K(buttons).
@@ -75,7 +78,7 @@ run().
                 }
             }
         ),
-        // Add a dummy delegate to join.
+        // Add a dummy delegate to ensure that we join.
         {}
     ).
     ever(φ => φ.call(() => { output.value = "LOCKED"; }));
@@ -105,8 +108,8 @@ run().
             </div>
         </div>
         <p>
-            Type in your secret PIN (<span class="pin">6732</span>) on the keypad.
-            Caution! Your card will be locked if you fail three times.
+            Type in your secret PIN (hint: it’s <span class="pin">6732</span>) on the keypad. Your card will be locked if
+            you fail three times.
         </p>
         <details>
             <summary>Source</summary>
