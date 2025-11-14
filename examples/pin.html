@@ -35,7 +35,7 @@ div.keypad button {
 
         </style>
         <script type="module">
-import { run, Times, Forever } from "../lib/shell.js";
+import { run, Times } from "../lib/shell.js";
 
 const output = document.querySelector("div.keypad output");
 const buttons = [...document.querySelectorAll("div.keypad button")];
@@ -59,12 +59,12 @@ run().
             ).
             // Wait a bit to verify the total output, then show result before
             // ending the inner love.
-            ramp(400).
+            ramp(300).
             call(() => output.textContent === pin).
             call(({ value: ok }) => { output.textContent = ok ? "OK" : "ERR" }).
-            ramp(1000),
+            ramp(({ value: ok }) => ok ? 1000 : 400),
             {
-                repeatShouldEnd(fiber) {
+                loopShouldEnd(fiber) {
                     const ok = fiber.value;
                     delete fiber.value;
                     if (ok || this.iterationCount < 3) {
@@ -75,7 +75,8 @@ run().
                 }
             }
         ),
-        Forever
+        // Add a dummy delegate to join.
+        {}
     ).
     ever(φ => φ.call(() => { output.value = "LOCKED"; }));
         </script>

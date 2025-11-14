@@ -1,4 +1,5 @@
 import { extend, svg } from "../lib/util.js";
+import { Times } from "../lib/shell.js";
 
 const π = Math.PI;
 
@@ -119,9 +120,9 @@ export default class Turtle {
     }
 
     repeat(count, f) {
-        this.fiber.repeat(
+        this.fiber.loop(
             fiber => { f(extend(this, { fiber })); },
-            { repeatShouldEnd: i => i === count }
+            Times(count)
         );
         return this;
     }
