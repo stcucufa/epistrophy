@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Kernel: undo call</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { nop } from "../lib/util.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
+
+test("Fiber.call(f) has no effect when going backward", t => {
+    const scheduler = new Scheduler();
+    let called = 0;
+    scheduler.scheduleFiber(new Fiber().
+        call(
+            ({ effectiveRate }) => {
+                t.same(called, 0, "not called yet");
+                t.same(effectiveRate, 1, "going forward");
+            },
+            ({ effectiveRate }) => {
+                t.same(called, 1, "still called once");
+                t.same(effectiveRate, -1, "when undoing");
+            }
+        ).
+        call(() => { call += 1; }).
+        call(({ effectiveRate }) => {
+            t.same(called, 1, "called once");
+            t.same(effectiveRate, 1, "going forward");
+        }).
+        rate(-1),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Kernel: undo call</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>
