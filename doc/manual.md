@@ -390,10 +390,30 @@ time in milliseconds of one unit. This is the inverse of the rate. For
 instance, to specify times in seconds, use `scale(1000)`. Scale must be a
 finite number greater than 0.
 
-* `Fiber.loop(f)` is a version of spawn that adds an instruction at the end of
-the fiber to immediately jump to the beginning of the fiber, making in effect
-an infinite loop. Unlike `Fiber.repeat()` below, the fiber is spawned only
-_once_, so each new iteration begins with the latest value of the fiber.
+* `Fiber.loop(f, delegate)` is a version of spawn that adds an instruction at
+the end of the fiber to immediately jump to the beginning of the fiber, making
+in effect an infinite loop. If a delegate object is provided, the fiber will
+also immediately join, waiting for the loop fiber (and only that fiber) to end
+before resuming. The optional delegate may define the following method:
+    * `loopShouldEnd(fiber)`: before each iteration, this gets called with the
+    loop fiber as argument (and the delegate itself as `this`). If this method
+    returns `true`, then the loop ends immediately. The delegate has an
+    `iterationCount` property, beginning at zero before the first iteration and
+    getting incremented after every iteration.
+
+* `Times(n)` is a function providing a loop delegate so that loops end after
+`n` iterations.
+
+The following example will output “Tick...” to the console every second for
+three seconds:
+
+```js
+fiber.loop(φ => φ.
+    ramp(1000).
+    call(() => { console.log("Tick..."); }),
+    Times(3)
+);
+```
 
 * `Fiber.repeat(f, delegate)` spawns a new child fiber and immediately joins;
 when the child fiber ends, it is immediately spawned again, repeating forever.
@@ -407,17 +427,6 @@ following method:
     (starting at 0 before the first iteration begins) and the fiber instance
     (with the delegate itself as `this`). If this method returns true, then no
     new instance is spawned and the repeat immediately ends.
-
-The following example will output “Tick...” to the console every second for
-three seconds:
-
-```js
-fiber.repeat(fiber => fiber.
-    ramp(1000).
-    call(() => { console.log("Tick..."); }), {
-    repeatShouldEnd: i => i === 3
-});
-```
 
 * `Fiber.repeatValue(f, delegate)` is similar to `Fiber.repeat()` except that
 the value of the fiber is updated after each iteration with the value of the
