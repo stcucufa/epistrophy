@@ -34,11 +34,9 @@ test("Fiber.loop(f)", t => {
 test("Error breaks a loop", t => {
     const scheduler = new Scheduler();
     scheduler.scheduleFiber(new Fiber().
-        call(({ now }) => { console.log(now); }).
         loop(φ => φ.
             ramp(111).
             call(({ now }) => {
-                console.log(now);
                 if (now > 500) {
                     throw("AUGH!");
                 }
