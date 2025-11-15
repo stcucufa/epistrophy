@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Shell: loop delegate</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { Scheduler, Fiber, Times } from "../lib/shell.js";
+
+test("Fiber.loop(f) does not join without a delegate", t => {
+    const scheduler = new Scheduler();
+    let count;
+    scheduler.scheduleFiber(new Fiber().
+        K(17).
+        loop(φ => φ.
+            ramp(111).
+            call(({ value }) => {
+                count = value;
+                return value + 1;
+            })
+        ).
+        call(() => { count = "tbd"; }),
+        0
+    );
+    scheduler.clock.now = 100;
+    t.same(count, "tbd", "before the first iteration");
+    scheduler.clock.now = 1000;
+    t.same(count, 25, "more iterations");
+});
+
+test("Fiber.loop(f, { loopShouldEnd }) joins", t => {
+    const scheduler = new Scheduler();
+    let count;
+    scheduler.scheduleFiber(new Fiber().
+        K(17).
+        loop(φ => φ.
+            ramp(111).
+            call(({ value }) => {
+                count = value;
+                return value + 1;
+            }),
+            {
+                loopShouldEnd: ({ value }) => value > 23
+            }
+        ).
+        call(({ now }) => { t.same(now, 777, "loop ended"); }),
+        0
+    );
+    scheduler.clock.now = 1000;
+});
+
+test("Fiber.loop(f, {}) joins (dummy delegate)", t => {
+    const scheduler = new Scheduler();
+    let count;
+    scheduler.scheduleFiber(new Fiber().
+        K(17).
+        loop(φ => φ.
+            ramp(111).
+            call(({ value }) => {
+                count = value;
+                if (value === 23) {
+                    throw "AUGH!";
+                }
+                return value + 1;
+            }),
+            {}
+        ).
+        ever(φ => φ.call(({ error, now }) => {
+            t.same(now, 777, "loop ended");
+            t.same(error, "AUGH!", "because of error");
+        })),
+        0
+    );
+    scheduler.clock.now = 1000;
+});
+
+test("Times(n) loop delegate", t => {
+    const scheduler = new Scheduler();
+    let count;
+    scheduler.scheduleFiber(new Fiber().
+        K(17).
+        loop(φ => φ.
+            ramp(111).
+            call(({ value }) => {
+                count = value;
+                return value + 1;
+            }),
+            Times(7)
+        ).
+        call(({ now }) => { t.same(now, 777, "loop ended"); }),
+        0
+    );
+    scheduler.clock.now = 1000;
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Shell: loop delegate</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>

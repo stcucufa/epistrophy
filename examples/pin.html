@@ -7,6 +7,10 @@
         <link rel="stylesheet" href="style.css"/>
         <style>
 
+span.pin {
+    font-weight: bold;
+}
+
 div.keypad {
     --button-size: 4em;
     --gap: 0.5em;
@@ -35,54 +39,49 @@ div.keypad button {
 
         </style>
         <script type="module">
-import { run } from "../lib/shell.js";
+import { run, Times } from "../lib/shell.js";
 
 const output = document.querySelector("div.keypad output");
 const buttons = [...document.querySelectorAll("div.keypad button")];
 const pin = document.querySelector("span.pin").textContent;
 
 run().
-
     // Loop while not locked
     loop(φ => φ.
-
         // Listen to buttons then check the output against the PIN.
-        repeatValue(φ => φ.
+        loop(φ => φ.
             call(() => { output.textContent = ""; }).
-
             // Each button outputs itself; repeat exactly four times.
-            repeat(φ => φ.
+            loop(φ => φ.
                 K(buttons).
                 mapfirst(φ => φ.
                     event(({ value: button }) => button, "click").
                     call(({ value: button }) => { output.textContent += button.textContent; })
                 ),
-                { repeatShouldEnd: n => n === 4 }
+                Times(4)
             ).
-
             // Wait a bit to verify the total output, then show result before
             // ending the inner love.
-            ramp(400).
+            ramp(300).
             call(() => output.textContent === pin).
             call(({ value: ok }) => { output.textContent = ok ? "OK" : "ERR" }).
-            ramp(1000),
+            ramp(({ value: ok }) => ok ? 1000 : 400),
             {
-                repeatShouldEnd: (n, fiber) => {
+                loopShouldEnd(fiber) {
                     const ok = fiber.value;
                     delete fiber.value;
-                    if (ok || n < 3) {
+                    if (ok || this.iterationCount < 3) {
                         return ok;
                     }
                     // Throw after three failed attempts.
                     throw new Error("LOCKED");
                 }
             }
-        )
+        ),
+        // Add a dummy delegate to ensure that we join.
+        {}
     ).
-
-    // The loop ends after three failed attemps in a row.
-    join().
-    call(() => { output.value = "LOCKED"; });
+    ever(φ => φ.call(() => { output.value = "LOCKED"; }));
         </script>
     </head>
     <body>
@@ -109,8 +108,8 @@ run().
             </div>
         </div>
         <p>
-            Type in your secret PIN (<span class="pin">6732</span>) on the keypad.
-            Caution! Your card will be locked if you fail three times.
+            Type in your secret PIN (hint: it’s <span class="pin">6732</span>) on the keypad. Your card will be locked if
+            you fail three times.
         </p>
         <details>
             <summary>Source</summary>

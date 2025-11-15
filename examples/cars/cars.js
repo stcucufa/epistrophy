@@ -129,11 +129,11 @@ run().
                 mapfirst(fiber => fiber.
                     ramp(() => random(0.1 * GameDuration, 0.9 * GameDuration)).
                     call(({ value: car, scope: { cars } }) => { cars.push(car); }).
-                    repeat(fiber => fiber.
+                    loop(fiber => fiber.
                         ramp(50).
                         call(({ value: car }) => { car.x += car.v; }),
                         {
-                            repeatShouldEnd: (_, { value: car, scope: { cars: [player] } }) =>
+                            loopShouldEnd: (_, { value: car, scope: { cars: [player] } }) =>
                                 car.lane === player.lane && car.x > Danger[0] && car.x < Danger[1]
                         }
                     )

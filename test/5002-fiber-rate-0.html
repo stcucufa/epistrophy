@@ -70,9 +70,7 @@ test("Scheduler.setRateForFiber(fiber, rate) pauses and resumes the fiber (ramp/
     scheduler.scheduleFiber(new Fiber().
         call(fiber => { scheduledFiber = fiber; }).
         repeat(fiber => fiber.
-            ramp(111, ({ effectiveRate, p, scheduler }) => {
-                console.log(`Now: ${scheduler.now} — Ramp: ${p} — Rate: ${effectiveRate}`);
-            }).
+            ramp(111).
             call(() => { ticks += 1; })
         ),
         0

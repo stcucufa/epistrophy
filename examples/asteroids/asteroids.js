@@ -95,7 +95,7 @@ run().
             // the debris to clear up before spawning a new one, as long as the player
             // has lives left.
             spawn(fiber => fiber.
-                repeat(fiber => fiber.
+                loop(fiber => fiber.
 
                     // Create a ship and use it as value for the fiber; also save to scope.
                     call(({ scope, value: game }) => {
@@ -108,11 +108,14 @@ run().
                     event(({ value: ship }) => ship, "collided").
                     ramp(({ value: ship }) => ship.debrisDur[1]).
 
-                    // Remove a life.
-                    call(({ scope: { game } }) => { game.removeObject(game.lives.pop()); }),
+                    // Remove a life and reset the value to the game
+                    call(({ scope: { game } }) => {
+                        game.removeObject(game.lives.pop());
+                        return game;
+                    }),
 
                     // End when no mores ships remain.
-                    { repeatShouldEnd: (_, { value: { lives } }) => lives.length === 0 }
+                    { loopShouldEnd: (_, { value: { lives } }) => lives.length === 0 }
                 ).
 
                 // Game over
