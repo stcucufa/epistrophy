@@ -15,22 +15,39 @@ test("Fiber.call(f) has no effect when going backward", t => {
     const scheduler = new Scheduler();
     let called = 0;
     scheduler.scheduleFiber(new Fiber().
-        call(
-            ({ effectiveRate }) => {
-                t.same(called, 0, "not called yet");
-                t.same(effectiveRate, 1, "going forward");
-            },
-            ({ effectiveRate }) => {
-                t.same(called, 1, "still called once");
-                t.same(effectiveRate, -1, "when undoing");
-            }
-        ).
-        call(() => { call += 1; }).
+        call(() => { called += 1; }).
         call(({ effectiveRate }) => {
             t.same(called, 1, "called once");
             t.same(effectiveRate, 1, "going forward");
         }).
         rate(-1),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+test("Fiber.call(f, g) calls g when going backward", t => {
+    const scheduler = new Scheduler();
+    let called = 0;
+    scheduler.scheduleFiber(new Fiber().
+        call(() => { called += 1; }, () => { called *= 0.1; }).
+        call(({ effectiveRate }) => {
+            t.same(called, 1, "called once");
+            t.same(effectiveRate, 1, "going forward");
+        }).
+        rate(-1),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(called, 0.1, "g was called");
+});
+
+test("Undoing Fiber.rate (same sign)", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        call(({ effectiveRate }) => { t.same(effectiveRate, 1, "effective rate = 1"); }).
+        rate(2).
+        call(({ effectiveRate }) => { t.same(effectiveRate, 2, "effective rate = 2"); }),
         0
     );
     scheduler.clock.now = Infinity;
