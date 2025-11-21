@@ -115,7 +115,7 @@ run().
                     }),
 
                     // End when no mores ships remain.
-                    { loopShouldEnd: (_, { value: { lives } }) => lives.length === 0 }
+                    { loopShouldEnd: ({ value: { lives } }) => lives.length === 0 }
                 ).
 
                 // Game over

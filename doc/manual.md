@@ -43,7 +43,7 @@ making Epistrophy suitable for visual-driven applications like graphical user
 interfaces, games, or multimedia presentations). The final line starts the
 clock so that the program actually begins.
 
-Epistrophy is built around a minimal core of seven instructions:
+Epistrophy is built around a minimal core of six instructions:
 
 * _call_ calls a synchronous function;
 * _ramp_ waits until some amount of time (given in milliseconds) has elapsed;
@@ -53,7 +53,6 @@ eventually returned;
 * _spawn_ schedules a new child fiber (with its own sequence of instructions)
 to begin in the same instant;
 * _join_ waits until all spawned children have ended;
-* _seq_ embeds a subsequence of instructions in the fiber.
 
 When a fiber is running, it keeps executing instructions one after the other
 until it reaches the end of the sequence (which ends the fiber), or an
@@ -103,11 +102,6 @@ returned.
 `Fiber.join(delegate)` adds a `join` instruction to the fiber and returns the
 fiber. `delegate` is an optional object for customizing the beginning of the
 join, and handling individual child fibers ending.
-
-`Fiber.seq(f)` adds a `seq` instruction to the fiber and returns the fiber. If
-no argument is provided, then the child fiber is returned. If present, `f`
-should be a function of one argument that gets called immediately with the
-newly created child fiber, while the parent fiber gets returned.
 
 `Fiber.ever(f)` creates a subsequence within the sequence of instructions of
 the fiber during which instructions get executed even when the fiber has an
@@ -204,11 +198,6 @@ methods, if present, are called:
     * `finalChildFiberDidJoin(child)`: this is called after `childFiberDidJoin`
     and may return `true` to cause the join to end immediately, even if there
     are still children that have not ended.
-* `seq` is a special case of spawning and joining: it spawns a child fiber and
-yields, with the child fiber beginning _immediately_ (even before any other
-child fibers that may have been spawned in the same instant), resuming when the
-child has ended with the child value. In effect, the parent fiber behaves as if
-the child fiber instructions had been inserted in its own list of instructions.
 
 At runtime, fiber instances are not `Fiber` objects but rather `ScheduledFiber`
 objects, and have the following additional properties and methods:
