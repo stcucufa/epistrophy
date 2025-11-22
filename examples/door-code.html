@@ -11,38 +11,14 @@ span.code {
     font-weight: bold;
 }
 
-div.keypad {
-    --button-size: 4em;
-    --gap: 0.5em;
-
-    display: grid;
-    width: calc(3 * var(--button-size) + 2 * var(--gap));
-    margin: auto;
-    grid-template-columns: repeat(3, var(--button-size));
-    grid-template-rows: 3em repeat(4, var(--button-size));
-    gap: var(--gap);
-}
-
-div.keypad output {
-    grid-column-start: 1;
-    grid-column-end: 4;
-    font-size: 2em;
-    text-align: center;
-    line-height: 1.4em;
-    border: solid thin;
-    border-radius: 0.5rem;
-}
-
-div.keypad button {
-    font-size: 2em;
-}
-
         </style>
         <script type="module">
-import { run, Fiber, First, cancelSiblings } from "../lib/shell.js";
+import { run, Fiber, First } from "../lib/shell.js";
 
-const output = document.querySelector("div.keypad output");
-const buttons = [...document.querySelectorAll("div.keypad button")];
+import Keypad from "./keypad.js";
+const keypad = new Keypad();
+document.querySelector("div.example").appendChild(keypad.element);
+
 const code = document.querySelector("span.code").textContent;
 
 run().
@@ -50,7 +26,7 @@ run().
         // Reset code with 5 zero-width whitespace characters and setup the
         // timeout fiber with an infinite delay.
         call(fiber => {
-            output.textContent = "\u200b\u200b\u200b\u200b\u200b";
+            keypad.text = "\u200b\u200b\u200b\u200b\u200b";
             fiber.scope.timeout = fiber.scheduler.attachFiber(fiber, new Fiber().named("timeout").ramp(Infinity));
         }).
         spawn(φ => φ.
@@ -58,21 +34,18 @@ run().
             // reset the timeout delay to 3 seconds before clearing the input
             // again without opening the door.
             loop(φ => φ.
-                K(buttons).
-                mapfirst(φ => φ.
-                    event(({ value: button }) => button, "click").
-                    call(({ value: button, scope: { timeout } }) => {
-                        timeout.scheduler.resetRampDurationForFiber(timeout, 3000);
-                        output.textContent = output.textContent.substr(1) + button.textContent;
-                    })
-                ),
-                { loopShouldEnd: () => output.textContent === code }
+                append(fiber => keypad.button(fiber)).
+                call(({ value: button, scope: { timeout } }) => {
+                    timeout.scheduler.resetRampDurationForFiber(timeout, 3000);
+                    keypad.text = keypad.text.substring(1) + button;
+                }),
+                { loopShouldEnd: () => keypad.text === code }
             ).
             // We have the right code so cancel the timeout and set a new delay
             // before closing the door again.
             call(({ scope: { timeout } }) => { timeout.scheduler.cancelFiber(timeout); }).
             ramp(350).
-            call(() => { output.textContent = "OPEN" }).
+            call(() => { keypad.text = "OPEN" }).
             ramp(2650)
         ).
         join(First)
@@ -82,27 +55,7 @@ run().
     </head>
     <body>
         <h1>Door code example</h1>
-        <div class="example">
-            <div class="keypad">
-                <output></output>
-
-                <button type="button">7</button>
-                <button type="button">8</button>
-                <button type="button">9</button>
-
-                <button type="button">4</button>
-                <button type="button">5</button>
-                <button type="button">6</button>
-
-                <button type="button">1</button>
-                <button type="button">2</button>
-                <button type="button">3</button>
-
-                <button type="button">A</button>
-                <button type="button">0</button>
-                <button type="button">B</button>
-            </div>
-        </div>
+        <div class="example"></div>
         <p>
             Type the door code (hint: it’s <span class="code">B6904</span>) on the keypad to be let in.
             The input resets after three seconds if there is no key press or the correct code was entered (during which
