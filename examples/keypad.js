@@ -9,7 +9,6 @@ export default class Keypad {
         this.buttons = "789456123A0B".split("").map(
             b => html("button", { type: "button", tabindex: 0, "aria-keyboardshortcuts": b }, b)
         );
-        this.div = html("div", { tabindex: 0 }, this.output, this.buttons);
         this.element = html("div",
             html("style", `@scope {
 div {
@@ -37,7 +36,7 @@ output {
 button {
     font-size: 2em;
 }
-            }`), this.div
+            }`), html("div", this.output, this.buttons)
         );
     }
 
@@ -57,7 +56,7 @@ button {
         ));
         fiber.
             spawn(φ => φ.
-                event(this.div, "keydown", {
+                event(document, "keydown", {
                     eventShouldBeIgnored: event => !Object.hasOwn(keys, event.key.toLowerCase()),
                     eventWasHandled(event, fiber) {
                         fiber.value = keys[event.key.toLowerCase()];
