@@ -133,7 +133,7 @@ run().
                         ramp(50).
                         call(({ value: car }) => { car.x += car.v; }),
                         {
-                            loopShouldEnd: (_, { value: car, scope: { cars: [player] } }) =>
+                            loopShouldEnd: ({ value: car, scope: { cars: [player] } }) =>
                                 car.lane === player.lane && car.x > Danger[0] && car.x < Danger[1]
                         }
                     )
