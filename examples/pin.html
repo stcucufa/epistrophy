@@ -18,6 +18,7 @@ import { run, Times } from "../lib/shell.js";
 import Keypad from "./keypad.js";
 const keypad = new Keypad();
 document.querySelector("div.example").appendChild(keypad.element);
+keypad.div.focus();
 
 const pin = document.querySelector("span.pin").textContent;
 

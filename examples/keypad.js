@@ -6,7 +6,10 @@ export default class Keypad {
     // Create a new keypad element with the given button layout.
     constructor() {
         this.output = html("output");
-        this.buttons = "789456123A0B".split("").map(b => html("button", { type: "button" }, b));
+        this.buttons = "789456123A0B".split("").map(
+            b => html("button", { type: "button", tabindex: 0, "aria-keyboardshortcuts": b }, b)
+        );
+        this.div = html("div", { tabindex: 0 }, this.output, this.buttons);
         this.element = html("div",
             html("style", `@scope {
 div {
@@ -34,7 +37,7 @@ output {
 button {
     font-size: 2em;
 }
-            }`), html("div", this.output, this.buttons)
+            }`), this.div
         );
     }
 
@@ -54,9 +57,9 @@ button {
         ));
         fiber.
             spawn(φ => φ.
-                event(this.element, "keydown", {
+                event(this.div, "keydown", {
                     eventShouldBeIgnored: event => !Object.hasOwn(keys, event.key.toLowerCase()),
-                    eventWasHandled: (event, fiber) => {
+                    eventWasHandled(event, fiber) {
                         fiber.value = keys[event.key.toLowerCase()];
                     }
                 })
