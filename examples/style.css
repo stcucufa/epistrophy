@@ -26,8 +26,13 @@ a {
     color: var(--picotron-dark-orange);
 }
 
-button {
-    font-size: 1em;
+button, input {
+    font-family: inherit;
+    font-size: 100%;
+}
+
+input[type="search"] {
+    -webkit-appearance: textfield;
 }
 
 .example {
@@ -37,12 +42,4 @@ button {
 
 span.todo {
     background-color: var(--picotron-yellow);
-}
-
-.search-ac input {
-    font-size: 1em;
-}
-
-.search-ac .error {
-    color: var(--picotron-red);
 }
