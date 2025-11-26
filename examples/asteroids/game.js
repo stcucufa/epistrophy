@@ -61,11 +61,11 @@ export default class Game extends EventTarget {
     // Update all game objects by calling their update function, collecting
     // the set of objects that are leaving (e.g., the ship or an asteroid
     // exploding) or entering (e.g., particles or smaller asteroids).
-    update() {
+    update(dt) {
         const enter = new Set();
         const leave = new Set();
         for (const object of this.objects) {
-            object.update?.(enter, leave, this.inputs);
+            object.update?.(dt, enter, leave, this.inputs);
         }
         for (const object of leave) {
             this.removeObject(object);
@@ -192,11 +192,12 @@ class Sprite extends EventTarget {
         customEvent.call(this, type, detail);
     }
 
-    update() {
-        this.angle += this.angularVelocity;
-        this.velocity = clamp(this.velocity + this.acceleration, 0, this.maxVelocity)
-        this.x = (this.game.width + this.x + this.velocity * Math.cos(this.heading ?? this.angle)) % this.game.width;
-        this.y = (this.game.height + this.y + this.velocity * Math.sin(this.heading ?? this.angle)) % this.game.height;
+    update(dt) {
+        this.angle += this.angularVelocity * dt;
+        this.velocity = clamp(this.velocity + this.acceleration, 0, this.maxVelocity);
+        const velocity = this.velocity * dt;
+        this.x = (this.game.width + this.x + velocity * Math.cos(this.heading ?? this.angle)) % this.game.width;
+        this.y = (this.game.height + this.y + velocity * Math.sin(this.heading ?? this.angle)) % this.game.height;
     }
 
     resolveCollisions(enter, leave, others) {
@@ -253,8 +254,8 @@ class Bullet extends PointParticle {
         this.angle = angle;
     }
 
-    update(enter, leave) {
-        super.update(enter, leave);
+    update(dt, enter, leave) {
+        super.update(dt, enter, leave);
         this.resolveCollisions(enter, leave, this.game.collidesWithBullet);
     }
 }
@@ -323,11 +324,11 @@ class Ship extends Sprite {
 
     // Set the acceleration and angular velocity based on inputs then emit
     // exhaust particles if thrusting.
-    update(enter, leave, inputs) {
+    update(dt, enter, leave, inputs) {
         this.acceleration = inputs.has("Thrust") ? this.maxAcceleration : this.friction;
         this.angularVelocity = inputs.has("Right") ? this.maxAngularVelocity :
             inputs.has("Left") ? -this.maxAngularVelocity : 0;
-        super.update(enter, leave, inputs);
+        super.update(dt, enter, leave, inputs);
         if (inputs.has("Shoot")) {
             inputs.delete("Shoot");
             enter.add(new Bullet(this.x + this.dx, this.y + this.dy, this.angle));
@@ -417,8 +418,8 @@ class Asteroid extends Sprite {
         this.stroke(context);
     }
 
-    update(enter, leave) {
-        super.update(enter, leave);
+    update(dt, enter, leave) {
+        super.update(dt, enter, leave);
         this.resolveCollisions(enter, leave, this.game.collidesWithAsteroid);
     }
 
