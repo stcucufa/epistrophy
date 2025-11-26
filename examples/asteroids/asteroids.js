@@ -1,7 +1,7 @@
 import { run, Fiber, First, FirstValue } from "../../lib/shell.js";
 import Game, { Text } from "./game.js";
 
-const UpdateDuration = 1000 / Game.UpdateFPS;
+const UpdateRate = Game.UpdateFPS / 1000;
 
 run().
 
@@ -20,38 +20,40 @@ run().
     }).
 
     // Pause and resume the game fiber when pressing P.
-    loop(fiber => fiber.
+    loop(φ => φ.
         event(window, "keydown", { eventShouldBeIgnored: ({ key }) => key !== "p" }).
         call(({ scheduler, scope: { gameFiber } }) => { scheduler.setRateForFiber(gameFiber, 1 - gameFiber.rate); })
     ).
 
-    spawn(fiber => fiber.
+    spawn(φ => φ.
 
         // Register self in the parent scope as the game fiber to be paused by
         // its sibling.
         call(fiber => { fiber.parent.scope.gameFiber = fiber; }).
 
         // Draw loop: draw the game.
-        spawn(fiber => fiber.ramp(Infinity, ({ value: game }) => { game.draw(); })).
+        spawn(φ => φ.ramp(Infinity, ({ value: game }) => { game.draw(); })).
 
         // Update loop: update all game objects and gather the list of new
         // objects resulting from the updates, setting a timeout to remove all
         // those that have a duration (particles).
-        loop(fiber => fiber.
-            ramp(UpdateDuration).
-            call(({ value: game }) => {
-                const [enter] = game.update();
-                return [...enter].filter(object => object.durationMs >= 0);
-            }).
-            mapspawn(fiber => fiber.
-                ramp(({ value: { durationMs } }) => durationMs).
-                call(({ value: object }) => { object.game.removeObject(object); })
-            ).
-            call(fiber => fiber.parent.value)
+        loop(φ => φ.
+            ramp(Infinity, fiber => {
+                const particleFiber = new Fiber().
+                    ramp(({ value: { durationMs } }) => durationMs).
+                    call(({ value: object }) => { object.game.removeObject(object); });
+                const { value: game, ramp: { dt }, scheduler } = fiber;
+                const [enter] = game.update(dt * UpdateRate);
+                for (const object of enter) {
+                    if (object.durationMs >= 0) {
+                        scheduler.attachFiberWithValue(fiber, particleFiber, object);
+                    }
+                }
+            })
         ).
 
         // Game loop.
-        loop(fiber => fiber.
+        loop(φ => φ.
 
             // Title screen.
             call(({ value: game }) => { game.reset(); }).
@@ -59,7 +61,7 @@ run().
 
             // Enemies
             // FIXME 500E Asteroids: UFO
-            loop(fiber => fiber.
+            loop(φ => φ.
                 call(fiber => {
                     const asteroidFiber = new Fiber().
                         event(({ value: asteroid }) => asteroid, "collided", {
@@ -82,8 +84,8 @@ run().
                     game.inputs.clear();
                     scope.text = game.addObject(new Text(`LEVEL ${game.level}`));
                 }).
-                spawn(fiber => fiber.event(({ value: game }) => game, "anykey")).
-                spawn(fiber => fiber.ramp(1000)).
+                spawn(φ => φ.event(({ value: game }) => game, "anykey")).
+                spawn(φ => φ.ramp(1000)).
                 join().
                 call(({ value: game, scope }) => {
                     game.removeObject(scope.text);
@@ -94,8 +96,8 @@ run().
             // Player loop: spawn a new ship and wait for it to be destroyed, then for
             // the debris to clear up before spawning a new one, as long as the player
             // has lives left.
-            spawn(fiber => fiber.
-                loop(fiber => fiber.
+            spawn(φ => φ.
+                loop(φ => φ.
 
                     // Create a ship and use it as value for the fiber; also save to scope.
                     call(({ scope, value: game }) => {
@@ -207,7 +209,7 @@ function keyup(event, game) {
 
 // Show text and wait for any key before removing it.
 function text(t) {
-    return fiber => fiber.
+    return φ => φ.
         call(({ value: game, scope }) => {
             game.inputs.clear();
             scope.text = game.addObject(new Text(t));
