@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Kernel: reverse call</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { Scheduler, Fiber, run } from "../lib/shell.js";
+
+test("Reversing self (instant)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        K(17).
+        rate(-1).
+        call(() => { throw Error("unreachable"); }),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+test("Reversing self (delay)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        K(17).
+        ramp(444).
+        K(23).
+        ramp(333).
+        K(31).
+        rate(-1).
+        call(() => { throw Error("unreachable"); }),
+        0
+    );
+    scheduler.clock.now = 999;
+    t.same(scheduledFiber.now, 444, "fiber is reversing");
+    t.same(scheduledFiber.value, 23, "with value for t=444");
+    scheduler.clock.now = 1111;
+    t.same(scheduledFiber.now, 0, "fiber is still reversing");
+    t.same(scheduledFiber.value, 17, "with value for t=0");
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+test("Reversing self (rate)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        rate(7).
+        K(17).
+        ramp(444).
+        K(23).
+        ramp(333).
+        K(31).
+        rate(-1).
+        call(() => { throw Error("unreachable"); }),
+        0
+    );
+    scheduler.clock.now = 222;
+    t.same(scheduledFiber.now, 444, "fiber is reversing");
+    t.same(scheduledFiber.value, 23, "with value for t=444");
+});
+
+test("Reversing self (reverse rate)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        K(17).
+        ramp(444).
+        K(23).
+        ramp(333).
+        K(31).
+        rate(-7).
+        call(() => { throw Error("unreachable"); }),
+        0
+    );
+    scheduler.clock.now = 888;
+    t.same(scheduledFiber.now, 0, "fiber is reversing");
+    t.same(scheduledFiber.value, 17, "with no value for t=0");
+    scheduler.clock.now = 888.888;
+    t.same(scheduledFiber.now, 0, "fiber has reversed");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+test("Reversing self (from ∞)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        rate(Infinity).
+        K(17).
+        ramp(444).
+        K(23).
+        ramp(333).
+        K(31).
+        rate(-1).
+        call(() => { throw Error("unreachable"); }),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber has reversed");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+test("Reversing self (-∞)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        K(17).
+        ramp(444).
+        K(23).
+        ramp(333).
+        K(31).
+        rate(-Infinity).
+        call(() => { throw Error("unreachable"); }),
+        0
+    );
+    scheduler.clock.now = 777;
+    t.same(scheduledFiber.now, 444, "fiber is about to reverse");
+    scheduler.clock.now = 777.777;
+    t.same(scheduledFiber.now, 0, "fiber has reversed");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+test("Shell: initial value for fiber", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => scheduler.attachFiberWithValue(φ, new Fiber().
+            call(φ => { t.same(φ.value, 17, "child fiber has the right value"); }),
+            17)
+        ),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Kernel: reverse call</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>

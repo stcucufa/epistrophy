@@ -42,7 +42,7 @@ run().
             {
                 loopShouldEnd(fiber) {
                     const ok = fiber.value;
-                    delete fiber.value;
+                    fiber.value = undefined;
                     if (ok || this.iterationCount < 3) {
                         return ok;
                     }
