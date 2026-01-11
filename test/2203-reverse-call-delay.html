@@ -143,6 +143,27 @@ test("Reversing self (-∞)", t => {
     t.undefined(scheduledFiber.scope, "and no scope at all");
 });
 
+test("Reversing self (error)", t => {
+    const scheduler = new Scheduler();
+    const error = Error("failed");
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        ramp(333).
+        fail(error).
+        ever(φ => φ.rate(-1)),
+        0
+    );
+    scheduler.clock.now = 444;
+    t.same(scheduledFiber.now, 0, "fiber is reversing");
+    t.same(scheduledFiber.error, error, "with error");
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
 test("Shell: initial value for fiber", t => {
     const scheduler = new Scheduler();
     scheduler.scheduleFiber(new Fiber().
