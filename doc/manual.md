@@ -370,6 +370,9 @@ fiber.append(fiber => {
 function that returns `x` (_i.e._, `K(x)` ≡ `call(() => x)`). This is useful
 for setting the value of a fiber to a known, constant value.
 
+* `Fiber.fail(error)` makes the fiber fail with an error (the given error, or
+some error by default).
+
 * `Fiber.rate(x)` sets the rate of the fiber relative to its parent: time
 flows twice as fast in a fiber with a rate of 2 than it does in its parent;
 twice as slow with a rate of 0.5. Rate must be a finite number greater than 0.
