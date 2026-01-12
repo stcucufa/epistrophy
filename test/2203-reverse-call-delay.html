@@ -8,6 +8,7 @@
         <script type="module">
 
 import test from "./test.js";
+import { customEvent } from "../lib/util.js";
 import { Scheduler, Fiber, run } from "../lib/shell.js";
 
 test("Reversing self (instant)", t => {
@@ -48,6 +49,31 @@ test("Reversing self (delay)", t => {
     t.same(scheduledFiber.now, 0, "fiber is still reversing");
     t.same(scheduledFiber.value, 17, "with value for t=0");
     scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+test("Reversing self (event)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        K(17).
+        event(window, "hello").
+        rate(-1).
+        call(() => { throw Error("unreachable"); }),
+        0
+    );
+    scheduler.clock.now = 222;
+    t.same(scheduledFiber.now, 0, "fiber is waiting for an event");
+    t.same(scheduledFiber.value, 17, "with expected value");
+    customEvent.call(window, "hello");
+    scheduler.clock.now = 444;
+    t.same(scheduledFiber.now, 0, "fiber is reversing");
+    t.same(scheduledFiber.value, 17, "with value");
+    scheduler.clock.now = 444.444;
     t.same(scheduledFiber.now, 0, "fiber ended at 0");
     t.undefined(scheduledFiber.value, "with no value");
     t.undefined(scheduledFiber.error, "and no error");
