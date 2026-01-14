@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Failing ramp should not call f</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { customEvent } from "../lib/util.js";
+import { Scheduler, Fiber, run } from "../lib/shell.js";
+
+test("f should not be called when the ramp ends", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        ramp(777, fiber => {
+            t.undefined(fiber.error, "no error yet");
+            fiber.fail();
+        }).
+        ever(φ => φ.
+            call(() => { t.pass("ramp ended"); })
+        ),
+        0
+    );
+    scheduler.clock.now = 333;
+    scheduler.clock.now = Infinity;
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Failing ramp should not call f</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>
