@@ -11,15 +11,17 @@ import test from "./test.js";
 import { customEvent } from "../lib/util.js";
 import { Scheduler, Fiber, run } from "../lib/shell.js";
 
-test("f should not be called when the ramp ends", t => {
+test("Ramp terminates early in case of failure", t => {
     const scheduler = new Scheduler();
     scheduler.scheduleFiber(new Fiber().
         ramp(777, fiber => {
-            t.undefined(fiber.error, "no error yet");
-            fiber.fail();
+            t.undefined(fiber.error, `no error yet (t=${fiber.now})`);
+            if (fiber.now > 0) {
+                fiber.fail();
+            }
         }).
         ever(φ => φ.
-            call(() => { t.pass("ramp ended"); })
+            call(fiber => { t.same(fiber.now, 333, "ramp ended early at t=333"); })
         ),
         0
     );
