@@ -15,7 +15,7 @@ test("Fiber.fail(error)", t => {
     const error = Error("failed");
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         fail(error),
         0
     );
@@ -29,8 +29,37 @@ test("Fiber.fail()", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         fail(),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.true(scheduledFiber.error instanceof Error, "and an error");
+});
+
+test("ScheduledFiber.fail(error)", t => {
+    const scheduler = new Scheduler();
+    const error = Error("failed");
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        call(fiber => { fiber.fail(error); }),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.same(scheduledFiber.error, error, "and expected error");
+});
+
+test("ScheduledFiber.fail()", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        call(fiber => { fiber.fail(); }),
         0
     );
     scheduler.clock.now = Infinity;

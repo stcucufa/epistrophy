@@ -371,7 +371,7 @@ function that returns `x` (_i.e._, `K(x)` ≡ `call(() => x)`). This is useful
 for setting the value of a fiber to a known, constant value.
 
 * `Fiber.fail(error)` makes the fiber fail with an error (the given error, or
-some error by default).
+some error by default). `ScheduledFiber` also defines this function.
 
 * `Fiber.rate(x)` sets the rate of the fiber relative to its parent: time
 flows twice as fast in a fiber with a rate of 2 than it does in its parent;
