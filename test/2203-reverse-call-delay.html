@@ -18,7 +18,7 @@ test("Reversing self (instant)", t => {
         call(φ => { scheduledFiber = φ; }).
         K(17).
         rate(-1).
-        call(() => { throw Error("unreachable"); }),
+        fail(Error("unreachable")),
         0
     );
     scheduler.clock.now = Infinity;
@@ -39,7 +39,7 @@ test("Reversing self (delay)", t => {
         ramp(333).
         K(31).
         rate(-1).
-        call(() => { throw Error("unreachable"); }),
+        fail(Error("unreachable")),
         0
     );
     scheduler.clock.now = 999;
@@ -63,7 +63,7 @@ test("Reversing self (event)", t => {
         K(17).
         event(window, "hello").
         rate(-1).
-        call(() => { throw Error("unreachable"); }),
+        fail(Error("unreachable")),
         0
     );
     scheduler.clock.now = 222;
@@ -92,7 +92,7 @@ test("Reversing self (rate)", t => {
         ramp(333).
         K(31).
         rate(-1).
-        call(() => { throw Error("unreachable"); }),
+        fail(Error("unreachable")),
         0
     );
     scheduler.clock.now = 222;
@@ -111,7 +111,7 @@ test("Reversing self (reverse rate)", t => {
         ramp(333).
         K(31).
         rate(-7).
-        call(() => { throw Error("unreachable"); }),
+        fail(Error("unreachable")),
         0
     );
     scheduler.clock.now = 888;
@@ -136,7 +136,7 @@ test("Reversing self (from ∞)", t => {
         ramp(333).
         K(31).
         rate(-1).
-        call(() => { throw Error("unreachable"); }),
+        fail(Error("unreachable")),
         0
     );
     scheduler.clock.now = Infinity;
@@ -157,7 +157,7 @@ test("Reversing self (-∞)", t => {
         ramp(333).
         K(31).
         rate(-Infinity).
-        call(() => { throw Error("unreachable"); }),
+        fail(Error("unreachable")),
         0
     );
     scheduler.clock.now = 777;
