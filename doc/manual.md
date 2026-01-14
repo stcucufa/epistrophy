@@ -463,14 +463,6 @@ fiber.
     );
 ```
 
-These additional methods are available at runtime:
-
-* `ScheduledFiber.setOriginalValue(name, value)`: sets the value of a property
-named `name` to `value` _in its original scope_, that is, the scope of the
-fiber in which this property was originally defined (see example usage above).
-If this property was not previously defined, then it is set on the fiber’s own
-scope.
-
 ### Scheduler utilities
 
 The shell adds convenience methods to the scheduler:
