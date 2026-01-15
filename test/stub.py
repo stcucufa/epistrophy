@@ -31,6 +31,7 @@ import {{ Scheduler, Fiber }} from "../lib/shell.js";
 </html>""".format(title=title))
 
 # Link from index
+# 5E04 Tool: better stub link insert
 
 with open(os.path.join(dir, "index.html"), "a") as html_file:
     html_file.write("<li>{file}</li>".format(file=file))
