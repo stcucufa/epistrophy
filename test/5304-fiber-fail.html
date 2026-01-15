@@ -11,7 +11,43 @@ import test from "./test.js";
 import { customEvent } from "../lib/util.js";
 import { Scheduler, Fiber, run } from "../lib/shell.js";
 
-test("Ramp terminates early in case of failure", t => {
+test("Ramp terminates immediately in case of failure", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        ramp(777, fiber => {
+            t.undefined(fiber.error, `no error yet (t=${fiber.now})`);
+            fiber.fail();
+        }).
+        ever(φ => φ.
+            call(fiber => {
+                t.same(fiber.now, 0, "ramp ended early at t=0");
+                t.ok(fiber.error, "and is failing");
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+test("Ramp terminates immediately in case of error", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        ramp(777, fiber => {
+            t.undefined(fiber.error, `no error yet (t=${fiber.now})`);
+            throw Error("AUGH");
+        }).
+        ever(φ => φ.
+            call(fiber => {
+                t.same(fiber.now, 0, "ramp ended early at t=0");
+                t.ok(fiber.error, "and is failing");
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+test("Ramp terminates early in case of failure while in progress", t => {
     const scheduler = new Scheduler();
     scheduler.scheduleFiber(new Fiber().
         ramp(777, fiber => {
@@ -21,13 +57,80 @@ test("Ramp terminates early in case of failure", t => {
             }
         }).
         ever(φ => φ.
-            call(fiber => { t.same(fiber.now, 333, "ramp ended early at t=333"); })
+            call(fiber => {
+                t.same(fiber.now, 333, "ramp ended early at t=333");
+                t.ok(fiber.error, "and is failing");
+            })
         ),
         0
     );
     scheduler.clock.now = 333;
     scheduler.clock.now = Infinity;
 });
+
+test("Ramp terminates early in case of error while in progress", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        ramp(777, fiber => {
+            t.undefined(fiber.error, `no error yet (t=${fiber.now})`);
+            if (fiber.now > 0) {
+                throw Error("AUGH");
+            }
+        }).
+        ever(φ => φ.
+            call(fiber => {
+                t.same(fiber.now, 333, "ramp ended early at t=333");
+                t.ok(fiber.error, "and is failing");
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = 333;
+    scheduler.clock.now = Infinity;
+});
+
+test("Ramp terminates in case of failure while in progress at infinite rate", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        rate(Infinity).
+        ramp(777, fiber => {
+            t.undefined(fiber.error, `no error yet (p=${fiber.p})`);
+            if (fiber.p === 1) {
+                fiber.fail();
+            }
+        }).
+        ever(φ => φ.
+            call(fiber => {
+                t.same(fiber.now, 777, "ramp ended");
+                t.ok(fiber.error, "and is failing");
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+test("Ramp terminates in case of error while in progress at infinite rate", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        rate(Infinity).
+        ramp(777, fiber => {
+            t.undefined(fiber.error, `no error yet (p=${fiber.p})`);
+            if (fiber.p === 1) {
+                throw Error("AUGH");
+            }
+        }).
+        ever(φ => φ.
+            call(fiber => {
+                t.same(fiber.now, 777, "ramp ended");
+                t.ok(fiber.error, "and is failing");
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
 
         </script>
     </head>
