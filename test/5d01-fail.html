@@ -12,6 +12,12 @@ import { Scheduler, Fiber } from "../lib/shell.js";
 
 test("Fiber.fail(error)", t => {
     const scheduler = new Scheduler();
+    let messageReceived = false;
+    scheduler.addEventListener("error", ({ detail }) => {
+        t.same(detail.fiber, scheduledFiber, "failing generates an error message from the fiber");
+        t.same(detail.error, error, "with the expected error");
+        messageReceived = true;
+    });
     const error = Error("failed");
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
@@ -23,6 +29,9 @@ test("Fiber.fail(error)", t => {
     t.same(scheduledFiber.now, 0, "fiber ended at 0");
     t.undefined(scheduledFiber.value, "with no value");
     t.same(scheduledFiber.error, error, "and expected error");
+    if (!messageReceived) {
+        t.fail("missing error message from the fiber");
+    }
 });
 
 test("Fiber.fail()", t => {
