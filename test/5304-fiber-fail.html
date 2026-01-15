@@ -110,10 +110,50 @@ test("Ramp terminates in case of failure while in progress at infinite rate", t 
     scheduler.clock.now = Infinity;
 });
 
-test("Ramp terminates in case of error while in progress at infinite rate", t => {
+test("Ramp terminates in case of failure while in progress at infinite rate", t => {
     const scheduler = new Scheduler();
     scheduler.scheduleFiber(new Fiber().
         rate(Infinity).
+        ramp(777, fiber => {
+            t.undefined(fiber.error, `no error yet (p=${fiber.p})`);
+            if (fiber.p === 1) {
+                fiber.fail();
+            }
+        }).
+        ever(φ => φ.
+            call(fiber => {
+                t.same(fiber.now, 777, "ramp ended");
+                t.ok(fiber.error, "and is failing");
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+test("Ramp terminates in case of error while ending", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
+        ramp(777, fiber => {
+            t.undefined(fiber.error, `no error yet (p=${fiber.p})`);
+            if (fiber.p === 1) {
+                throw Error("AUGH");
+            }
+        }).
+        ever(φ => φ.
+            call(fiber => {
+                t.same(fiber.now, 777, "ramp ended");
+                t.ok(fiber.error, "and is failing");
+            })
+        ),
+        0
+    );
+    scheduler.clock.now = Infinity;
+});
+
+test("Ramp terminates in case of error while ending", t => {
+    const scheduler = new Scheduler();
+    scheduler.scheduleFiber(new Fiber().
         ramp(777, fiber => {
             t.undefined(fiber.error, `no error yet (p=${fiber.p})`);
             if (fiber.p === 1) {
