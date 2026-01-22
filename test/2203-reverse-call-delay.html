@@ -9,13 +9,13 @@
 
 import test from "./test.js";
 import { customEvent } from "../lib/util.js";
-import { Scheduler, Fiber, run } from "../lib/shell.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
 
 test("Reversing self (instant)", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         K(17).
         rate(-1).
         fail(Error("unreachable")),
@@ -32,7 +32,7 @@ test("Reversing self (delay)", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         K(17).
         ramp(444).
         K(23).
@@ -59,7 +59,7 @@ test("Reversing self (event)", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         K(17).
         event(window, "hello").
         rate(-1).
@@ -84,7 +84,7 @@ test("Reversing self (rate)", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         rate(7).
         K(17).
         ramp(444).
@@ -104,7 +104,7 @@ test("Reversing self (reverse rate)", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         K(17).
         ramp(444).
         K(23).
@@ -128,7 +128,7 @@ test("Reversing self (from ∞)", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         rate(Infinity).
         K(17).
         ramp(444).
@@ -150,7 +150,7 @@ test("Reversing self (-∞)", t => {
     const scheduler = new Scheduler();
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         K(17).
         ramp(444).
         K(23).
@@ -174,10 +174,10 @@ test("Reversing self (error)", t => {
     const error = Error("failed");
     let scheduledFiber;
     scheduler.scheduleFiber(new Fiber().
-        call(φ => { scheduledFiber = φ; }).
+        call(fiber => { scheduledFiber = fiber; }).
         ramp(333).
         fail(error).
-        ever(φ => φ.rate(-1)),
+        ever(fiber => fiber.rate(-1)),
         0
     );
     scheduler.clock.now = 444;
@@ -190,11 +190,38 @@ test("Reversing self (error)", t => {
     t.undefined(scheduledFiber.scope, "and no scope at all");
 });
 
+test("Reversing self (offset begin)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        K(17).
+        ramp(444).
+        K(23).
+        ramp(333).
+        K(31).
+        rate(-1).
+        fail(Error("unreachable")),
+        1000
+    );
+    scheduler.clock.now = 1999;
+    t.same(scheduledFiber.now, 444, "fiber is reversing");
+    t.same(scheduledFiber.value, 23, "with value for t=444");
+    scheduler.clock.now = 2111;
+    t.same(scheduledFiber.now, 0, "fiber is still reversing");
+    t.same(scheduledFiber.value, 17, "with value for t=0");
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
 test("Shell: initial value for fiber", t => {
     const scheduler = new Scheduler();
     scheduler.scheduleFiber(new Fiber().
-        call(φ => scheduler.attachFiberWithValue(φ, new Fiber().
-            call(φ => { t.same(φ.value, 17, "child fiber has the right value"); }),
+        call(fiber => scheduler.attachFiberWithValue(fiber, new Fiber().
+            call(fiber => { t.same(fiber.value, 17, "child fiber has the right value"); }),
             17)
         ),
         0

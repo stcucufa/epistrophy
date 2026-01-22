@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Kernel: reverse ramp</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
+
+test("Figuring things out", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        K(17).
+        ramp(777).
+        K(23).
+        ramp(222),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    console.log(scheduledFiber);
+});
+
+test("Reversing a ramp", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    const ramp = [];
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        ramp(888, fiber => { ramp.push([fiber.scheduler.now, fiber.now, fiber.p]); }).
+        fail(),
+        0
+    );
+    scheduler.scheduleFiber(new Fiber().
+        ramp(222).
+        call(({ scheduler }) => { scheduler.setRateForFiber(scheduledFiber, -1); }),
+        0
+    );
+    scheduler.clock.now = 111;
+    scheduler.clock.now = Infinity;
+    t.equal(ramp, [[0, 0, 0], [111, 111, 0.125], [444, 0, 0]], "ramp went through expected steps");
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+test("Reversing another ramp", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    const ramp = window.RAMP = [];
+    scheduler.scheduleFiber(new Fiber().
+        call(fiber => { scheduledFiber = fiber; }).
+        ramp(888, fiber => { ramp.push(["A", fiber.scheduler.now, fiber.now, fiber.p]); }).
+        K(17).
+        ramp(999, fiber => { ramp.push(["B", fiber.scheduler.now, fiber.now, fiber.p]); }).
+        fail(),
+        0
+    );
+    scheduler.scheduleFiber(new Fiber().
+        ramp(1000).
+        call(() => {
+            console.log(scheduledFiber.trace);
+        }).
+        call(({ scheduler }) => { scheduler.setRateForFiber(scheduledFiber, -1); }),
+        0
+    );
+    scheduler.clock.now = 444;
+    scheduler.clock.now = 999;
+    scheduler.clock.now = Infinity;
+    console.log(ramp);
+    t.same(scheduledFiber.now, 0, "fiber ended at 0");
+    t.undefined(scheduledFiber.value, "with no value");
+    t.undefined(scheduledFiber.error, "and no error");
+    t.undefined(scheduledFiber.scope, "and no scope at all");
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Kernel: reverse ramp</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>
