@@ -18,9 +18,15 @@ test("Figuring things out", t => {
         K(17).
         ramp(777).
         K(23).
-        ramp(222),
+        ramp(222, fiber => { fiber.value += 1 }),
         0
     );
+    //scheduler.clock.now = 800;
+    //scheduler.clock.now = 850;
+    //scheduler.clock.now = 900;
+    //scheduler.clock.now = 950;
+    scheduler.clock.now = 444;
+    scheduler.clock.now = 888;
     scheduler.clock.now = Infinity;
     console.log(scheduledFiber);
 });
