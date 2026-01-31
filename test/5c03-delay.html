@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Kernel: delay</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { Scheduler, Fiber, Instant } from "../lib/shell.js";
+
+test("Fiber.delay(dur), dur > 0", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay(444).
+        K(17),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 444, "fiber ended after the delay");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+test("Fiber.delay(dur), dur > 0 at rate", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        rate(0.5).
+        delay(444).
+        K(17),
+        0
+    );
+    scheduler.clock.now = 444;
+    t.undefined(scheduledFiber.value, "no value yet");
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 444, "fiber ended after the delay");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+test("Fiber.delay(dur), dur > 0 at infinite rate", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        rate(Infinity).
+        delay(444).
+        K(17),
+        0
+    );
+    scheduler.clock.now = 1;
+    t.same(scheduledFiber.now, 444, "fiber ended after the delay");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+test("Fiber.delay(∞)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay(Infinity).
+        K(17),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber has not ended");
+    t.undefined(scheduledFiber.value, "without value");
+});
+
+test("Fiber.delay(0)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay(0).
+        K(17),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended after no delay");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+test("Fiber.delay(dur), dur < 0 ", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay(-444).
+        K(17),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 0, "fiber ended after the delay");
+    t.ok(scheduledFiber.error.message, "with an error");
+});
+
+test("Fiber.delay(Instant)", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay(Instant).
+        K(17),
+        0
+    );
+    scheduler.clock.now = 23;
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 23, "fiber ended after an instant");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+test("Fiber.delay(Instant) at infinite rate", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        rate(Infinity).
+        delay(Instant).
+        K(17),
+        0
+    );
+    scheduler.clock.now = 1;
+    t.same(scheduledFiber.now, Infinity, "fiber ended after the delay");
+    t.undefined(scheduledFiber.value, "at infinity");
+});
+
+test("Fiber.delay(f), f returns dur > 0", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        K(444).
+        delay(({ value }) => value).
+        K(17),
+        0
+    );
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 444, "fiber ended after the delay");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+test("Fiber.delay() defaults to Instant", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay().
+        K(17),
+        0
+    );
+    scheduler.clock.now = 23;
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 23, "fiber ended after an instant");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Kernel: delay</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>

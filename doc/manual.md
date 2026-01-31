@@ -25,7 +25,7 @@ Here is a tiny Epistrophy program:
 ```js
 import { Fiber, Scheduler } from "./lib/unrated.js";
 const fiber = new Fiber().
-    ramp(1000).
+    delay(1000).
     call(() => { console.log("Hello, world!"); });
 const scheduler = new Scheduler();
 scheduler.scheduleFiber(fiber, 0);
@@ -43,10 +43,12 @@ making Epistrophy suitable for visual-driven applications like graphical user
 interfaces, games, or multimedia presentations). The final line starts the
 clock so that the program actually begins.
 
-Epistrophy is built around a minimal core of six instructions:
+Epistrophy is built around a minimal core of seven instructions:
 
 * _call_ calls a synchronous function;
-* _ramp_ waits until some amount of time (given in milliseconds) has elapsed;
+* _delay_ waits until some amount of time (given in milliseconds) has elapsed;
+* _ramp_ calls a synchronous function at various intervals during some amount
+of time (given in milliseconds);
 * _event_ waits until a DOM event is received;
 * _await_ calls an asynchronous function and waits until a value or an error is
 eventually returned;
@@ -56,11 +58,12 @@ to begin in the same instant;
 
 When a fiber is running, it keeps executing instructions one after the other
 until it reaches the end of the sequence (which ends the fiber), or an
-instruction that needs to wait (_ramp_, if the duration is greater than zero;
-_event_, _await_, and _join_, if child fibers have been spawned). In that case,
-the scheduler reschedules the fiber at a definite time (in the case of a ramp),
-or sets up the necessary mechanism (such as an event listener for an event) to
-schedule the fiber again when the condition that it is waiting on is fulfilled.
+instruction that needs to wait (_delay_ or _ramp_, if the duration is greater
+than zero; _event_, _await_, and _join_, if child fibers have been spawned). In
+that case, the scheduler reschedules the fiber at a definite time (in the case
+of a delay), or sets up the necessary mechanism (such as an event listener for
+an event) to schedule the fiber again when the condition that it is waiting on
+is fulfilled.
 
 ## Creating and scheduling fibers
 
@@ -71,6 +74,12 @@ methods. The runtime behaviour of these instructions is detailed below.
 `Fiber.call(f)` adds a `call` instruction to the fiber and returns the fiber.
 `f` should be a synchronous function of one parameter (a fiber instance) that
 gets called when the instruction is executed.
+
+`Fiber.delay(dur)` adds a `delay` instruction to the fiber and returns the
+fiber. A valid duration is a number greater than or equal to zero, or the
+special `Instant` value; `dur` should be a valid duration, or a function of one
+argument (a fiber instance) that returns a valid duration, specifying the
+duration of the delay in milliseconds or as an “instant”.
 
 `Fiber.ramp(dur, f)` adds a `ramp` instruction to the fiber and returns the
 fiber. `dur` should be a number greater than or equal to zero, or a function

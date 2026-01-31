@@ -95,7 +95,7 @@ run().
 
             // Light up O and wait indefinitely.
             call(() => { O.classList.add("on"); }).
-            ramp(Infinity).
+            delay(Infinity).
 
             // When the fiber is cancelled, reset all elements
             // their initial state.
