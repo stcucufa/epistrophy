@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Kernel: update rate during delay</title>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="style.css"/>
+        <script type="module">
+
+import test from "./test.js";
+import { Scheduler, Fiber } from "../lib/shell.js";
+
+test("Pause/unpause a delayed fiber", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay(444).
+        K(17),
+        0
+    );
+    scheduler.clock.now = 222;
+    t.same(scheduledFiber.now, 0, "fiber is delayed");
+    scheduler.setRateForFiber(scheduledFiber, 0);
+    scheduler.clock.now = 777;
+    t.same(scheduledFiber.now, 0, "fiber is still delayed");
+    scheduler.setRateForFiber(scheduledFiber, 1);
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 444, "fiber ended after the delay");
+    t.same(scheduledFiber.result, 17, "with expected value");
+});
+
+        </script>
+    </head>
+    <body>
+        <h1>Kernel: update rate during delay</h1>
+        <div class="tests"></div>
+        <p>
+            <a href="index.html">Back</a>
+        </p>
+    </body>
+</html>
