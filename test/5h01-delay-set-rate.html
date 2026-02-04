@@ -30,6 +30,23 @@ test("Pause/unpause a delayed fiber", t => {
     t.same(scheduledFiber.result, 17, "with expected value");
 });
 
+test("Change rate of a delayed fiber", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        call(φ => { scheduledFiber = φ; }).
+        delay(444).
+        call(({ scheduler: { now } }) => now),
+        0
+    );
+    scheduler.clock.now = 333;
+    t.same(scheduledFiber.now, 0, "fiber is delayed");
+    scheduler.setRateForFiber(scheduledFiber, 0.25);
+    scheduler.clock.now = Infinity;
+    t.same(scheduledFiber.now, 444, "fiber ended after the delay");
+    t.same(scheduledFiber.result, 777, "with expected value");
+});
+
         </script>
     </head>
     <body>
