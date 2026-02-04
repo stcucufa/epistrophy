@@ -1,3 +1,6 @@
+# This is the source for the top-level README.md, which can be generated with:
+# `bun run dodo/dodo.js dodo/to-markdown.dodo doc/README.dodo > README.md`
+
 { article: "Epistrophy"
 
     { p Epistrophy is an experimental concurrent runtime for { link:
