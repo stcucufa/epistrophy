@@ -47,6 +47,26 @@ test("Change rate of a delayed fiber", t => {
     t.same(scheduledFiber.result, 777, "with expected value");
 });
 
+test("Change rate of an Instant delay", t => {
+    const scheduler = new Scheduler();
+    let scheduledFiber;
+    scheduler.scheduleFiber(new Fiber().
+        spawn(φ => φ.
+            call(φ => { scheduledFiber = φ; }).
+            delay().
+            call(({ scheduler: { now } }) => now)
+        ).
+        spawn(φ => φ.
+            delay(333).
+            call(({ scheduler }) => { scheduler.setRateForFiber(scheduledFiber, 0.5); })
+        ),
+        0
+    );
+    scheduler.clock.now = 777;
+    t.same(scheduledFiber.now, 555, "fiber ended after the instant delay");
+    t.same(scheduledFiber.result, 777, "with expected value");
+});
+
         </script>
     </head>
     <body>
