@@ -56,7 +56,7 @@ run().
 
             // Light up O and wait indefinitely.
             call(() => { O.classList.add("on"); }).
-            ramp(Infinity).
+            delay(Infinity).
 
             // When the fiber is cancelled, reset all elements
             // their initial state.
@@ -92,7 +92,7 @@ run().
             the system. These two behaviours are implemented by the two top-level spawns. The first one is the most
             complex, as it consists of a sequence of two spawns as well (for buttons A and B) and a join, meaning that
             the first spawned fiber will progress only when both buttons have been clicked. O will turn on and stay on
-            forever, thanks to the ramp with infinite duration. Clicking R on the other hand will end the second spawned
+            forever, thanks to the delay with infinite duration. Clicking R on the other hand will end the second spawned
             fiber, and because the top-level join uses the First join delegate, it will end as soon as that fiber ends
             and cancel the other one. Regardless of whether it was waiting for A and/or B to be clicked or waiting forever,
             cancelling it moves to the ever block at the end which resets A, B and O to their original state.
