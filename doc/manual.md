@@ -472,8 +472,8 @@ fiber.
 * `ScheduledFiber.name` is the name of the fiber (when set with `Fiber.named`;
 see above).
 
-* `ScheduledFiber.result` returns the current result of the fiber, which is
-either the current error, or if the fiber is not failing, its value.
+* `ScheduledFiber.result` is the current result of the fiber, which is either
+the current error, or if the fiber is not failing, its value.
 
 ### Scheduler utilities
 
