@@ -212,6 +212,7 @@ fiber, and not directly created and scheduled.
 a parent, its initial value is the parent value when spawning; otherwise, it is
 undefined. The value can be set freely but is also affected by instructions
 such as `call`, `await`, and others (when noted).
+* `ScheduledFiber.error` is the current error of the fiber, if any.
 * `ScheduledFiber.scope` is an object that can hold any data that the fiber
 needs during its execution; if the fiber has a parent, its scope is created
 from the parent’s scope, otherwise it is initialized as an empty object.
@@ -466,11 +467,19 @@ fiber.
     );
 ```
 
+### ScheduledFiber utilities
+
+* `ScheduledFiber.name` is the name of the fiber (when set with `Fiber.named`;
+see above).
+
+* `ScheduledFiber.result` is the current result of the fiber, which is either
+the current error, or if the fiber is not failing, its value.
+
 ### Scheduler utilities
 
 The shell adds convenience methods to the scheduler:
 
-* `Schedler.run()` is the same as `run()` but requires a scheduler to have been
+* `Scheduler.run()` is the same as `run()` but requires a scheduler to have been
 created first.
 
 * `Scheduler.attachFiberWithValue(fiber, child, value)` is the same as
